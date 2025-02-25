@@ -1,0 +1,3 @@
+[submodule "libs/OpenCompass"]
+	path = libs/OpenCompass
+	url = https://github.com/open-compass/opencompass
