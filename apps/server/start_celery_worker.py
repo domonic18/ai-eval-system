@@ -3,9 +3,6 @@ import os
 import sys
 import importlib
 
-# 设置环境变量
-os.environ["DB_URL"] = "sqlite:///./ai_eval.db"
-
 # 获取当前文件所在目录
 current_dir = os.path.dirname(os.path.abspath(__file__))
 # 添加项目根目录到Python路径

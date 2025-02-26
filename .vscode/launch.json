@@ -15,42 +15,24 @@
             "jinja": true,
             "justMyCode": false,
             "cwd": "${workspaceFolder}",
-            "env": {
-                "DB_URL": "sqlite:///./ai_eval.db"
-            },
             "python": "${command:python.interpreterPath}"
         },
         {
-            "name": "FastAPI 远程调试",
+            "name": "Celery 直接调试",
             "type": "python",
-            "request": "attach",
-            "connect": {
-                "host": "localhost",
-                "port": "5678"
-            },
-            "pathMappings": [
-                {
-                    "localRoot": "${workspaceFolder}",
-                    "remoteRoot": "."
-                }
+            "request": "launch",
+            "program": "-m",
+            "args": [
+                "celery",
+                "-A", "apps.server.src.celery_app:celery_app",
+                "worker",
+                "--loglevel=DEBUG",
+                "--pool=solo"  // 使用单进程模式方便调试
             ],
-            "justMyCode": false
-        },
-        {
-            "name": "Celery Worker 调试",
-            "type": "python",
-            "request": "attach",
-            "connect": {
-                "host": "localhost",
-                "port": "5679"
-            },
-            "pathMappings": [
-                {
-                    "localRoot": "${workspaceFolder}",
-                    "remoteRoot": "."
-                }
-            ],
-            "justMyCode": false
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "envFile": "${workspaceFolder}/apps/server/.env",
+            "cwd": "${workspaceFolder}/apps/server"
         }
     ]
 } 
