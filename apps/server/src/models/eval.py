@@ -1,9 +1,7 @@
 from sqlalchemy import Column, Integer, String, JSON, DateTime, Enum, Text
-from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 from enum import Enum as PyEnum
-
-Base = declarative_base()
+from apps.server.src.db import Base
 
 class EvaluationStatus(str, PyEnum):
     PENDING = 'pending'

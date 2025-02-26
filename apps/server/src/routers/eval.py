@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from sqlalchemy.orm import Session
-from ..database import get_db
-from ..schemas.eval import EvaluationCreate, EvaluationResponse, EvaluationStatusResponse
-from ..services.eval_service import create_evaluation_task, get_evaluation_status
+from apps.server.src.db import get_db
+from apps.server.src.schemas.eval import EvaluationCreate, EvaluationResponse, EvaluationStatusResponse
+from apps.server.src.services.eval_service import create_evaluation_task, get_evaluation_status
 
 router = APIRouter()
 

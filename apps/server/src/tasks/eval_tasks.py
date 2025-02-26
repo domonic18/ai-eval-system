@@ -2,17 +2,16 @@ import os
 import sys
 import json
 import logging
-from ..celery_app import celery_app
+from apps.server.src.celery_app import celery_app
 from datetime import datetime
 from sqlalchemy.orm import Session
-from ..database import SessionLocal
-from ..models.eval import Evaluation, EvaluationStatus
-from ..config import settings
+from apps.server.src.db import SessionLocal
+from apps.server.src.models.eval import Evaluation, EvaluationStatus
+from apps.server.src.core.config import OPENCOMPASS_PATH
 from pathlib import Path
 
 # 使用相对于项目根目录的绝对路径
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
-OPENCOMPASS_PATH = os.path.join(BASE_DIR, "libs", "OpenCompass")
 print(f"OpenCompass路径: {OPENCOMPASS_PATH}")
 sys.path.append(OPENCOMPASS_PATH)
 
