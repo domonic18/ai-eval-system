@@ -44,9 +44,9 @@ def run_evaluation(self, eval_id: int):
         os.makedirs(logs_dir, exist_ok=True)
         log_file = os.path.join(logs_dir, f"eval_{eval_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
         
-        # 准备模型和数据集名称
-        model_name = model_config.get("model_name", "hf_internlm2_5_1_8b_chat")
-        dataset_name = dataset_config.get("dataset_name", "demo_gsm8k_chat_gen")
+        # 直接使用评估任务中存储的模型和数据集名称
+        model_name = eval_task.model_name
+        dataset_name = eval_task.dataset_name
         
         # 创建任务运行器
         task_id = f"eval_{eval_id}"

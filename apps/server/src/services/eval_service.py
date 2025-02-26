@@ -235,6 +235,9 @@ class EvaluationService:
         Returns:
             Dict[str, Any]: OpenCompass 配置
         """
+        # OpenCompass执行路径，应该在libs/OpenCompass下执行
+        opencompass_path = "libs/OpenCompass"
+        
         # 基础配置
         config = {
             "model": {
@@ -247,6 +250,7 @@ class EvaluationService:
                 "path": dataset_configuration.get("path", ""),
             },
             "output_path": model_configuration.get("output_path", "outputs/default"),
+            "run_command": f"cd {opencompass_path} && python run.py --models {model_name}.py --datasets {dataset_name}.py --debug"
         }
         
         # 添加其他模型配置

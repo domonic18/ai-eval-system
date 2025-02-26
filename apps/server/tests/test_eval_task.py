@@ -14,14 +14,13 @@ base_url = "http://localhost:8000"
 
 # 创建评估任务
 payload = {
-    "model_name": "gpt-3.5-turbo",
-    "dataset_name": "mmlu",
+    "model_name": "hk33smarter_api",
+    "dataset_name": "demo_cmmlu_chat_gen",
     "model_configuration": {
         "parameters": {"temperature": 0.7, "top_p": 0.9}
     },
     "dataset_configuration": {
-        "split": "test",
-        "subset": ["math", "computer_science"]
+        "split": "test"
     }
 }
 
