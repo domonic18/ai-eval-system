@@ -25,9 +25,10 @@ from apps.server.src.schemas.eval import EvaluationCreate
 
 # 定义测试数据
 class TestData(BaseModel):
-    task_name: str
+    model_name: str
+    dataset_name: str
     model_configuration: Dict[str, Any]
-    dataset_config: Dict[str, Any]
+    dataset_configuration: Dict[str, Any]
 
 def create_evaluation_task(eval_data):
     """直接创建评估任务（避开FastAPI依赖）
@@ -41,9 +42,10 @@ def create_evaluation_task(eval_data):
     try:
         # 创建评估任务记录
         db_eval = Evaluation(
-            task_name=eval_data.task_name,
+            model_name=eval_data.model_name,
+            dataset_name=eval_data.dataset_name,
             model_configuration=eval_data.model_configuration,
-            dataset_config=eval_data.dataset_config
+            dataset_configuration=eval_data.dataset_configuration
         )
         
         # 这里使用session而不是db
@@ -62,28 +64,30 @@ def create_evaluation_task(eval_data):
             print(f"任务已提交，任务ID: {task.id}")
             
             # 更新任务ID
-            db_eval.celery_task_id = task.id
+            db_eval.task_id = task.id
             session.commit()
             
             return {
                 "id": db_eval.id,
-                "task_name": db_eval.task_name,
-                "status": db_eval.status.value,
-                "celery_task_id": db_eval.celery_task_id
+                "model_name": db_eval.model_name,
+                "dataset_name": db_eval.dataset_name,
+                "status": db_eval.status,
+                "task_id": db_eval.task_id
             }
             
         except Exception as e:
             print(f"Celery错误: {str(e)}")
             traceback.print_exc()
             
-            db_eval.status = EvaluationStatus.FAILED
-            db_eval.log_output = f"任务队列连接失败: {str(e)}"
+            db_eval.status = EvaluationStatus.FAILED.value
+            db_eval.error_message = f"任务队列连接失败: {str(e)}"
             session.commit()
             
             return {
                 "id": db_eval.id,
-                "task_name": db_eval.task_name,
-                "status": db_eval.status.value,
+                "model_name": db_eval.model_name,
+                "dataset_name": db_eval.dataset_name,
+                "status": db_eval.status,
                 "error": str(e)
             }
             
@@ -98,13 +102,12 @@ def create_evaluation_task(eval_data):
 if __name__ == "__main__":
     # 测试数据
     test_data = TestData(
-        task_name="测试直接调用评估服务",
+        model_name="gpt-3.5-turbo",
+        dataset_name="mmlu",
         model_configuration={
-            "model_name": "gpt-3.5-turbo",
             "parameters": {"temperature": 0.7, "top_p": 0.9}
         },
-        dataset_config={
-            "dataset_name": "mmlu",
+        dataset_configuration={
             "split": "test",
             "subset": ["math", "computer_science"]
         }

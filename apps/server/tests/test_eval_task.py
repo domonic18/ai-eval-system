@@ -14,13 +14,12 @@ base_url = "http://localhost:8000"
 
 # 创建评估任务
 payload = {
-    "task_name": "测试完整评估流程",
+    "model_name": "gpt-3.5-turbo",
+    "dataset_name": "mmlu",
     "model_configuration": {
-        "model_name": "gpt-3.5-turbo",
         "parameters": {"temperature": 0.7, "top_p": 0.9}
     },
-    "dataset_config": {
-        "dataset_name": "mmlu",
+    "dataset_configuration": {
         "split": "test",
         "subset": ["math", "computer_science"]
     }
