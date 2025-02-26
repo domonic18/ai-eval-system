@@ -54,7 +54,16 @@ ai-eval-system/
 
 
 ## 快速开始
-### 1. 创建虚拟环境
+### 1. 拉取代码
+```bash
+git clone https://github.com/OpenCompass/ai-eval-system.git
+cd ai-eval-system
+
+# 拉取子模块
+git submodule update --init --recursive
+```
+
+### 2. 创建虚拟环境
 ```bash
 conda create -n eval python=3.10
 conda activate eval
@@ -64,8 +73,14 @@ conda activate eval
 ```bash
 cd apps/server/src
 pip install -r requirements.txt
+
+# 安装OpenCompass
+cd ../libs/OpenCompass
+pip install -e .
 ```
 > 清华源：https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
+
+
 
 
 ## 3. 启动服务
