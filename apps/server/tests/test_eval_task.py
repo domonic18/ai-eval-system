@@ -1,6 +1,14 @@
 import requests
 import json
 import time
+import os
+import sys
+
+# 添加项目根目录到Python路径
+current_path = os.path.abspath(__file__)
+root_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_path))))
+sys.path.insert(0, root_path)
+print(f"已添加项目根目录到Python路径: {root_path}")
 
 base_url = "http://localhost:8000"
 
