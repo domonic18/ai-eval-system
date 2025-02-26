@@ -129,53 +129,107 @@ class OpenCompassRunner:
         self.is_finished = True
         self._update_log(f"进程已结束，返回码: {self.return_code}")
     
-    def run(self, command: str, log_file: str = None) -> bool:
-        """运行OpenCompass命令
+    def run(self, command: str, log_file_path: str = None) -> bool:
+        """执行命令
         
         Args:
-            command: OpenCompass命令
-            log_file: 日志文件路径
+            command: 要执行的命令
+            log_file_path: 日志文件路径
             
         Returns:
             bool: 是否成功启动
         """
+        # 如果已经在运行，则返回失败
         if self.is_running:
+            print(f"任务已经在运行中")
             return False
-            
+        
         # 设置日志文件
-        self.log_file_path = log_file
-        if self.log_file_path:
+        self.log_file_path = log_file_path
+        log_file = None
+        if log_file_path:
             # 创建日志文件目录
-            os.makedirs(os.path.dirname(self.log_file_path), exist_ok=True)
-            # 清空日志文件
-            with open(self.log_file_path, 'w', encoding='utf-8') as f:
-                f.write(f"开始执行命令: {command}\n")
+            log_dir = os.path.dirname(log_file_path)
+            os.makedirs(log_dir, exist_ok=True)
+            # 打开日志文件
+            log_file = open(log_file_path, 'w')
+            print(f"OpenCompass输出将记录到: {log_file_path}")
         
-        # 启动进程
-        env = os.environ.copy()
-        self.process = subprocess.Popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            shell=True,
-            cwd=self.working_dir,
-            env=env,
-            universal_newlines=False,
-            bufsize=1
-        )
+        # 设置命令
+        # 假设是在Linux环境下，需要使用bash -c
+        full_command = f"cd {self.opencompass_path} && {command}"
+        print(f"正在执行命令: {full_command}")
         
-        # 更新状态
-        self.is_running = True
-        self.is_finished = False
-        self.return_code = None
-        self._update_log(f"进程已启动，PID: {self.process.pid}")
+        # 使用一个临时文件来记录进程ID，以便后续终止
+        self.pid_file = tempfile.mktemp()
         
-        # 启动监控线程
-        self.monitor_thread = Thread(target=self._monitor_process)
-        self.monitor_thread.daemon = True
-        self.monitor_thread.start()
+        try:
+            # 创建新进程
+            self.process = subprocess.Popen(
+                full_command,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                cwd=self.working_dir
+            )
+            print(f"进程已启动，PID: {self.process.pid}")
+            
+            # 保存进程ID
+            with open(self.pid_file, 'w') as f:
+                f.write(str(self.process.pid))
+            
+            # 启动输出监控线程
+            def monitor_output():
+                """监控进程输出并记录日志"""
+                print(f"开始监控进程输出...")
+                while self.process.poll() is None:  # 进程还在运行
+                    # 读取输出
+                    line = self.process.stdout.readline()
+                    if not line:
+                        break
+                    
+                    # 保存到缓冲区
+                    self._update_log(line.strip())
+                    
+                    # 写入日志文件
+                    if log_file:
+                        log_file.write(line)
+                        log_file.flush()
+                    
+                    # 检查进度信息 - 使用已有的方法而不是不存在的_parse_progress
+                    self._update_log(line.strip())
+                
+                # 处理剩余输出
+                for line in self.process.stdout:
+                    self._update_log(line.strip())
+                    if log_file:
+                        log_file.write(line)
+                        log_file.flush()
+                
+                # 获取返回码
+                self.return_code = self.process.poll()
+                print(f"进程已结束，返回码: {self.return_code}")
+                
+                # 关闭日志文件
+                if log_file:
+                    log_file.close()
+                
+                # 更新状态
+                self.is_running = False
+                self.is_finished = True
+            
+            # 启动监控线程
+            self.monitor_thread = Thread(target=monitor_output)
+            self.monitor_thread.daemon = True
+            self.monitor_thread.start()
+            
+            return True
         
-        return True
+        except Exception as e:
+            print(f"执行命令时出错: {str(e)}")
+            return False
     
     def terminate(self) -> bool:
         """终止OpenCompass进程
