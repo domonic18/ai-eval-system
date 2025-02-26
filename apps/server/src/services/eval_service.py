@@ -149,56 +149,76 @@ class EvaluationService:
             if close_db:
                 db_session.close()
 
-    async def get_evaluation_status(self, eval_id: int, db: Session = Depends(get_db)) -> Optional[EvaluationStatusResponse]:
+    async def get_evaluation_status(self, eval_id: int, db: Union[Session, Iterator[Session]] = Depends(get_db)) -> Optional[EvaluationStatusResponse]:
         """获取评估任务状态
         
         Args:
             eval_id: 评估ID
-            db: 数据库会话
+            db: 数据库会话（可能是 Session 对象或 FastAPI 依赖的生成器）
             
         Returns:
             EvaluationStatusResponse: 评估任务状态响应对象，如果任务不存在则返回None
         """
-        eval_record = db.query(Evaluation).filter(Evaluation.id == eval_id).first()
-        if not eval_record:
-            return None
+        # 处理 db 可能是生成器的情况（FastAPI 依赖注入）
+        close_db = False
+        try:
+            if hasattr(db, "__next__"):
+                # db 是一个生成器（来自 FastAPI 的 Depends）
+                db_session = next(db)
+            else:
+                # db 是直接传入的 Session 对象
+                db_session = db
+        except Exception:
+            # 如果出错，创建一个新的会话
+            logger.warning("提供的数据库会话无效，创建新会话")
+            db_session = SessionLocal()
+            close_db = True
         
-        # 如果任务正在运行，尝试获取当前进度
-        progress_info = {}
-        if eval_record.status == EvaluationStatus.RUNNING.value and eval_record.task_id:
-            try:
-                # 尝试从 Celery 获取任务状态
-                task = run_evaluation.AsyncResult(eval_record.task_id)
-                if task.state == 'PROGRESS' and task.info:
-                    progress_info = task.info
-                
-                # 如果任务已完成但状态未更新，更新状态
-                if task.state == 'SUCCESS' and eval_record.status != EvaluationStatus.COMPLETED.value:
-                    eval_record.status = EvaluationStatus.COMPLETED.value
-                    db.commit()
-                elif task.state == 'FAILURE' and eval_record.status != EvaluationStatus.FAILED.value:
-                    eval_record.status = EvaluationStatus.FAILED.value
-                    eval_record.error_message = str(task.result) if task.result else "任务失败，无错误详情"
-                    db.commit()
-            except Exception as e:
-                logger.warning(f"获取任务 {eval_record.task_id} 状态时出错: {str(e)}")
-        
-        # 构建响应
-        response = EvaluationStatusResponse(
-            id=eval_record.id,
-            model_name=eval_record.model_name,
-            dataset_name=eval_record.dataset_name,
-            status=eval_record.status,
-            created_at=eval_record.created_at,
-            updated_at=eval_record.updated_at,
-            task_id=eval_record.task_id,
-            error_message=eval_record.error_message,
-            results=eval_record.results,
-            progress=progress_info.get('progress', 0) if progress_info else 0,
-            details=progress_info.get('details', {}) if progress_info else {}
-        )
-        
-        return response
+        try:
+            eval_record = db_session.query(Evaluation).filter(Evaluation.id == eval_id).first()
+            if not eval_record:
+                return None
+            
+            # 如果任务正在运行，尝试获取当前进度
+            progress_info = {}
+            if eval_record.status == EvaluationStatus.RUNNING.value and eval_record.task_id:
+                try:
+                    # 尝试从 Celery 获取任务状态
+                    task = run_evaluation.AsyncResult(eval_record.task_id)
+                    if task.state == 'PROGRESS' and task.info:
+                        progress_info = task.info
+                    
+                    # 如果任务已完成但状态未更新，更新状态
+                    if task.state == 'SUCCESS' and eval_record.status != EvaluationStatus.COMPLETED.value:
+                        eval_record.status = EvaluationStatus.COMPLETED.value
+                        db_session.commit()
+                    elif task.state == 'FAILURE' and eval_record.status != EvaluationStatus.FAILED.value:
+                        eval_record.status = EvaluationStatus.FAILED.value
+                        eval_record.error_message = str(task.result) if task.result else "任务失败，无错误详情"
+                        db_session.commit()
+                except Exception as e:
+                    logger.warning(f"获取任务 {eval_record.task_id} 状态时出错: {str(e)}")
+            
+            # 构建响应
+            response = EvaluationStatusResponse(
+                id=eval_record.id,
+                model_name=eval_record.model_name,
+                dataset_name=eval_record.dataset_name,
+                status=eval_record.status,
+                created_at=eval_record.created_at,
+                updated_at=eval_record.updated_at,
+                task_id=eval_record.task_id,
+                error_message=eval_record.error_message,
+                results=eval_record.results,
+                progress=progress_info.get('progress', 0) if progress_info else 0,
+                details=progress_info.get('details', {}) if progress_info else {}
+            )
+            
+            return response
+        finally:
+            # 如果我们创建了新的会话，关闭它
+            if close_db:
+                db_session.close()
 
     def get_opencompass_config(self, model_name: str, dataset_name: str, 
                               model_configuration: Dict[str, Any], 
@@ -255,5 +275,5 @@ evaluation_service = EvaluationService()
 async def create_evaluation_task(eval_data, db: Union[Session, Iterator[Session]] = Depends(get_db)):
     return await evaluation_service.create_evaluation_task(eval_data, db)
 
-async def get_evaluation_status(eval_id: int, db: Session = Depends(get_db)):
+async def get_evaluation_status(eval_id: int, db: Union[Session, Iterator[Session]] = Depends(get_db)):
     return await evaluation_service.get_evaluation_status(eval_id, db) 
