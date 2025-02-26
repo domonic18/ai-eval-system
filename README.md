@@ -1,6 +1,59 @@
 # ai-eval-system
 这是一个基于OpenCompass的模型评测系统，该系统提供了前端页面UI以方便用户自助开展评测工作。
 
+## 项目工程运作整体流程
+
+### 系统架构流程
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐    ┌───────────────┐
+│             │    │             │    │                     │    │               │
+│  前端应用   │───▶│  FastAPI    │───▶│  Celery 任务队列    │───▶│ OpenCompass   │
+│  (Vue/React)│    │  服务       │    │  (Redis/RabbitMQ)   │    │ 评测引擎      │
+│             │◀───│             │◀───│                     │◀───│               │
+└─────────────┘    └─────────────┘    └─────────────────────┘    └───────────────┘
+      │                  │                       │                       │
+      │                  │                       │                       │
+      │                  ▼                       ▼                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│                             数据存储层                                      │
+│                  (SQLite/PostgreSQL + Redis + MinIO/S3)                    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 数据流程
+1. **用户请求流程**：
+   - 用户通过前端界面提交评测请求
+   - 请求包含模型配置、数据集选择和评测参数
+   - 前端将请求发送到FastAPI后端服务
+
+2. **后端处理流程**：
+   - FastAPI接收请求并验证参数
+   - 创建评测任务记录并存储在数据库中
+   - 将任务提交到Celery异步队列处理
+   - 返回任务ID和状态给前端
+
+3. **异步评测流程**：
+   - Celery Worker接收任务
+   - 准备评测环境和参数
+   - 调用OpenCompass评测引擎执行实际评测
+   - 实时更新评测进度和状态
+   - 评测完成后存储结果
+
+4. **结果查询流程**：
+   - 前端定期轮询或通过WebSocket接收任务状态更新
+   - 任务完成后获取评测结果和分析数据
+   - 将结果以图表和报告形式展示给用户
+
+
+
+### 关键技术组件
+1. **FastAPI**: 提供高性能API服务，支持异步请求处理和自动API文档生成
+2. **SQLAlchemy**: ORM框架，实现数据模型与数据库的映射
+3. **Celery**: 分布式任务队列，处理长时间运行的评测任务
+4. **Redis**: 作为Celery的消息代理和后端存储，同时提供缓存功能
+5. **OpenCompass**: 核心评测引擎，提供模型性能评估能力
 
 ## 目录结构
 ```
@@ -39,6 +92,37 @@ ai-eval-system/
 └── .gitignore              # 全局忽略规则
 ```
 
+### 代码组织结构
+后端服务采用模块化设计，主要组件包括：
+
+```
+apps/server/
+├── src/                      # 源代码目录
+│   ├── db/                   # 数据库相关模块
+│   │   ├── __init__.py       # 模块初始化文件
+│   │   └── database.py       # 数据库连接和会话管理
+│   ├── models/               # 数据模型定义
+│   │   └── eval.py           # 评测相关数据模型
+│   ├── schemas/              # 数据验证和序列化模式
+│   │   └── eval.py           # 评测API数据模式
+│   ├── services/             # 业务逻辑服务
+│   │   └── eval_service.py   # 评测服务实现
+│   ├── routers/              # API路由模块
+│   │   └── eval.py           # 评测API路由定义
+│   ├── tasks/                # 异步任务定义
+│   │   └── eval_tasks.py     # 评测任务实现
+│   ├── celery_app.py         # Celery应用配置
+│   ├── config.py             # 应用配置管理
+│   └── main.py               # 主应用入口
+├── tests/                    # 测试代码目录
+│   ├── api/                  # API测试
+│   ├── unit/                 # 单元测试
+│   └── integration/          # 集成测试
+├── requirements.txt          # 依赖项清单
+├── start_fastapi_server.py   # 启动FastAPI服务器脚本
+└── start_celery_worker.py    # 启动Celery Worker脚本
+```
+
 ## 项目构成
 ### 1. 分层架构设计
 - 前端层：Vue3/React + TypeScript + WebSocket（实时状态）
@@ -71,11 +155,11 @@ conda activate eval
 
 ### 2. 安装依赖
 ```bash
-cd apps/server/src
+cd apps/server
 pip install -r requirements.txt
 
 # 安装OpenCompass
-cd ../libs/OpenCompass
+cd ../../libs/OpenCompass
 pip install -e .
 ```
 > 清华源：https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
