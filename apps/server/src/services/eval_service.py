@@ -1,11 +1,19 @@
 from fastapi import Depends
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 from apps.server.src.db import get_db, SessionLocal
 from apps.server.src.models.eval import Evaluation, EvaluationStatus
-from apps.server.src.schemas.eval import EvaluationResponse, EvaluationStatusResponse
+from apps.server.src.schemas.eval import EvaluationCreate, EvaluationResponse, EvaluationStatusResponse
 from celery.result import AsyncResult
 import traceback
-from typing import Optional, Union, Iterator
+from typing import Optional, Union, Iterator, Dict, Any
+import logging
+import json
+from pathlib import Path
+from apps.server.src.tasks.eval_tasks import run_evaluation
+
+# 日志配置
+logger = logging.getLogger(__name__)
 
 class EvaluationService:
     """评估服务类，处理评估任务的创建和状态查询"""
@@ -14,78 +22,132 @@ class EvaluationService:
         """初始化评估服务"""
         pass
     
-    async def create_evaluation_task(self, eval_data, db: Union[Session, Iterator[Session]] = Depends(get_db)):
-        """创建评估任务并启动Celery异步任务
+    async def create_evaluation_task(self, eval_data: EvaluationCreate, db: Union[Session, Iterator[Session]] = Depends(get_db)):
+        """创建评估任务并启动异步任务
         
         Args:
-            eval_data: 评估任务数据
-            db: 数据库会话或会话生成器
+            eval_data: 评估数据
+            db: 数据库会话（可能是 Session 对象或 FastAPI 依赖的生成器）
             
         Returns:
-            EvaluationResponse: 评估任务响应对象
+            EvaluationResponse: 评估响应
         """
-        # 处理FastAPI依赖注入的生成器和直接调用的兼容性
-        session = None
-        should_close_session = False
+        # 处理 db 可能是生成器的情况（FastAPI 依赖注入）
+        close_db = False
+        try:
+            if hasattr(db, "__next__"):
+                # db 是一个生成器（来自 FastAPI 的 Depends）
+                db_session = next(db)
+            else:
+                # db 是直接传入的 Session 对象
+                db_session = db
+        except Exception:
+            # 如果出错，创建一个新的会话
+            logger.warning("提供的数据库会话无效，创建新会话")
+            db_session = SessionLocal()
+            close_db = True
         
         try:
-            # 判断db是生成器还是session对象
-            if hasattr(db, 'add'):
-                # 已经是session对象
-                session = db
-            else:
-                # 是生成器，获取session对象并标记需要关闭
-                try:
-                    session = next(db)
-                except (TypeError, StopIteration):
-                    # 如果不是生成器或者生成器为空，创建新会话
-                    session = SessionLocal()
-                    should_close_session = True
+            # 创建新的评估记录
+            model_configuration = {}
+            dataset_configuration = {}
             
-            # 创建评估任务记录
+            # 如果提供了模型配置，解析它
+            if eval_data.model_configuration:
+                try:
+                    if isinstance(eval_data.model_configuration, str):
+                        model_configuration = json.loads(eval_data.model_configuration)
+                    else:
+                        model_configuration = eval_data.model_configuration
+                except json.JSONDecodeError:
+                    model_configuration = {"config_error": "无效的 JSON 格式"}
+            
+            # 如果提供了数据集配置，解析它
+            if eval_data.dataset_configuration:
+                try:
+                    if isinstance(eval_data.dataset_configuration, str):
+                        dataset_configuration = json.loads(eval_data.dataset_configuration)
+                    else:
+                        dataset_configuration = eval_data.dataset_configuration
+                except json.JSONDecodeError:
+                    dataset_configuration = {"config_error": "无效的 JSON 格式"}
+
+            # 创建评估记录
             db_eval = Evaluation(
-                task_name=eval_data.task_name,
-                model_configuration=eval_data.model_configuration,
-                dataset_config=eval_data.dataset_config
+                model_name=eval_data.model_name,
+                dataset_name=eval_data.dataset_name,
+                model_configuration=model_configuration,
+                dataset_configuration=dataset_configuration,
+                eval_config=eval_data.eval_config or {},
+                status=EvaluationStatus.PENDING.value,
+                log_dir=""
             )
             
-            session.add(db_eval)
-            session.commit()
-            session.refresh(db_eval)
+            # 添加并提交
+            db_session.add(db_eval)
+            db_session.commit()
+            db_session.refresh(db_eval)
             
+            # 创建日志目录
+            log_dir = Path(f"logs/eval_{db_eval.id}")
+            log_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 更新日志目录
+            db_eval.log_dir = str(log_dir)
+            db_session.commit()
+            
+            # 启动 Celery 任务
             try:
-                # 添加调试信息
-                print(f"正在提交任务，评估ID：{db_eval.id}")
-                
-                # 启动Celery任务
-                from apps.server.src.tasks.eval_tasks import run_evaluation
-                print(f"任务函数: {run_evaluation}")
-                print(f"任务函数名称: {run_evaluation.name}")  # 打印任务实际注册的名称
-                
                 task = run_evaluation.delay(db_eval.id)
-                print(f"任务已提交，任务ID: {task.id}")
+                logger.info(f"启动评估任务 {db_eval.id}，Celery 任务 ID: {task.id}")
                 
                 # 更新任务ID
-                db_eval.celery_task_id = task.id
-                session.commit()
-            except Exception as e:
-                # 捕获更详细的错误信息
-                print(f"Celery错误: {str(e)}")
-                print(traceback.format_exc())
+                db_eval.task_id = task.id
+                db_session.commit()
                 
-                db_eval.status = EvaluationStatus.FAILED
-                db_eval.log_output = f"任务队列连接失败: {str(e)}"
-                session.commit()
-            
-            return self._create_evaluation_response(db_eval)
+                # 构建响应
+                return EvaluationResponse(
+                    id=db_eval.id,
+                    model_name=db_eval.model_name,
+                    dataset_name=db_eval.dataset_name,
+                    status=db_eval.status,
+                    created_at=db_eval.created_at,
+                    updated_at=db_eval.updated_at,
+                    task_id=task.id
+                )
+            except Exception as e:
+                # 记录 Celery 任务创建失败的详细信息
+                error_detail = traceback.format_exc()
+                logger.error(f"创建 Celery 任务失败: {str(e)}")
+                logger.error(error_detail)
+                
+                # 更新评估状态为失败
+                db_eval.status = EvaluationStatus.FAILED.value
+                db_eval.error_message = f"启动评估任务失败: {str(e)}"
+                db_session.commit()
+                
+                # 重新抛出异常
+                raise Exception(f"启动评估任务失败: {str(e)}")
+                
+        except SQLAlchemyError as e:
+            # 回滚事务
+            db_session.rollback()
+            error_msg = f"数据库错误: {str(e)}"
+            logger.error(error_msg)
+            logger.error(traceback.format_exc())
+            raise Exception(error_msg)
+        
         except Exception as e:
-            print(f"创建评估任务失败: {str(e)}")
-            traceback.print_exc()
-            raise e
+            # 处理其他异常
+            error_msg = f"创建评估任务时出错: {str(e)}"
+            logger.error(error_msg)
+            logger.error(traceback.format_exc())
+            raise Exception(error_msg)
+        
         finally:
-            # 如果我们创建了新会话，需要关闭它
-            if should_close_session and session:
-                session.close()
+            # 如果我们创建了新的会话，关闭它
+            if close_db:
+                db_session.close()
 
     async def get_evaluation_status(self, eval_id: int, db: Session = Depends(get_db)) -> Optional[EvaluationStatusResponse]:
         """获取评估任务状态
@@ -97,86 +159,94 @@ class EvaluationService:
         Returns:
             EvaluationStatusResponse: 评估任务状态响应对象，如果任务不存在则返回None
         """
-        # 查询评估任务
-        db_eval = db.query(Evaluation).filter(Evaluation.id == eval_id).first()
-        if not db_eval:
+        eval_record = db.query(Evaluation).filter(Evaluation.id == eval_id).first()
+        if not eval_record:
             return None
         
-        # 如果有Celery任务ID，查询任务状态
-        if db_eval.celery_task_id:
-            return self._create_evaluation_status_with_celery(db_eval)
+        # 如果任务正在运行，尝试获取当前进度
+        progress_info = {}
+        if eval_record.status == EvaluationStatus.RUNNING.value and eval_record.task_id:
+            try:
+                # 尝试从 Celery 获取任务状态
+                task = run_evaluation.AsyncResult(eval_record.task_id)
+                if task.state == 'PROGRESS' and task.info:
+                    progress_info = task.info
+                
+                # 如果任务已完成但状态未更新，更新状态
+                if task.state == 'SUCCESS' and eval_record.status != EvaluationStatus.COMPLETED.value:
+                    eval_record.status = EvaluationStatus.COMPLETED.value
+                    db.commit()
+                elif task.state == 'FAILURE' and eval_record.status != EvaluationStatus.FAILED.value:
+                    eval_record.status = EvaluationStatus.FAILED.value
+                    eval_record.error_message = str(task.result) if task.result else "任务失败，无错误详情"
+                    db.commit()
+            except Exception as e:
+                logger.warning(f"获取任务 {eval_record.task_id} 状态时出错: {str(e)}")
         
-        # 没有Celery任务ID
-        return self._create_evaluation_status_without_celery(db_eval)
-    
-    def _create_evaluation_response(self, db_eval: Evaluation) -> EvaluationResponse:
-        """从数据库模型创建评估响应对象
+        # 构建响应
+        response = EvaluationStatusResponse(
+            id=eval_record.id,
+            model_name=eval_record.model_name,
+            dataset_name=eval_record.dataset_name,
+            status=eval_record.status,
+            created_at=eval_record.created_at,
+            updated_at=eval_record.updated_at,
+            task_id=eval_record.task_id,
+            error_message=eval_record.error_message,
+            results=eval_record.results,
+            progress=progress_info.get('progress', 0) if progress_info else 0,
+            details=progress_info.get('details', {}) if progress_info else {}
+        )
+        
+        return response
+
+    def get_opencompass_config(self, model_name: str, dataset_name: str, 
+                              model_configuration: Dict[str, Any], 
+                              dataset_configuration: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        构建 OpenCompass 配置
         
         Args:
-            db_eval: 数据库评估模型
-            
-        Returns:
-            EvaluationResponse: 评估响应对象
-        """
-        return EvaluationResponse(
-            id=db_eval.id,
-            task_name=db_eval.task_name,
-            model_configuration=db_eval.model_configuration,
-            dataset_config=db_eval.dataset_config,
-            status=db_eval.status.value,
-            celery_task_id=db_eval.celery_task_id,
-            created_at=db_eval.created_at,
-            updated_at=db_eval.updated_at
-        )
-    
-    def _create_evaluation_status_with_celery(self, db_eval: Evaluation) -> EvaluationStatusResponse:
-        """创建包含Celery任务状态的评估状态响应
+            model_name: 模型名称
+            dataset_name: 数据集名称
+            model_configuration: 模型配置
+            dataset_configuration: 数据集配置
         
-        Args:
-            db_eval: 数据库评估模型
-            
         Returns:
-            EvaluationStatusResponse: 评估状态响应对象
+            Dict[str, Any]: OpenCompass 配置
         """
-        task_result = AsyncResult(db_eval.celery_task_id)
-        task_status = task_result.status
-        task_info = task_result.info if task_result.info else {}
+        # 基础配置
+        config = {
+            "model": {
+                "name": model_name,
+                "path": model_configuration.get("path", ""),
+                "type": model_configuration.get("type", "huggingface"),
+            },
+            "dataset": {
+                "name": dataset_name,
+                "path": dataset_configuration.get("path", ""),
+            },
+            "output_path": model_configuration.get("output_path", "outputs/default"),
+        }
         
-        # 构建详细响应
-        return EvaluationStatusResponse(
-            id=db_eval.id,
-            task_name=db_eval.task_name,
-            status=db_eval.status.value,
-            celery_status=task_status,
-            progress=task_info.get('progress', 0) if isinstance(task_info, dict) else 0,
-            message=task_info.get('status', '') if isinstance(task_info, dict) else '',
-            log_output=db_eval.log_output,
-            results=db_eval.results,
-            created_at=db_eval.created_at,
-            updated_at=db_eval.updated_at
-        )
-    
-    def _create_evaluation_status_without_celery(self, db_eval: Evaluation) -> EvaluationStatusResponse:
-        """创建不包含Celery任务状态的评估状态响应
+        # 添加其他模型配置
+        if "api_key" in model_configuration:
+            config["model"]["api_key"] = model_configuration["api_key"]
         
-        Args:
-            db_eval: 数据库评估模型
-            
-        Returns:
-            EvaluationStatusResponse: 评估状态响应对象
-        """
-        return EvaluationStatusResponse(
-            id=db_eval.id,
-            task_name=db_eval.task_name,
-            status=db_eval.status.value,
-            celery_status=None,
-            progress=0,
-            message='',
-            log_output=db_eval.log_output,
-            results=db_eval.results,
-            created_at=db_eval.created_at,
-            updated_at=db_eval.updated_at
-        )
+        if "api_base" in model_configuration:
+            config["model"]["api_base"] = model_configuration["api_base"]
+        
+        if "parameters" in model_configuration:
+            config["model"]["parameters"] = model_configuration["parameters"]
+        
+        # 添加数据集特定配置
+        if "subset" in dataset_configuration:
+            config["dataset"]["subset"] = dataset_configuration["subset"]
+        
+        if "split" in dataset_configuration:
+            config["dataset"]["split"] = dataset_configuration["split"]
+        
+        return config
 
 # 创建服务实例
 evaluation_service = EvaluationService()

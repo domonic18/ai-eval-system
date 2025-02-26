@@ -9,6 +9,7 @@ from apps.server.src.db import SessionLocal
 from apps.server.src.models.eval import Evaluation, EvaluationStatus
 from apps.server.src.core.config import OPENCOMPASS_PATH
 from pathlib import Path
+from apps.server.src.tasks.opencompass_runner import create_runner, get_runner, remove_runner
 
 # 使用相对于项目根目录的绝对路径
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
@@ -33,68 +34,81 @@ def run_evaluation(self, eval_id: int):
         
         # 解析配置
         model_config = eval_task.model_configuration
-        dataset_config = eval_task.dataset_config
+        dataset_config = eval_task.dataset_configuration
         
         # 上报初始进度
         self.update_state(state='PROGRESS', meta={'progress': 0, 'status': '准备中...'})
         
-        # 准备OpenCompass配置
-        config_file = prepare_opencompass_config(model_config, dataset_config)
+        # 创建日志目录
+        logs_dir = os.path.join(BASE_DIR, "logs", "opencompass")
+        os.makedirs(logs_dir, exist_ok=True)
+        log_file = os.path.join(logs_dir, f"eval_{eval_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
         
-        # 模拟OpenCompass API调用
-        try:
-            # 实际项目中，这里调用OpenCompass，目前先模拟
-            log_output = []
-
-            # 模拟评测进度
-            for step in range(1, 5):
-                progress = step * 20
-                status_msg = f"评测中... 阶段 {step}/5"
-                log_output.append(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {status_msg}")
-                
-                # 更新进度和日志
-                update_task_log(db, eval_id, "\n".join(log_output))
-                self.update_state(state='PROGRESS', meta={'progress': progress, 'status': status_msg})
-                
-                # 模拟处理时间
-                import time
-                time.sleep(2)  # 开发时缩短等待时间
+        # 准备模型和数据集名称
+        model_name = model_config.get("model_name", "hf_internlm2_5_1_8b_chat")
+        dataset_name = dataset_config.get("dataset_name", "demo_gsm8k_chat_gen")
+        
+        # 创建任务运行器
+        task_id = f"eval_{eval_id}"
+        runner = create_runner(task_id, working_dir=BASE_DIR, opencompass_path=OPENCOMPASS_PATH)
+        
+        # 构建命令
+        command = runner.build_command(model_name, dataset_name)
+        
+        # 启动OpenCompass评测
+        success = runner.run(command, log_file)
+        if not success:
+            logger.error(f"启动OpenCompass评测失败: {eval_id}")
+            update_task_status(db, eval_id, EvaluationStatus.FAILED, {"error": "启动评测失败"})
+            update_task_log(db, eval_id, "启动OpenCompass评测失败")
+            return {"status": "failed", "message": "启动评测失败"}
+        
+        # 任务启动成功，开始监控状态
+        update_task_log(db, eval_id, f"OpenCompass评测已启动，日志文件: {log_file}")
+        
+        # 每5秒检查一次状态并更新
+        while runner.is_running:
+            status = runner.get_status()
             
-            # 模拟评测结果
-            result_summary = {
-                "model_name": model_config.get("model_name", "默认模型"),
-                "dataset": dataset_config.get("dataset_name", "默认数据集"),
-                "score": 0.85,
-                "metrics": {
-                    "accuracy": 0.87,
-                    "f1": 0.83,
-                    "precision": 0.89,
-                    "recall": 0.81
-                },
-                "completed_at": datetime.now().isoformat()
-            }
+            # 更新状态信息
+            self.update_state(state='PROGRESS', meta={
+                'progress': status['progress'],
+                'status': status['status_message']
+            })
             
-            # 更新最终状态
-            log_output.append(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 评测完成")
-            update_task_log(db, eval_id, "\n".join(log_output))
-            update_task_status(db, eval_id, EvaluationStatus.COMPLETED, result_summary)
+            # 更新日志
+            recent_logs = "\n".join(status['recent_logs'][-10:])  # 最近10条日志
+            update_task_log(db, eval_id, recent_logs)
             
-            return {
-                "status": "success",
-                "eval_id": eval_id,
-                "results": result_summary
-            }
+            # 等待5秒
+            import time
+            time.sleep(5)
+        
+        # 任务结束后的处理
+        final_status = runner.get_status()
+        
+        # 如果任务成功完成
+        if final_status['return_code'] == 0:
+            # 解析结果
+            results = {"message": "评测完成", "logs": final_status['recent_logs']}
+            update_task_status(db, eval_id, EvaluationStatus.COMPLETED, results)
+            update_task_log(db, eval_id, "OpenCompass评测已完成")
+            return {"status": "success", "message": "评测完成"}
+        else:
+            # 任务失败
+            error_info = {"error": f"评测失败，返回码: {final_status['return_code']}", "logs": final_status['recent_logs']}
+            update_task_status(db, eval_id, EvaluationStatus.FAILED, error_info)
+            update_task_log(db, eval_id, f"OpenCompass评测失败，返回码: {final_status['return_code']}")
+            return {"status": "failed", "message": f"评测失败，返回码: {final_status['return_code']}"}
             
-        except Exception as e:
-            logger.exception(f"评测失败: {str(e)}")
-            # 更新为失败状态
-            update_task_status(db, eval_id, EvaluationStatus.FAILED, {"error": str(e)})
-            
-            return {
-                "status": "failed",
-                "message": str(e)
-            }
+    except Exception as e:
+        logger.exception(f"评测任务执行异常: {str(e)}")
+        update_task_status(db, eval_id, EvaluationStatus.FAILED, {"error": str(e)})
+        update_task_log(db, eval_id, f"评测任务执行异常: {str(e)}")
+        return {"status": "failed", "message": str(e)}
     finally:
+        # 释放资源
+        remove_runner(f"eval_{eval_id}")
         db.close()
 
 def update_task_status(db: Session, eval_id: int, status: EvaluationStatus, results=None):
@@ -113,21 +127,19 @@ def update_task_log(db: Session, eval_id: int, log_text: str):
         eval_task.log_output = log_text
         db.commit()
 
-def prepare_opencompass_config(model_config, dataset_config):
-    """准备OpenCompass配置文件"""
-    import tempfile
+def prepare_opencompass_config(model_configuration, dataset_configuration):
+    """准备OpenCompass配置
     
-    # 简化配置格式，实际项目需要适配OpenCompass的配置格式
-    config = {
-        "models": [model_config],
-        "datasets": [dataset_config]
-    }
-    
-    # 写入临时配置文件
-    temp_dir = tempfile.mkdtemp()
-    config_path = os.path.join(temp_dir, 'config.json')
-    
-    with open(config_path, 'w') as f:
-        json.dump(config, f)
-    
-    return config_path 
+    Args:
+        model_configuration: 模型配置
+        dataset_configuration: 数据集配置
+        
+    Returns:
+        str: 配置文件路径
+    """
+    # 这里可以根据需要生成OpenCompass配置文件
+    # 简化起见，目前直接返回模型和数据集名称
+    return {
+        "model": model_configuration.get("model_name", ""),
+        "dataset": dataset_configuration.get("dataset_name", "")
+    } 
