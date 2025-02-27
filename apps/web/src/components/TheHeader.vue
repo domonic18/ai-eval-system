@@ -57,9 +57,9 @@ export default {
     }
   },
   computed: {
-    ...mapGetters('auth', ['isLoggedIn', 'username']),
+    ...mapGetters('auth', ['isLoggedIn', 'username', 'user']),
     userAvatar() {
-      return this.user?.avatar || new URL('../../assets/images/default-avatar.png', import.meta.url).href
+      return this.user?.avatar || '/src/assets/images/default-avatar.png'
     }
   },
   methods: {
