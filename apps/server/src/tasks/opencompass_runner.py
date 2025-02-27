@@ -11,21 +11,26 @@ import tempfile
 from pathlib import Path
 from threading import Thread
 from typing import Dict, Any, Optional, List, Tuple
+from apps.server.src.utils.redis_manager import RedisManager
 
 class OpenCompassRunner:
     """OpenCompass评测任务执行器"""
     
     def __init__(self, 
+                task_id: Optional[int] = None,
                 working_dir: str = None, 
                 log_buffer_size: int = 1000,
                 opencompass_path: str = None):
         """初始化
         
         Args:
+            task_id: 任务ID，用于Redis日志存储
             working_dir: 工作目录，默认使用当前目录
             log_buffer_size: 日志缓冲区大小
             opencompass_path: OpenCompass安装路径
         """
+        # 设置任务ID
+        self.task_id = task_id
         # 设置工作目录
         self.working_dir = working_dir or os.getcwd()
         # 日志缓冲区
@@ -347,6 +352,47 @@ class OpenCompassRunner:
             bool: 是否成功完成
         """
         return self.is_finished and self.return_code == 0
+
+    def add_log(self, log_line: str) -> None:
+        """添加日志行
+        
+        Args:
+            log_line: 日志行
+        """
+        # 添加到内存缓冲区
+        self.log_buffer.append(log_line)
+        if len(self.log_buffer) > self.log_buffer_size:
+            # 超出缓冲区大小，删除旧日志
+            self.log_buffer = self.log_buffer[-self.log_buffer_size:]
+        
+        # 如果有任务ID，则添加到Redis
+        if self.task_id is not None:
+            RedisManager.append_log(self.task_id, log_line)
+
+    def update_status(self, progress: float = None, message: str = None) -> None:
+        """更新状态信息
+        
+        Args:
+            progress: 进度百分比(0-100)
+            message: 状态信息
+        """
+        if progress is not None:
+            self.progress = progress
+        if message is not None:
+            self.status_message = message
+            
+        # 添加状态更新到日志
+        status_log = f"进度: {self.progress:.1f}%, 状态: {self.status_message}"
+        self.add_log(status_log)
+        
+        # 如果有任务ID，则更新Redis中的任务状态
+        if self.task_id is not None:
+            status_data = {
+                "progress": self.progress,
+                "status_message": self.status_message,
+                "timestamp": time.time()
+            }
+            RedisManager.update_task_status(self.task_id, status_data)
 
 # 单例模式，保存正在运行的任务
 _runners = {}
