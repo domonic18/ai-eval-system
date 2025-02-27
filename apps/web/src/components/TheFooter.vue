@@ -2,7 +2,7 @@
   <footer class="footer">
     <div class="container footer-container">
       <div class="footer-left">
-        <p>&copy; {{ currentYear }} 司南 OpenCompass. 保留所有权利。</p>
+        <p>&copy; {{ currentYear }} OpenCompass在线评测系统. 保留所有权利。</p>
       </div>
       <div class="footer-right">
         <a href="https://github.com/InternLM/opencompass" target="_blank" class="github-link">

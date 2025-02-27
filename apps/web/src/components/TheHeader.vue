@@ -4,8 +4,8 @@
       <!-- 网站Logo -->
       <div class="logo">
         <router-link to="/">
-          <img src="../assets/logo.png" alt="司南 OpenCompass" class="logo-img">
-          <span class="logo-text">司南 OpenCompass</span>
+          <img src="../assets/images/logo.png" alt="OpenCompass在线评测系统" class="logo-img">
+          <span class="logo-text">OpenCompass在线评测系统</span>
         </router-link>
       </div>
       
@@ -59,7 +59,7 @@ export default {
   computed: {
     ...mapGetters('auth', ['isLoggedIn', 'username']),
     userAvatar() {
-      return this.user?.avatar || new URL('../../assets/default-avatar.png', import.meta.url).href
+      return this.user?.avatar || new URL('../../assets/images/default-avatar.png', import.meta.url).href
     }
   },
   methods: {

@@ -4,7 +4,7 @@
       <section class="hero">
         <div class="container">
           <div class="hero-content">
-            <h1 class="hero-title">司南 OpenCompass</h1>
+            <h1 class="hero-title">OpenCompass在线评测系统</h1>
             <p class="hero-description">专业、全面的AI大模型评测平台</p>
             <div class="hero-actions">
               <router-link to="/evaluation" class="btn">开始评测</router-link>
