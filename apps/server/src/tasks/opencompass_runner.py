@@ -225,6 +225,11 @@ class OpenCompassRunner:
             self.monitor_thread.daemon = True
             self.monitor_thread.start()
             
+            # 将任务标记为运行状态
+            self.is_running = True
+            self.is_finished = False
+            print(f"任务已标记为运行状态，监控线程已启动")
+            
             return True
         
         except Exception as e:
@@ -288,6 +293,60 @@ class OpenCompassRunner:
             return self.log_buffer.copy()
         else:
             return self.log_buffer[-lines:]
+    
+    def get_results(self):
+        """获取评估结果
+        
+        Returns:
+            dict: 评估结果
+        """
+        if not self.is_finished:
+            return {"error": "任务尚未完成"}
+        
+        if self.return_code != 0:
+            return {"error": f"任务执行失败，返回码: {self.return_code}"}
+        
+        # 这里可以添加解析OpenCompass结果文件的逻辑
+        # 简化实现，返回基本信息
+        return {
+            "status": "success" if self.return_code == 0 else "failed",
+            "return_code": self.return_code,
+            "logs": self.get_recent_logs(20)  # 返回最近20行日志
+        }
+    
+    def get_error_message(self) -> str:
+        """获取错误信息
+        
+        Returns:
+            str: 错误信息
+        """
+        if not self.is_finished:
+            return "任务尚未完成"
+        
+        if self.return_code == 0:
+            return ""
+        
+        # 尝试从日志中提取错误信息
+        error_logs = []
+        for log in reversed(self.log_buffer):
+            if "error" in log.lower() or "exception" in log.lower() or "failed" in log.lower():
+                error_logs.append(log)
+                if len(error_logs) >= 5:  # 最多收集5条错误日志
+                    break
+        
+        if error_logs:
+            return "\n".join(reversed(error_logs))
+        else:
+            return f"任务执行失败，返回码: {self.return_code}"
+    
+    @property
+    def is_successful(self) -> bool:
+        """判断任务是否成功完成
+        
+        Returns:
+            bool: 是否成功完成
+        """
+        return self.is_finished and self.return_code == 0
 
 # 单例模式，保存正在运行的任务
 _runners = {}

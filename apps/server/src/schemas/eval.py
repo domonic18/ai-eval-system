@@ -31,18 +31,18 @@ class EvaluationResponse(BaseModel):
     updated_at: datetime = Field(..., description="更新时间")
 
 class EvaluationStatusResponse(BaseModel):
-    """评估状态响应模式"""
-    id: int = Field(..., description="评估任务ID")
-    model_name: str = Field(..., description="模型名称")
-    dataset_name: str = Field(..., description="数据集名称")
-    status: str = Field(..., description="评估任务状态")
-    task_id: Optional[str] = Field(None, description="Celery 任务ID")
+    """评估状态响应"""
+    id: int
+    model_name: str
+    dataset_name: str
+    status: str
+    progress: float = 0.0
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    task_id: Optional[str] = None
     error_message: Optional[str] = Field(None, description="错误信息")
     results: Optional[Dict[str, Any]] = Field(None, description="评估结果")
-    progress: float = Field(0, description="进度百分比")
     details: Dict[str, Any] = Field(default={}, description="详细信息")
-    created_at: datetime = Field(..., description="创建时间")
-    updated_at: datetime = Field(..., description="更新时间")
 
 class OpenCompassConfig(BaseModel):
     """OpenCompass 配置模式"""
