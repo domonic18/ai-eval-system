@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS evaluations (
     log_dir VARCHAR(255) NULL COMMENT '日志目录',
     progress FLOAT NOT NULL DEFAULT 0.0 COMMENT '进度百分比',
     results JSON NULL COMMENT '评估结果',
+    user_id INT NULL COMMENT '用户ID',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     INDEX idx_status (status),
@@ -106,3 +107,8 @@ INSERT INTO datasets (name, format, description, category)
 VALUES 
 ('mmlu', 'json', 'Massive Multitask Language Understanding', '通用能力'),
 ('demo_cmmlu_chat', 'json', '中文通用语言理解测试', '中文理解'); 
+
+-- 初始化管理员用户
+INSERT INTO users (username, email, password_hash)
+VALUES 
+('admin', 'admin@example.com', 'admin');
