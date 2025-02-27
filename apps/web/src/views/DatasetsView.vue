@@ -12,10 +12,10 @@
                 <h2 class="sidebar-title">我的评测</h2>
                 <ul class="sidebar-list">
                   <li class="sidebar-item">
-                    <router-link to="/evaluation" exact class="sidebar-link">评测任务</router-link>
+                    <router-link to="/evaluation" exact class="sidebar-link">创建评测</router-link>
                   </li>
                   <li class="sidebar-item">
-                    <router-link to="/evaluation/history" class="sidebar-link">历史记录</router-link>
+                    <router-link to="/evaluation/records" class="sidebar-link">评测记录</router-link>
                   </li>
                 </ul>
               </div>
@@ -37,7 +37,7 @@
             <div class="main-content">
               <div class="content-header">
                 <h2 class="content-title">所有数据集</h2>
-                <button class="btn btn-primary">上传新数据集</button>
+                <button @click="$router.push('/evaluation/datasets/upload')" class="btn btn-primary">上传新数据集</button>
               </div>
               
               <!-- 数据集列表 -->

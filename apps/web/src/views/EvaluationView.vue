@@ -12,22 +12,23 @@
                 <h2 class="sidebar-title">我的评测</h2>
                 <ul class="sidebar-list">
                   <li class="sidebar-item">
-                    <router-link to="/evaluation" exact class="sidebar-link">评测任务</router-link>
+                    <router-link to="/evaluation" exact class="sidebar-link">创建评测</router-link>
                   </li>
                   <li class="sidebar-item">
-                    <router-link to="/evaluation/history" class="sidebar-link">历史记录</router-link>
+                    <router-link to="/evaluation/records" class="sidebar-link">评测记录</router-link>
                   </li>
                 </ul>
               </div>
               
               <div class="sidebar-section">
                 <h2 class="sidebar-title">我的数据集</h2>
-                <ul class="sidebar-list">
-                  <li class="sidebar-item">
-                    <router-link to="/evaluation/datasets" class="sidebar-link">所有数据集</router-link>
+                <div class="development-notice">功能开发中，敬请期待...</div>
+                <ul class="sidebar-list disabled">
+                  <li class="sidebar-item disabled">
+                    <span class="sidebar-link disabled">所有数据集</span>
                   </li>
-                  <li class="sidebar-item">
-                    <router-link to="/evaluation/datasets/upload" class="sidebar-link">上传数据集</router-link>
+                  <li class="sidebar-item disabled">
+                    <span class="sidebar-link disabled">上传数据集</span>
                   </li>
                 </ul>
               </div>
@@ -39,7 +40,6 @@
               <div v-if="$route.path === '/evaluation'">
                 <div class="content-header">
                   <h2 class="content-title">创建评测任务</h2>
-                  <button @click="showTaskForm = true" class="btn btn-primary">创建新任务</button>
                 </div>
                 
                 <!-- 步骤展示 -->
@@ -195,18 +195,18 @@
                 </div>
               </div>
               
-              <!-- 历史记录路由视图 -->
-              <div v-if="$route.path === '/evaluation/history'">
+              <!-- 评测记录路由视图 -->
+              <div v-if="$route.path === '/evaluation/records'">
                 <div class="content-header">
-                  <h2 class="content-title">评测历史记录</h2>
-                  <button @click="showTaskForm = true" class="btn btn-primary">创建新任务</button>
+                  <h2 class="content-title">评测记录</h2>
+                  <button @click="$router.push('/evaluation')" class="btn btn-primary">创建新任务</button>
                 </div>
                 
-                <!-- 任务列表 -->
+                <!-- 直接显示任务表格，移除额外的标题和按钮 -->
                 <TaskList 
                   @view-logs="viewTaskLogs" 
                   ref="taskList"
-                  class="task-list-component"
+                  :hideHeader="true"
                 />
               </div>
             </div>
@@ -225,6 +225,27 @@
             @cancel="showTaskForm = false" 
             @task-created="onTaskCreated" 
           />
+        </div>
+      </div>
+      
+      <!-- 任务提交成功提示弹窗 -->
+      <div v-if="showSubmitSuccess" class="modal">
+        <div class="modal-content success-modal">
+          <div class="modal-header">
+            <h2>评测任务创建成功</h2>
+            <button @click="showSubmitSuccess = false" class="close-btn">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="success-message">
+              <i class="success-icon">✓</i>
+              <p>您的评测任务已经成功提交！系统正在处理中。</p>
+              <p>您可以查看<router-link to="/evaluation/records" @click="showSubmitSuccess = false">评测记录</router-link>来跟踪评测进度。</p>
+            </div>
+            <div class="modal-actions">
+              <button @click="showSubmitSuccess = false" class="btn btn-secondary">关闭</button>
+              <button @click="goToRecords" class="btn btn-primary">查看评测记录</button>
+            </div>
+          </div>
         </div>
       </div>
       
@@ -266,6 +287,7 @@ export default {
         parallelism: '4'
       },
       submitting: false,
+      showSubmitSuccess: false,
       modelInput: '',
       showModelDropdown: false,
       filteredModels: [],
@@ -292,7 +314,7 @@ export default {
     this.fetchDatasets();
     
     // 如果是历史记录页面，加载任务列表
-    if (this.$route.path === '/evaluation/history' && this.$refs.taskList) {
+    if (this.$route.path === '/evaluation/records' && this.$refs.taskList) {
       this.$refs.taskList.fetchTasks();
     }
   },
@@ -407,17 +429,27 @@ export default {
       // 模拟API调用
       setTimeout(() => {
         this.submitting = false;
-        // 成功后重置步骤并跳转到历史记录页
+        
+        // 显示成功提示，而不是直接跳转
+        this.showSubmitSuccess = true;
+        
+        // 重置任务创建状态，但不跳转页面
         this.currentStep = 1;
         this.selectedModel = null;
         this.selectedDataset = null;
-        this.$router.push('/evaluation/history');
       }, 1500);
     },
+    
+    // 新增方法 - 跳转到评测记录
+    goToRecords() {
+      this.showSubmitSuccess = false;
+      this.$router.push('/evaluation/records');
+    },
+    
     onTaskCreated() {
       this.showTaskForm = false;
       // 刷新任务列表
-      if (this.$route.path === '/evaluation/history' && this.$refs.taskList) {
+      if (this.$route.path === '/evaluation/records' && this.$refs.taskList) {
         this.$refs.taskList.fetchTasks();
       }
     },
@@ -428,7 +460,7 @@ export default {
   watch: {
     // 监听路由变化
     '$route.path'(newPath) {
-      if (newPath === '/evaluation/history' && this.$refs.taskList) {
+      if (newPath === '/evaluation/records' && this.$refs.taskList) {
         this.$refs.taskList.fetchTasks();
       }
     }
@@ -907,5 +939,65 @@ export default {
   margin-top: 0;
   margin-bottom: 16px;
   color: #2d3748;
+}
+
+/* 成功提示弹窗样式 */
+.success-modal {
+  max-width: 500px;
+}
+
+.modal-body {
+  padding: 20px 24px 24px;
+}
+
+.success-message {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.success-icon {
+  display: inline-block;
+  width: 60px;
+  height: 60px;
+  line-height: 60px;
+  border-radius: 50%;
+  background-color: #48bb78;
+  color: white;
+  font-size: 30px;
+  margin-bottom: 16px;
+}
+
+.success-message p {
+  margin: 8px 0;
+  color: #4a5568;
+}
+
+.success-message a {
+  color: #3182ce;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: space-between;
+}
+
+.sidebar-item.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sidebar-link.disabled {
+  color: #a0aec0;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.development-notice {
+  font-size: 12px;
+  color: #718096;
+  font-style: italic;
+  padding: 0 24px 8px;
 }
 </style> 

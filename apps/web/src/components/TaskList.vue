@@ -1,9 +1,12 @@
 <template>
   <div class="task-list">
-    <h2>评测任务列表</h2>
-    <div class="control-panel">
-      <button @click="refreshTasks" class="refresh-btn">刷新任务列表</button>
-      <button @click="createNewTask" class="create-btn">创建新任务</button>
+    <!-- 如果hideHeader为false或未定义，则显示标题和按钮 -->
+    <div class="task-list-header" v-if="!hideHeader">
+      <h3>评测任务列表</h3>
+      <div class="task-list-actions">
+        <button @click="fetchTasks" class="btn btn-secondary">刷新任务列表</button>
+        <button @click="$emit('create-task')" class="btn btn-primary">创建新任务</button>
+      </div>
     </div>
     
     <div v-if="loading" class="loading">
@@ -12,7 +15,7 @@
     
     <div v-else-if="error" class="error">
       <p>{{ error }}</p>
-      <button @click="refreshTasks">重试</button>
+      <button @click="fetchTasks">重试</button>
     </div>
     
     <table v-else class="tasks-table">
@@ -61,6 +64,12 @@
 <script>
 export default {
   name: 'TaskList',
+  props: {
+    hideHeader: {
+      type: Boolean,
+      default: false
+    }
+  },
   data() {
     return {
       tasks: [],
@@ -125,15 +134,6 @@ export default {
       } finally {
         this.loading = false;
       }
-    },
-    
-    refreshTasks() {
-      this.fetchTasks();
-    },
-    
-    createNewTask() {
-      // 发出事件，通知父组件打开创建任务表单
-      this.$emit('create-task');
     },
     
     viewLogs(taskId) {
@@ -210,8 +210,14 @@ export default {
   padding: 20px;
 }
 
-.control-panel {
+.task-list-header {
   margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.task-list-actions {
   display: flex;
   gap: 10px;
 }
@@ -229,16 +235,16 @@ button:hover {
   background-color: #e0e0e0;
 }
 
-.refresh-btn {
+.btn-secondary {
   background-color: #f0f0f0;
 }
 
-.create-btn {
+.btn-primary {
   background-color: #4caf50;
   color: white;
 }
 
-.create-btn:hover {
+.btn-primary:hover {
   background-color: #45a049;
 }
 
