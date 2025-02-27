@@ -35,8 +35,26 @@ const routes = [
   },
   {
     path: '/evaluation',
-    name: 'evaluation',
-    component: () => import('@/views/EvaluationView.vue'),
+    name: 'Evaluation',
+    component: () => import('../views/EvaluationView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/evaluation/history',
+    name: 'EvaluationHistory',
+    component: () => import('../views/EvaluationView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/evaluation/datasets',
+    name: 'Datasets',
+    component: () => import('../views/DatasetsView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/evaluation/datasets/upload',
+    name: 'DatasetUpload',
+    component: () => import('../views/DatasetUploadView.vue'),
     meta: { requiresAuth: true }
   },
   {

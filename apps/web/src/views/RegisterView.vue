@@ -160,8 +160,12 @@ export default defineComponent({
 }
 
 .register-container {
-  max-width: 450px;
-  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
 .register-logo {
@@ -195,7 +199,18 @@ export default defineComponent({
 }
 
 .register-form {
-  margin-bottom: 24px;
+  width: 100%;
+  max-width: 520px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 30px;
+}
+
+@media (max-width: 768px) {
+  .register-form {
+    padding: 20px;
+  }
 }
 
 .form-actions {

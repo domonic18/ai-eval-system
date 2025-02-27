@@ -99,8 +99,12 @@ export default {
 }
 
 .login-container {
-  max-width: 400px;
-  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
 .login-logo {
@@ -134,7 +138,12 @@ export default {
 }
 
 .login-form {
-  margin-bottom: 24px;
+  width: 100%;
+  max-width: 480px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 30px;
 }
 
 .form-actions {
@@ -166,5 +175,11 @@ export default {
   border-radius: 4px;
   margin-bottom: 16px;
   font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .login-form {
+    padding: 20px;
+  }
 }
 </style>
