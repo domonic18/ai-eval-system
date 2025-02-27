@@ -1,188 +1,172 @@
 <script>
+import { defineComponent, onMounted, nextTick, ref } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useStore } from 'vuex'
 import TaskList from './components/TaskList.vue'
 import LogViewer from './components/LogViewer.vue'
 import TaskForm from './components/TaskForm.vue'
 
-export default {
+export default defineComponent({
   name: 'App',
   components: {
     TaskList,
     LogViewer,
     TaskForm
   },
-  data() {
-    return {
-      showTaskForm: false,
-      currentLogTaskId: null
-    }
-  },
-  methods: {
-    viewTaskLogs(taskId) {
-      this.currentLogTaskId = taskId;
-    },
+  setup() {
+    const store = useStore()
+    const router = useRouter()
+    const route = useRoute()
     
-    onTaskCreated(task) {
-      // 关闭表单
-      this.showTaskForm = false;
-      
-      // 刷新任务列表
-      if (this.$refs.taskList) {
-        this.$refs.taskList.fetchTasks();
+    onMounted(() => {
+      const token = localStorage.getItem('token')
+      if (token) {
+        store.commit('auth/setToken', token)
+        store.dispatch('auth/getCurrentUser')
+      } else {
+        nextTick(() => {
+          if (route && route.path !== '/login') {
+            router.push('/login')
+          }
+        })
       }
-      
-      // 显示成功消息
-      alert(`任务 #${task.id} 已创建！`);
-      
-      // 自动打开日志查看器
-      this.viewTaskLogs(task.id);
-    }
+    })
+    
+    return {}
   }
-}
+})
 </script>
 
 <template>
-  <div class="app">
-    <header>
-      <h1>OpenCompass 评测系统</h1>
-    </header>
-
-    <main>
-      <!-- 任务表单弹窗 -->
-      <div v-if="showTaskForm" class="modal">
-        <div class="modal-content">
-          <TaskForm 
-            @cancel="showTaskForm = false" 
-            @task-created="onTaskCreated" 
-          />
-        </div>
-      </div>
-      
-      <!-- 日志查看器弹窗 -->
-      <div v-if="currentLogTaskId" class="modal log-modal">
-        <div class="modal-content log-modal-content">
-          <LogViewer 
-            :taskId="currentLogTaskId" 
-            @close="currentLogTaskId = null" 
-          />
-        </div>
-      </div>
-      
-      <!-- 任务列表 -->
-      <TaskList 
-        @create-task="showTaskForm = true" 
-        @view-logs="viewTaskLogs" 
-        ref="taskList"
-      />
-    </main>
-
-    <footer>
-      <p>OpenCompass 评测系统 &copy; {{ new Date().getFullYear() }}</p>
-    </footer>
+  <div id="app">
+    <router-view />
   </div>
 </template>
 
 <style>
-/* 全局样式 */
 * {
-  box-sizing: border-box;
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
 }
 
 body {
-  font-family: 'Helvetica Neue', Arial, sans-serif;
-  background-color: #f5f5f5;
-  color: #333;
-  line-height: 1.6;
+  font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f5f7fa;
+  color: #2c3e50;
+  line-height: 1.5;
 }
 
-/* App容器 */
-.app {
-  min-height: 100vh;
+#app {
   display: flex;
   flex-direction: column;
+  min-height: 100vh;
 }
 
-/* 头部 */
-header {
-  background-color: #2196f3;
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* 按钮样式 */
+.btn {
+  display: inline-block;
+  padding: 8px 16px;
+  background-color: #3182ce;
   color: white;
-  padding: 20px;
-  text-align: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
 }
 
-header h1 {
-  font-size: 24px;
+.btn:hover {
+  background-color: #2b6cb0;
+}
+
+.btn-secondary {
+  background-color: #718096;
+}
+
+.btn-secondary:hover {
+  background-color: #4a5568;
+}
+
+.btn-danger {
+  background-color: #e53e3e;
+}
+
+.btn-danger:hover {
+  background-color: #c53030;
+}
+
+/* 表单样式 */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 8px;
   font-weight: 500;
 }
 
-/* 主体内容 */
-main {
-  flex: 1;
-  padding: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
+.form-input {
   width: 100%;
-}
-
-/* 页脚 */
-footer {
-  background-color: #f0f0f0;
-  color: #666;
-  text-align: center;
-  padding: 12px;
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
   font-size: 14px;
-  margin-top: auto;
 }
 
-/* 模态框 */
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  padding: 20px;
+.form-input:focus {
+  outline: none;
+  border-color: #3182ce;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.2);
 }
 
-.modal-content {
+/* 卡片样式 */
+.card {
   background-color: white;
   border-radius: 8px;
-  max-width: 600px;
-  width: 100%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   overflow: hidden;
-  animation: fadeIn 0.3s;
 }
 
-.log-modal-content {
-  max-width: 90%;
-  height: 80vh;
+.card-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  font-weight: 600;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-20px); }
-  to { opacity: 1; transform: translateY(0); }
+.card-body {
+  padding: 20px;
 }
 
-/* 响应式调整 */
-@media (max-width: 768px) {
-  main {
-    padding: 10px;
-  }
-  
-  .modal {
-    padding: 10px;
-  }
-  
-  .log-modal-content {
-    max-width: 95%;
-    height: 90vh;
-  }
+/* 表格样式 */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.table th {
+  background-color: #f7fafc;
+  font-weight: 600;
+}
+
+.table tr:hover {
+  background-color: #f7fafc;
 }
 </style>
