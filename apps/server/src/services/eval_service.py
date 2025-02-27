@@ -15,6 +15,7 @@ from apps.server.src.utils.redis_manager import RedisManager
 from apps.server.src.tasks.opencompass_runner import get_runner
 from datetime import datetime
 import os
+from sqlalchemy import text as sqlalchemy_text
 
 # 日志配置
 logger = logging.getLogger(__name__)
@@ -89,7 +90,7 @@ class EvaluationService:
                 dataset_configuration=dataset_configuration,
                 eval_config=eval_data.eval_config or {},
                 status=EvaluationStatus.PENDING.value,
-                log_dir=""
+                log_dir="logs/default"  # 设置一个默认值，避免空字符串
             )
             
             # 添加并提交
@@ -102,21 +103,58 @@ class EvaluationService:
                 log_dir = Path(f"logs/eval_{db_eval.id}")
                 log_dir.mkdir(parents=True, exist_ok=True)
                 
-                # 更新日志目录
-                db_eval.log_dir = str(log_dir)
+                # 更新日志目录 - 使用直接SQL而非ORM
+                update_stmt = sqlalchemy_text("UPDATE evaluations SET log_dir = :log_dir WHERE id = :id")
+                db_session.execute(update_stmt, {"log_dir": str(log_dir), "id": db_eval.id})
                 db_session.commit()
+                
+                # 刷新对象以获取更新后的值
+                db_session.refresh(db_eval)
             except Exception as log_dir_error:
                 logger.warning(f"创建日志目录失败: {str(log_dir_error)}")
-                # 不中断流程，继续执行
+                # 设置一个备用的日志目录值，确保不为空
+                fallback_log_dir = f"logs/eval_{db_eval.id}_fallback"
+                logger.info(f"使用备用日志目录: {fallback_log_dir}")
+                
+                try:
+                    # 使用直接SQL更新
+                    update_stmt = sqlalchemy_text("UPDATE evaluations SET log_dir = :log_dir WHERE id = :id")
+                    db_session.execute(update_stmt, {"log_dir": fallback_log_dir, "id": db_eval.id})
+                    db_session.commit()
+                    
+                    # 刷新对象
+                    db_session.refresh(db_eval)
+                except Exception as update_error:
+                    logger.error(f"更新备用日志目录失败: {str(update_error)}")
+                    # 不再尝试更新，继续执行
+            
+            # 确保log_dir不为空的最后保护措施
+            try:
+                if not db_eval.log_dir or db_eval.log_dir.strip() == "":
+                    default_log_dir = f"logs/eval_{db_eval.id}_default"
+                    
+                    # 使用直接SQL更新
+                    update_stmt = sqlalchemy_text("UPDATE evaluations SET log_dir = :log_dir WHERE id = :id")
+                    db_session.execute(update_stmt, {"log_dir": default_log_dir, "id": db_eval.id})
+                    db_session.commit()
+                    
+                    # 刷新对象
+                    db_session.refresh(db_eval)
+            except Exception as final_error:
+                logger.error(f"设置默认日志目录的最终尝试失败: {str(final_error)}")
             
             # 启动 Celery 任务
             try:
                 task = run_evaluation.delay(db_eval.id)
                 logger.info(f"启动评估任务 {db_eval.id}，Celery 任务 ID: {task.id}")
                 
-                # 更新任务ID
-                db_eval.task_id = task.id
+                # 更新任务ID - 使用直接SQL而非ORM
+                update_stmt = sqlalchemy_text("UPDATE evaluations SET task_id = :task_id WHERE id = :id")
+                db_session.execute(update_stmt, {"task_id": task.id, "id": db_eval.id})
                 db_session.commit()
+                
+                # 刷新对象
+                db_session.refresh(db_eval)
                 
                 # 构建响应
                 return EvaluationResponse(

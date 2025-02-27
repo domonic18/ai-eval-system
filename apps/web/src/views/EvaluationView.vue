@@ -418,26 +418,49 @@ export default {
       const taskData = {
         model_name: this.selectedModel.name,
         dataset_name: this.selectedDataset.name,
-        model_configuration: { type: this.selectedModel.type },
+        model_configuration: this.selectedModel.isCustom 
+          ? { type: this.customModelType, api_base: this.customModelConfig.api_base } 
+          : { type: this.selectedModel.type },
         dataset_configuration: { format: this.selectedDataset.format },
-        eval_config: this.evalConfig
+        parallelism: parseInt(this.evalConfig.parallelism)
       };
       
       // 发送请求创建任务
       console.log('提交评测任务', taskData);
       
-      // 模拟API调用
-      setTimeout(() => {
-        this.submitting = false;
+      // 实际发送HTTP请求到后端API
+      fetch('/api/v1/evaluations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(taskData)
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`创建任务失败: ${response.status} ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log('任务创建成功', data);
         
-        // 显示成功提示，而不是直接跳转
+        // 显示成功提示
         this.showSubmitSuccess = true;
         
-        // 重置任务创建状态，但不跳转页面
+        // 重置任务创建状态
         this.currentStep = 1;
         this.selectedModel = null;
         this.selectedDataset = null;
-      }, 1500);
+        this.modelInput = '';
+      })
+      .catch(error => {
+        console.error('创建任务错误:', error);
+        alert(`创建任务失败: ${error.message}`);
+      })
+      .finally(() => {
+        this.submitting = false;
+      });
     },
     
     // 新增方法 - 跳转到评测记录
