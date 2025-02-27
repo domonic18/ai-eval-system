@@ -109,7 +109,7 @@ export default {
       try {
         // 根据部署环境调整WebSocket URL
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${wsProtocol}//${window.location.host}/api/evaluations/${this.taskId}/ws_logs`;
+        const wsUrl = `${wsProtocol}//${window.location.host}/api/v1/evaluations/${this.taskId}/ws_logs`;
         
         this.socket = new WebSocket(wsUrl);
         
@@ -179,7 +179,7 @@ export default {
     
     async fetchInitialLogs() {
       try {
-        const response = await fetch(`/api/evaluations/${this.taskId}/logs?lines=100`);
+        const response = await fetch(`/api/v1/evaluations/${this.taskId}/logs?lines=100`);
         
         if (!response.ok) {
           throw new Error(`获取日志失败: ${response.status} ${response.statusText}`);
@@ -240,7 +240,7 @@ export default {
     
     async fetchTaskStatus() {
       try {
-        const response = await fetch(`/api/evaluations/${this.taskId}`);
+        const response = await fetch(`/api/v1/evaluations/${this.taskId}`);
         
         if (!response.ok) {
           throw new Error(`获取任务状态失败: ${response.status} ${response.statusText}`);

@@ -67,7 +67,8 @@ export default {
       loading: true,
       error: null,
       refreshInterval: null,
-      activeTasks: new Set() // 跟踪活动任务ID
+      activeTasks: new Set(), // 跟踪活动任务ID
+      loadingTaskId: null
     }
   },
   mounted() {
@@ -92,7 +93,7 @@ export default {
       
       try {
         // 更新API端点路径，保持与后端一致
-        const response = await fetch('/api/evaluations');
+        const response = await fetch('/api/v1/evaluations');
         
         if (!response.ok) {
           throw new Error(`获取任务列表失败: ${response.status} ${response.statusText}`);
@@ -141,13 +142,13 @@ export default {
     },
     
     async terminateTask(taskId) {
-      if (!confirm(`确定要终止任务 #${taskId} 吗？`)) {
-        return;
-      }
+      if (!confirm('确定要终止此任务吗？')) return;
+      
+      this.loadingTaskId = taskId;
       
       try {
-        const response = await fetch(`/api/evaluations/${taskId}/terminate`, {
-          method: 'POST'
+        const response = await fetch(`/api/v1/evaluations/${taskId}/terminate`, {
+          method: 'POST',
         });
         
         if (!response.ok) {

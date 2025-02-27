@@ -132,7 +132,7 @@ export default {
           requestBody.extra_args = this.form.extra_args;
         }
         
-        const response = await fetch('/api/evaluations', {
+        const response = await fetch('/api/v1/evaluations', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
