@@ -62,7 +62,18 @@ db = Database()
 
 # 为了向后兼容，保留原来的函数
 def get_db():
-    return db.get_db()
+    """为了依赖注入而提供的获取数据库会话的函数
+    
+    在FastAPI中使用 Depends(get_db) 来注入会话
+    """
+    db_session = db.SessionLocal()
+    try:
+        yield db_session
+    finally:
+        db_session.close()
 
 # 为了向后兼容，提供模块级别的SessionLocal
-SessionLocal = db.SessionLocal 
+SessionLocal = db.SessionLocal
+
+# 导出engine对象以便main.py可以导入
+engine = db.engine 
