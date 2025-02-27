@@ -2,13 +2,14 @@ from fastapi import APIRouter, HTTPException, status, Depends, Query, WebSocket,
 from sqlalchemy.orm import Session
 from apps.server.src.db import get_db
 from apps.server.src.schemas.eval import EvaluationCreate, EvaluationResponse, EvaluationStatusResponse
-from apps.server.src.services.eval_service import create_evaluation_task, get_evaluation_status
+from apps.server.src.services.eval_service import create_evaluation_task, get_evaluation_status, handle_websocket_logs
 from apps.server.src.tasks.opencompass_runner import get_runner
 from typing import Dict, Any, List, Optional
 import os
 from pathlib import Path
 import asyncio
 from apps.server.src.models.eval import Evaluation, EvaluationStatus
+from apps.server.src.utils.redis_manager import RedisManager
 
 router = APIRouter()
 
@@ -27,27 +28,34 @@ async def create_evaluation(eval_data: EvaluationCreate, db: Session = Depends(g
 @router.get("/evaluations", response_model=List[Dict[str, Any]])
 async def list_evaluations(db: Session = Depends(get_db)):
     """获取所有评估任务列表"""
-    # 处理db可能是生成器的情况（FastAPI依赖注入）
     try:
-        if hasattr(db, "__next__"):
-            # db是一个生成器（来自FastAPI的Depends）
-            db_session = next(db)
-        else:
-            # db是直接传入的Session对象
-            db_session = db
-            
-        evaluations = db_session.query(Evaluation).all()
+        # 更简单的直接使用db对象，不需要额外处理
+        evaluations = db.query(Evaluation).all()
         result = []
+        
         for eval_task in evaluations:
+            # 安全处理progress字段
             progress = 0.0
-            if eval_task.results and "progress" in eval_task.results:
-                progress = eval_task.results["progress"]
+            try:
+                if eval_task.results:
+                    # 如果results是字符串，尝试解析为字典
+                    results_data = eval_task.results
+                    if isinstance(results_data, str):
+                        import json
+                        results_data = json.loads(results_data)
+                    
+                    if isinstance(results_data, dict) and "progress" in results_data:
+                        progress = float(results_data.get("progress", 0.0))
+            except Exception as e:
+                print(f"处理任务进度数据异常: {str(e)}")
+                # 错误时使用默认值0.0
             
+            # 构建响应数据
             result.append({
                 "id": eval_task.id,
                 "model_name": eval_task.model_name,
                 "dataset_name": eval_task.dataset_name,
-                "status": eval_task.status,
+                "status": eval_task.status.upper() if eval_task.status else "UNKNOWN",  # 确保状态大写
                 "progress": progress,
                 "created_at": eval_task.created_at,
                 "updated_at": eval_task.updated_at,
@@ -55,20 +63,47 @@ async def list_evaluations(db: Session = Depends(get_db)):
             })
         
         return result
-    finally:
-        # 如果使用了生成器创建的会话，确保关闭它
-        if 'db_session' in locals():
-            db_session.close()
+    except Exception as e:
+        print(f"获取任务列表错误: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取评估任务列表失败: {str(e)}"
+        )
+    # 不需要手动关闭会话，FastAPI会自动处理
 
 @router.get("/evaluations/{eval_id}", response_model=EvaluationStatusResponse)
 async def get_evaluation(eval_id: int, db: Session = Depends(get_db)):
-    eval_status = await get_evaluation_status(eval_id, db)
-    if eval_status is None:
+    """获取评估任务详情
+    
+    Args:
+        eval_id: 评估任务ID
+        db: 数据库会话
+        
+    Returns:
+        EvaluationStatusResponse: 评估任务状态详情
+    """
+    try:
+        eval_status = await get_evaluation_status(eval_id, db)
+        if eval_status is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"评估任务 {eval_id} 不存在"
+            )
+        return eval_status
+    except Exception as e:
+        print(f"获取任务详情错误: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        # 如果是已知的HTTPException，直接抛出
+        if isinstance(e, HTTPException):
+            raise
+        # 否则转换为内部服务器错误
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"评估任务 {eval_id} 不存在"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取评估任务详情失败: {str(e)}"
         )
-    return eval_status
 
 @router.get("/evaluations/{eval_id}/logs", response_model=List[str])
 async def get_evaluation_logs(eval_id: int, lines: Optional[int] = Query(50, description="获取的日志行数")):
@@ -81,10 +116,38 @@ async def get_evaluation_logs(eval_id: int, lines: Optional[int] = Query(50, des
     Returns:
         List[str]: 日志行列表
     """
-    # 尝试从任务运行器获取日志
+    # 先从Redis获取日志
+    logs = RedisManager.get_logs(eval_id, max_lines=lines)
+    
+    if logs:
+        return logs
+    
+    # 如果Redis中没有日志，尝试从运行器获取
     runner = get_runner(f"eval_{eval_id}")
     if runner:
         return runner.get_recent_logs(lines)
+    
+    # 最后尝试从文件获取
+    try:
+        BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
+        logs_dir = os.path.join(BASE_DIR, "logs", "opencompass")
+        log_pattern = f"eval_{eval_id}_*.log"
+        
+        log_files = list(Path(logs_dir).glob(log_pattern))
+        if log_files:
+            log_file = str(sorted(log_files, key=lambda x: x.stat().st_mtime, reverse=True)[0])
+            with open(log_file, 'r') as f:
+                all_lines = f.read().splitlines()
+                # 获取最后n行
+                log_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
+                
+                # 将日志添加到Redis
+                for line in log_lines:
+                    RedisManager.append_log(eval_id, line)
+                    
+                return log_lines
+    except Exception as e:
+        print(f"从文件读取日志失败: {str(e)}")
     
     # 如果没有运行中的任务，则返回空列表
     return []
@@ -125,102 +188,11 @@ async def terminate_evaluation(eval_id: int, db: Session = Depends(get_db)):
 # 添加WebSocket端点
 @router.websocket("/evaluations/{eval_id}/ws_logs")
 async def websocket_logs(websocket: WebSocket, eval_id: int):
-    """通过WebSocket提供实时日志"""
+    """通过WebSocket提供实时日志
+    
+    Args:
+        websocket: WebSocket连接
+        eval_id: 评估任务ID
+    """
     await websocket.accept()
-    
-    try:
-        # 获取评估任务信息
-        db = next(get_db())
-        eval_task = db.query(Evaluation).filter(Evaluation.id == eval_id).first()
-        
-        if not eval_task:
-            await websocket.send_json({"error": f"评估任务 {eval_id} 不存在"})
-            await websocket.close()
-            return
-        
-        # 查找日志文件
-        BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
-        logs_dir = os.path.join(BASE_DIR, "logs", "opencompass")
-        
-        # 确保日志目录存在
-        os.makedirs(logs_dir, exist_ok=True)
-        
-        log_pattern = f"eval_{eval_id}_*.log"
-        
-        log_files = list(Path(logs_dir).glob(log_pattern))
-        if not log_files:
-            await websocket.send_json({"info": f"任务 {eval_id} 的日志文件尚未创建，任务状态: {eval_task.status}"})
-            
-            # 如果任务正在运行，等待日志文件创建
-            if eval_task.status == EvaluationStatus.RUNNING:
-                await websocket.send_json({"info": "任务正在运行，等待日志文件创建..."})
-                
-                # 等待日志文件创建，最多等待30秒
-                for _ in range(30):
-                    await asyncio.sleep(1)
-                    log_files = list(Path(logs_dir).glob(log_pattern))
-                    if log_files:
-                        break
-                
-                if not log_files:
-                    await websocket.send_json({"error": "等待日志文件创建超时"})
-                    await websocket.close()
-                    return
-            else:
-                await websocket.send_json({"error": f"任务状态为 {eval_task.status}，没有日志文件"})
-                await websocket.close()
-                return
-        
-        # 获取最新的日志文件
-        log_file = str(sorted(log_files, key=lambda x: x.stat().st_mtime, reverse=True)[0])
-        await websocket.send_json({"info": f"开始读取日志文件: {os.path.basename(log_file)}"})
-        
-        # 跟踪日志文件
-        with open(log_file, 'r') as f:
-            # 首先发送已有内容
-            f.seek(0, 0)
-            existing_content = f.read()
-            if existing_content:
-                lines = existing_content.strip().split('\n')
-                for line in lines:
-                    await websocket.send_text(line)
-            
-            # 移动到文件末尾
-            f.seek(0, 2)
-            
-            # 持续监控新内容
-            while True:
-                # 检查任务是否已结束
-                db_session = next(get_db())
-                current_task = db_session.query(Evaluation).filter(Evaluation.id == eval_id).first()
-                if current_task and current_task.status in [EvaluationStatus.COMPLETED, EvaluationStatus.FAILED]:
-                    await websocket.send_json({"info": f"任务已{current_task.status}，日志流结束"})
-                    break
-                
-                # 读取新行
-                line = f.readline()
-                if line:
-                    await websocket.send_text(line.rstrip())
-                else:
-                    await asyncio.sleep(0.5)
-                    
-                # 释放数据库会话
-                db_session.close()
-    
-    except WebSocketDisconnect:
-        print(f"客户端断开WebSocket连接: {eval_id}")
-    except Exception as e:
-        print(f"WebSocket错误: {str(e)}")
-        print(f"错误类型: {type(e).__name__}")
-        print(f"错误详情: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        try:
-            await websocket.send_json({"error": f"发生错误: {str(e)}"})
-        except:
-            pass
-    finally:
-        try:
-            await websocket.close()
-        except:
-            pass 
+    await handle_websocket_logs(websocket, eval_id) 
