@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "FastAPI 直接调试",
+            "name": "FastAPI 服务",
             "type": "python",
             "request": "launch",
             "module": "uvicorn",
@@ -15,24 +15,67 @@
             "jinja": true,
             "justMyCode": false,
             "cwd": "${workspaceFolder}",
-            "python": "${command:python.interpreterPath}"
+            "python": "${command:python.interpreterPath}",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
         },
         {
-            "name": "Celery 直接调试",
+            "name": "Celery Worker",
             "type": "python",
             "request": "launch",
-            "program": "-m",
+            "module": "celery",
             "args": [
-                "celery",
                 "-A", "apps.server.src.celery_app:celery_app",
                 "worker",
-                "--loglevel=DEBUG",
-                "--pool=solo"  // 使用单进程模式方便调试
+                "--loglevel=INFO",
+                "--pool=solo"
             ],
             "console": "integratedTerminal",
             "justMyCode": false,
-            "envFile": "${workspaceFolder}/apps/server/.env",
-            "cwd": "${workspaceFolder}/apps/server"
+            "cwd": "${workspaceFolder}",
+            "python": "${command:python.interpreterPath}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "前端开发服务器",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/apps/web",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": ["run", "dev"],
+            "skipFiles": ["<node_internals>/**"],
+            "console": "integratedTerminal",
+            "serverReadyAction": {
+                "pattern": "Local:.+(https?://\\S+)",
+                "uriFormat": "%s",
+                "action": "openExternally"
+            }
+        }
+    ],
+    "compounds": [
+        {
+            "name": "全栈开发环境",
+            "configurations": ["FastAPI 服务", "Celery Worker", "前端开发服务器"],
+            "stopAll": true,
+            "presentation": {
+                "hidden": false,
+                "group": "开发环境",
+                "order": 1
+            }
+        },
+        {
+            "name": "后端服务",
+            "configurations": ["FastAPI 服务", "Celery Worker"],
+            "stopAll": true,
+            "presentation": {
+                "hidden": false,
+                "group": "开发环境",
+                "order": 2
+            }
         }
     ]
 } 
