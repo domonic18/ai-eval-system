@@ -1,214 +1,212 @@
 <template>
   <MainLayout>
     <div class="evaluation-page">
-      <div class="container">
+      <div class="evaluation-container">
         <h1 class="page-title">在线评测</h1>
         
-        <div class="evaluation-container">
-          <div class="evaluation-content">
-            <!-- 左侧边栏 -->
-            <div class="sidebar">
-              <div class="sidebar-section">
-                <h2 class="sidebar-title">我的评测</h2>
-                <ul class="sidebar-list">
-                  <li class="sidebar-item">
-                    <router-link to="/evaluation" exact class="sidebar-link">创建评测</router-link>
-                  </li>
-                  <li class="sidebar-item">
-                    <router-link to="/evaluation/records" class="sidebar-link">评测记录</router-link>
-                  </li>
-                </ul>
+        <div class="evaluation-content">
+          <!-- 左侧边栏 -->
+          <div class="sidebar">
+            <div class="sidebar-section">
+              <h2 class="sidebar-title">我的评测</h2>
+              <ul class="sidebar-list">
+                <li class="sidebar-item">
+                  <router-link to="/evaluation" exact class="sidebar-link">创建评测</router-link>
+                </li>
+                <li class="sidebar-item">
+                  <router-link to="/evaluation/records" class="sidebar-link">评测记录</router-link>
+                </li>
+              </ul>
+            </div>
+            
+            <div class="sidebar-section">
+              <h2 class="sidebar-title">我的数据集</h2>
+              <div class="development-notice">功能开发中，敬请期待...</div>
+              <ul class="sidebar-list disabled">
+                <li class="sidebar-item disabled">
+                  <span class="sidebar-link disabled">所有数据集</span>
+                </li>
+                <li class="sidebar-item disabled">
+                  <span class="sidebar-link disabled">上传数据集</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+          
+          <!-- 右侧主内容 -->
+          <div class="main-content">
+            <!-- 创建评测任务路由视图 -->
+            <div v-if="$route.path === '/evaluation'">
+              <div class="content-header">
+                <h2 class="content-title">创建评测任务</h2>
               </div>
               
-              <div class="sidebar-section">
-                <h2 class="sidebar-title">我的数据集</h2>
-                <div class="development-notice">功能开发中，敬请期待...</div>
-                <ul class="sidebar-list disabled">
-                  <li class="sidebar-item disabled">
-                    <span class="sidebar-link disabled">所有数据集</span>
-                  </li>
-                  <li class="sidebar-item disabled">
-                    <span class="sidebar-link disabled">上传数据集</span>
-                  </li>
-                </ul>
+              <!-- 步骤展示 -->
+              <div class="evaluation-steps">
+                <div class="step-container">
+                  <div class="step" :class="{ 'active': currentStep >= 1 }">1</div>
+                  <div class="step-label">选择模型</div>
+                </div>
+                
+                <div class="step-line" :class="{ 'active': currentStep >= 2 }"></div>
+                
+                <div class="step-container">
+                  <div class="step" :class="{ 'active': currentStep >= 2 }">2</div>
+                  <div class="step-label">选择评测集</div>
+                </div>
+                
+                <div class="step-line" :class="{ 'active': currentStep >= 3 }"></div>
+                
+                <div class="step-container">
+                  <div class="step" :class="{ 'active': currentStep >= 3 }">3</div>
+                  <div class="step-label">开始评测</div>
+                </div>
+              </div>
+              
+              <!-- 评测配置表单 -->
+              <div class="evaluation-form">
+                <div class="model-selection" v-if="currentStep === 1">
+                  <h3>选择模型</h3>
+                  <!-- 模型选择界面 - 改为可输入的下拉列表 -->
+                  <div class="form-group">
+                    <label for="modelSelect">选择或输入模型</label>
+                    <div class="select-with-input">
+                      <input 
+                        type="text" 
+                        id="modelSelect" 
+                        v-model="modelInput" 
+                        @input="filterModels"
+                        @focus="showModelDropdown = true"
+                        @blur="handleModelBlur"
+                        placeholder="选择已有模型或输入新模型"
+                        class="form-input"
+                      />
+                      <div class="dropdown-list" v-if="showModelDropdown && filteredModels.length > 0">
+                        <div 
+                          v-for="(model, index) in filteredModels" 
+                          :key="index"
+                          class="dropdown-item"
+                          @mousedown="selectModelFromDropdown(model)"
+                        >
+                          <div class="dropdown-item-name">{{ model.name }}</div>
+                          <div class="dropdown-item-desc">{{ model.description }}</div>
+                          <div class="model-type-tag">{{ model.type }}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- 选择的模型信息 -->
+                  <div class="selected-model-info" v-if="selectedModel">
+                    <h4>已选模型：{{ selectedModel.name }}</h4>
+                    <div class="model-details">
+                      <p v-if="selectedModel.description">{{ selectedModel.description }}</p>
+                      <div class="model-type">{{ selectedModel.type || '自定义' }}</div>
+                    </div>
+                  </div>
+                  
+                  <!-- 自定义模型配置 (当用户输入自定义模型时显示) -->
+                  <div class="custom-model-config" v-if="isCustomModel">
+                    <h4>自定义模型配置</h4>
+                    <div class="form-group">
+                      <label for="modelType">模型类型</label>
+                      <select id="modelType" v-model="customModelType" class="form-input">
+                        <option value="openai">OpenAI</option>
+                        <option value="api">API</option>
+                        <option value="local">本地模型</option>
+                        <option value="other">其他</option>
+                      </select>
+                    </div>
+                    
+                    <div class="form-group" v-if="customModelType === 'api'">
+                      <label for="apiBase">API地址</label>
+                      <input type="text" id="apiBase" v-model="customModelConfig.api_base" class="form-input" placeholder="例如: https://api.example.com/v1">
+                    </div>
+                  </div>
+                  
+                  <div class="form-actions">
+                    <button class="btn btn-primary" @click="goToStep(2)" :disabled="!selectedModel">下一步</button>
+                  </div>
+                </div>
+                
+                <div class="dataset-selection" v-if="currentStep === 2">
+                  <h3>选择数据集</h3>
+                  <!-- 数据集选择界面 -->
+                  <div class="datasets-grid">
+                    <!-- 这里将显示数据集选择卡片 -->
+                    <div class="dataset-card" v-for="(dataset, index) in availableDatasets" :key="index"
+                         @click="selectDataset(dataset)"
+                         :class="{'selected': selectedDataset && selectedDataset.name === dataset.name}">
+                      <div class="dataset-card-header">
+                        <h4>{{ dataset.name }}</h4>
+                      </div>
+                      <div class="dataset-card-body">
+                        <p>{{ dataset.description }}</p>
+                        <div class="dataset-category">{{ dataset.category }}</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="form-actions">
+                    <button class="btn btn-secondary" @click="goToStep(1)">上一步</button>
+                    <button class="btn btn-primary" @click="goToStep(3)" :disabled="!selectedDataset">下一步</button>
+                  </div>
+                </div>
+                
+                <div class="evaluation-confirmation" v-if="currentStep === 3">
+                  <h3>确认评测任务</h3>
+                  <!-- 确认界面 -->
+                  <div class="confirmation-details">
+                    <div class="detail-group">
+                      <h4>选择的模型</h4>
+                      <p>{{ selectedModel.name }}</p>
+                      <p class="text-sm">{{ selectedModel.description }}</p>
+                    </div>
+                    
+                    <div class="detail-group">
+                      <h4>选择的数据集</h4>
+                      <p>{{ selectedDataset.name }}</p>
+                      <p class="text-sm">{{ selectedDataset.description }}</p>
+                    </div>
+                    
+                    <div class="detail-group">
+                      <h4>评测配置</h4>
+                      <!-- 可选的评测配置选项 -->
+                      <div class="form-group">
+                        <label>并行度</label>
+                        <select v-model="evalConfig.parallelism" class="form-input">
+                          <option value="1">1</option>
+                          <option value="2">2</option>
+                          <option value="4">4</option>
+                          <option value="8">8</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="form-actions">
+                    <button class="btn btn-secondary" @click="goToStep(2)">上一步</button>
+                    <button class="btn btn-primary" @click="submitEvaluationTask" :disabled="submitting">
+                      {{ submitting ? '提交中...' : '开始评测' }}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
             
-            <!-- 右侧主内容 -->
-            <div class="main-content">
-              <!-- 创建评测任务路由视图 -->
-              <div v-if="$route.path === '/evaluation'">
-                <div class="content-header">
-                  <h2 class="content-title">创建评测任务</h2>
-                </div>
-                
-                <!-- 步骤展示 -->
-                <div class="evaluation-steps">
-                  <div class="step-container">
-                    <div class="step" :class="{ 'active': currentStep >= 1 }">1</div>
-                    <div class="step-label">选择模型</div>
-                  </div>
-                  
-                  <div class="step-line" :class="{ 'active': currentStep >= 2 }"></div>
-                  
-                  <div class="step-container">
-                    <div class="step" :class="{ 'active': currentStep >= 2 }">2</div>
-                    <div class="step-label">选择评测集</div>
-                  </div>
-                  
-                  <div class="step-line" :class="{ 'active': currentStep >= 3 }"></div>
-                  
-                  <div class="step-container">
-                    <div class="step" :class="{ 'active': currentStep >= 3 }">3</div>
-                    <div class="step-label">开始评测</div>
-                  </div>
-                </div>
-                
-                <!-- 评测配置表单 -->
-                <div class="evaluation-form">
-                  <div class="model-selection" v-if="currentStep === 1">
-                    <h3>选择模型</h3>
-                    <!-- 模型选择界面 - 改为可输入的下拉列表 -->
-                    <div class="form-group">
-                      <label for="modelSelect">选择或输入模型</label>
-                      <div class="select-with-input">
-                        <input 
-                          type="text" 
-                          id="modelSelect" 
-                          v-model="modelInput" 
-                          @input="filterModels"
-                          @focus="showModelDropdown = true"
-                          @blur="handleModelBlur"
-                          placeholder="选择已有模型或输入新模型"
-                          class="form-input"
-                        />
-                        <div class="dropdown-list" v-if="showModelDropdown && filteredModels.length > 0">
-                          <div 
-                            v-for="(model, index) in filteredModels" 
-                            :key="index"
-                            class="dropdown-item"
-                            @mousedown="selectModelFromDropdown(model)"
-                          >
-                            <div class="dropdown-item-name">{{ model.name }}</div>
-                            <div class="dropdown-item-desc">{{ model.description }}</div>
-                            <div class="model-type-tag">{{ model.type }}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <!-- 选择的模型信息 -->
-                    <div class="selected-model-info" v-if="selectedModel">
-                      <h4>已选模型：{{ selectedModel.name }}</h4>
-                      <div class="model-details">
-                        <p v-if="selectedModel.description">{{ selectedModel.description }}</p>
-                        <div class="model-type">{{ selectedModel.type || '自定义' }}</div>
-                      </div>
-                    </div>
-                    
-                    <!-- 自定义模型配置 (当用户输入自定义模型时显示) -->
-                    <div class="custom-model-config" v-if="isCustomModel">
-                      <h4>自定义模型配置</h4>
-                      <div class="form-group">
-                        <label for="modelType">模型类型</label>
-                        <select id="modelType" v-model="customModelType" class="form-input">
-                          <option value="openai">OpenAI</option>
-                          <option value="api">API</option>
-                          <option value="local">本地模型</option>
-                          <option value="other">其他</option>
-                        </select>
-                      </div>
-                      
-                      <div class="form-group" v-if="customModelType === 'api'">
-                        <label for="apiBase">API地址</label>
-                        <input type="text" id="apiBase" v-model="customModelConfig.api_base" class="form-input" placeholder="例如: https://api.example.com/v1">
-                      </div>
-                    </div>
-                    
-                    <div class="form-actions">
-                      <button class="btn btn-primary" @click="goToStep(2)" :disabled="!selectedModel">下一步</button>
-                    </div>
-                  </div>
-                  
-                  <div class="dataset-selection" v-if="currentStep === 2">
-                    <h3>选择数据集</h3>
-                    <!-- 数据集选择界面 -->
-                    <div class="datasets-grid">
-                      <!-- 这里将显示数据集选择卡片 -->
-                      <div class="dataset-card" v-for="(dataset, index) in availableDatasets" :key="index"
-                           @click="selectDataset(dataset)"
-                           :class="{'selected': selectedDataset && selectedDataset.name === dataset.name}">
-                        <div class="dataset-card-header">
-                          <h4>{{ dataset.name }}</h4>
-                        </div>
-                        <div class="dataset-card-body">
-                          <p>{{ dataset.description }}</p>
-                          <div class="dataset-category">{{ dataset.category }}</div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div class="form-actions">
-                      <button class="btn btn-secondary" @click="goToStep(1)">上一步</button>
-                      <button class="btn btn-primary" @click="goToStep(3)" :disabled="!selectedDataset">下一步</button>
-                    </div>
-                  </div>
-                  
-                  <div class="evaluation-confirmation" v-if="currentStep === 3">
-                    <h3>确认评测任务</h3>
-                    <!-- 确认界面 -->
-                    <div class="confirmation-details">
-                      <div class="detail-group">
-                        <h4>选择的模型</h4>
-                        <p>{{ selectedModel.name }}</p>
-                        <p class="text-sm">{{ selectedModel.description }}</p>
-                      </div>
-                      
-                      <div class="detail-group">
-                        <h4>选择的数据集</h4>
-                        <p>{{ selectedDataset.name }}</p>
-                        <p class="text-sm">{{ selectedDataset.description }}</p>
-                      </div>
-                      
-                      <div class="detail-group">
-                        <h4>评测配置</h4>
-                        <!-- 可选的评测配置选项 -->
-                        <div class="form-group">
-                          <label>并行度</label>
-                          <select v-model="evalConfig.parallelism" class="form-input">
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="4">4</option>
-                            <option value="8">8</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div class="form-actions">
-                      <button class="btn btn-secondary" @click="goToStep(2)">上一步</button>
-                      <button class="btn btn-primary" @click="submitEvaluationTask" :disabled="submitting">
-                        {{ submitting ? '提交中...' : '开始评测' }}
-                      </button>
-                    </div>
-                  </div>
-                </div>
+            <!-- 评测记录路由视图 -->
+            <div v-if="$route.path === '/evaluation/records'">
+              <div class="content-header">
+                <h2 class="content-title">评测记录</h2>
+                <button @click="$router.push('/evaluation')" class="btn btn-primary">创建新任务</button>
               </div>
               
-              <!-- 评测记录路由视图 -->
-              <div v-if="$route.path === '/evaluation/records'">
-                <div class="content-header">
-                  <h2 class="content-title">评测记录</h2>
-                  <button @click="$router.push('/evaluation')" class="btn btn-primary">创建新任务</button>
-                </div>
-                
-                <!-- 直接显示任务表格，移除额外的标题和按钮 -->
-                <TaskList 
-                  @view-logs="viewTaskLogs" 
-                  ref="taskList"
-                  :hideHeader="true"
-                />
-              </div>
+              <!-- 直接显示任务表格，移除额外的标题和按钮 -->
+              <TaskList 
+                @view-logs="viewTaskLogs" 
+                ref="taskList"
+                :hideHeader="true"
+              />
             </div>
           </div>
         </div>
@@ -494,6 +492,7 @@ export default {
 <style scoped>
 .evaluation-page {
   padding: 0 0 40px;
+  width: 100%;
 }
 
 .page-title {
@@ -504,7 +503,7 @@ export default {
 
 .evaluation-container {
   width: 100%;
-  max-width: 1600px;
+  max-width: 1800px;
   margin: 60px auto 20px;
   padding: 0 20px;
   box-sizing: border-box;
@@ -516,11 +515,12 @@ export default {
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
+  width: 100%;
 }
 
 .sidebar {
-  width: 250px;
+  width: 220px;
   flex-shrink: 0;
   background-color: #f8fafc;
   padding: 24px 0;
@@ -566,8 +566,10 @@ export default {
 
 .main-content {
   flex: 1;
-  padding: 30px;
+  padding: 25px;
   min-height: 600px;
+  min-width: 0;
+  overflow-x: auto;
 }
 
 .content-header {
@@ -825,6 +827,12 @@ export default {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@media (max-width: 1800px) {
+  .evaluation-container {
+    max-width: 1600px;
+  }
+}
+
 @media (max-width: 1600px) {
   .evaluation-container {
     max-width: 1400px;
@@ -865,6 +873,7 @@ export default {
   }
   
   .main-content {
+    width: 100%;
     padding: 20px;
   }
   

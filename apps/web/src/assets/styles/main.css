@@ -4,6 +4,8 @@ html, body {
   padding: 0;
   height: 100%;
   width: 100%;
+  min-width: 1200px; /* 确保页面至少有1200px的宽度 */
+  overflow-x: auto; /* 如果内容宽度超出，允许滚动 */
 }
 
 #app {
@@ -11,18 +13,25 @@ html, body {
   flex-direction: column;
   min-height: 100vh;
   width: 100%;
+  min-width: 1200px; /* 确保应用容器至少有1200px的宽度 */
 }
 
 /* 容器样式优化 */
 .container {
   width: 100%;
-  max-width: 1600px; /* 从1280px/1440px增加到1600px */
+  max-width: 1800px; /* 从1600px增加到1800px，为大型表格提供更多空间 */
   margin: 0 auto;
   padding: 0 20px;
   box-sizing: border-box;
 }
 
 /* 媒体查询 - 各种屏幕尺寸 */
+@media (max-width: 1800px) {
+  .container {
+    max-width: 1600px;
+  }
+}
+
 @media (max-width: 1600px) {
   .container {
     max-width: 1400px;
@@ -38,35 +47,29 @@ html, body {
 @media (max-width: 1200px) {
   .container {
     max-width: 992px;
+    padding: 0 15px;
   }
 }
 
 @media (max-width: 992px) {
   .container {
-    max-width: 768px;
-    padding: 0 15px;
-  }
-}
-
-@media (max-width: 768px) {
-  .container {
     padding: 0 10px;
   }
-}
-
-/* 确保最小宽度支持 */
-html, body {
-  min-width: 1024px;
-  overflow-x: auto;
 }
 
 /* 通用页面容器样式 */
 .page-container {
   width: 100%;
-  max-width: 1600px; /* 从1280px/1440px增加到1600px */
+  max-width: 1800px; /* 从1600px增加到1800px */
   margin: 60px auto 20px;
   padding: 0 20px;
   box-sizing: border-box;
+}
+
+@media (max-width: 1800px) {
+  .page-container {
+    max-width: 1600px;
+  }
 }
 
 @media (max-width: 1600px) {
@@ -85,4 +88,16 @@ html, body {
   .page-container {
     max-width: 992px;
   }
+}
+
+/* 确保表格容器样式 */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 确保按钮和表单元素样式一致 */
+button, input, select, textarea {
+  box-sizing: border-box;
 } 
