@@ -53,7 +53,7 @@ async def list_evaluations(db: Session = Depends(get_db)):
             # 构建响应数据
             result.append({
                 "id": eval_task.id,
-                "name": eval_task.name or f"评测任务-{eval_task.id}",  # 添加任务名称，如果为空则使用默认值
+                "name": eval_task.name or f"{eval_task.id}",  # 添加任务名称，如果为空则使用默认值
                 "model_name": eval_task.model_name,
                 "dataset_name": eval_task.dataset_name,
                 "status": eval_task.status.upper() if eval_task.status else "UNKNOWN",  # 确保状态大写
