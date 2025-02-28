@@ -168,20 +168,6 @@
                       <p>{{ selectedDataset.name }}</p>
                       <p class="text-sm">{{ selectedDataset.description }}</p>
                     </div>
-                    
-                    <div class="detail-group">
-                      <h4>评测配置</h4>
-                      <!-- 可选的评测配置选项 -->
-                      <div class="form-group">
-                        <label>并行度</label>
-                        <select v-model="evalConfig.parallelism" class="form-input">
-                          <option value="1">1</option>
-                          <option value="2">2</option>
-                          <option value="4">4</option>
-                          <option value="8">8</option>
-                        </select>
-                      </div>
-                    </div>
                   </div>
                   
                   <div class="form-actions">
@@ -282,7 +268,7 @@ export default {
       selectedModel: null,
       selectedDataset: null,
       evalConfig: {
-        parallelism: '4'
+        // 删除parallelism配置
       },
       submitting: false,
       showSubmitSuccess: false,
@@ -295,16 +281,10 @@ export default {
         api_base: ''
       },
       availableModels: [
-        { name: 'gpt-3.5-turbo', type: 'openai', description: 'OpenAI的GPT-3.5 Turbo模型' },
-        { name: 'gpt-4', type: 'openai', description: 'OpenAI的GPT-4模型' },
         { name: 'hk33smarter_api', type: 'api', description: 'HK33 Smarter API模型' },
-        { name: 'llama-7b', type: 'local', description: 'Llama 7B本地模型' },
-        { name: 'deepseek-coder', type: 'api', description: 'DeepSeek编程大模型，专注于代码生成与理解' },
-        { name: 'qwen-max', type: 'api', description: '通义千问大模型，强大的中文理解和生成能力' }
       ],
       availableDatasets: [
-        { name: 'mmlu', format: 'json', description: 'Massive Multitask Language Understanding', category: '通用能力' },
-        { name: 'demo_cmmlu_chat', format: 'json', description: '中文通用语言理解测试', category: '中文理解' }
+        { name: 'demo_cmmlu_chat_gen', format: 'json', description: '中文通用语言理解测试', category: '中文理解' }
       ]
     }
   },
@@ -421,8 +401,8 @@ export default {
         model_configuration: this.selectedModel.isCustom 
           ? { type: this.customModelType, api_base: this.customModelConfig.api_base } 
           : { type: this.selectedModel.type },
-        dataset_configuration: { format: this.selectedDataset.format },
-        parallelism: parseInt(this.evalConfig.parallelism)
+        dataset_configuration: { format: this.selectedDataset.format }
+        // 删除parallelism参数
       };
       
       // 发送请求创建任务
