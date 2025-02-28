@@ -298,7 +298,9 @@ export default {
         { name: 'gpt-3.5-turbo', type: 'openai', description: 'OpenAI的GPT-3.5 Turbo模型' },
         { name: 'gpt-4', type: 'openai', description: 'OpenAI的GPT-4模型' },
         { name: 'hk33smarter_api', type: 'api', description: 'HK33 Smarter API模型' },
-        { name: 'llama-7b', type: 'local', description: 'Llama 7B本地模型' }
+        { name: 'llama-7b', type: 'local', description: 'Llama 7B本地模型' },
+        { name: 'deepseek-coder', type: 'api', description: 'DeepSeek编程大模型，专注于代码生成与理解' },
+        { name: 'qwen-max', type: 'api', description: '通义千问大模型，强大的中文理解和生成能力' }
       ],
       availableDatasets: [
         { name: 'mmlu', format: 'json', description: 'Massive Multitask Language Understanding', category: '通用能力' },
@@ -520,7 +522,7 @@ export default {
 }
 
 .sidebar {
-  width: 220px;
+  width: 180px;
   flex-shrink: 0;
   background-color: #f8fafc;
   padding: 24px 0;
@@ -528,13 +530,13 @@ export default {
 }
 
 .sidebar-section {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .sidebar-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  padding: 0 24px 16px;
+  padding: 0 20px 12px;
   color: #4a5568;
 }
 
@@ -550,11 +552,12 @@ export default {
 
 .sidebar-link {
   display: block;
-  padding: 10px 24px;
+  padding: 8px 20px;
   color: #4a5568;
   text-decoration: none;
   transition: all 0.3s;
   border-left: 3px solid transparent;
+  font-size: 14px;
 }
 
 .sidebar-link:hover,

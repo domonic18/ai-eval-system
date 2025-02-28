@@ -101,4 +101,35 @@ class RedisManager:
             return None
         except Exception as e:
             logger.error(f"从Redis获取任务状态失败: {str(e)}")
-            return None 
+            return None
+    
+    @classmethod
+    def set_task_status(cls, task_id: int, status: Dict[str, Any]) -> None:
+        """直接设置任务状态"""
+        try:
+            redis_client = cls.get_instance()
+            redis_client.set(
+                cls.get_status_key(task_id), 
+                json.dumps(status),
+                ex=86400  # 1天过期
+            )
+        except Exception as e:
+            logger.error(f"设置Redis任务状态失败: {str(e)}")
+    
+    @classmethod
+    def delete_task_data(cls, task_id: int) -> None:
+        """删除任务相关的所有Redis数据
+        
+        Args:
+            task_id: 任务ID
+        """
+        try:
+            redis_client = cls.get_instance()
+            # 删除日志数据
+            redis_client.delete(cls.get_log_key(task_id))
+            # 删除状态数据
+            redis_client.delete(cls.get_status_key(task_id))
+            # 可以添加其他需要删除的键
+            logger.info(f"已删除任务 {task_id} 的Redis数据")
+        except Exception as e:
+            logger.error(f"删除任务Redis数据失败: {str(e)}") 

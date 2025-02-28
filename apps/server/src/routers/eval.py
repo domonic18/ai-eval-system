@@ -53,6 +53,7 @@ async def list_evaluations(db: Session = Depends(get_db)):
             # 构建响应数据
             result.append({
                 "id": eval_task.id,
+                "name": eval_task.name or f"评测任务-{eval_task.id}",  # 添加任务名称，如果为空则使用默认值
                 "model_name": eval_task.model_name,
                 "dataset_name": eval_task.dataset_name,
                 "status": eval_task.status.upper() if eval_task.status else "UNKNOWN",  # 确保状态大写
@@ -195,4 +196,106 @@ async def websocket_logs(websocket: WebSocket, eval_id: int):
         eval_id: 评估任务ID
     """
     await websocket.accept()
-    await handle_websocket_logs(websocket, eval_id) 
+    await handle_websocket_logs(websocket, eval_id)
+
+# 添加删除评估任务接口
+@router.delete("/evaluations/{eval_id}", response_model=Dict[str, Any])
+async def delete_evaluation(eval_id: int, db: Session = Depends(get_db)):
+    """删除评估任务
+    
+    Args:
+        eval_id: 评估任务ID
+        db: 数据库会话
+        
+    Returns:
+        Dict[str, Any]: 操作结果
+    """
+    # 查询任务是否存在
+    eval_task = db.query(Evaluation).filter(Evaluation.id == eval_id).first()
+    if not eval_task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"评估任务 {eval_id} 不存在"
+        )
+    
+    try:
+        # 如果任务正在运行，先尝试终止它
+        if eval_task.status in [EvaluationStatus.PENDING.value, EvaluationStatus.RUNNING.value]:
+            runner = get_runner(f"eval_{eval_id}")
+            if runner and runner.is_running:
+                runner.terminate()
+        
+        # 从数据库中删除任务
+        db.delete(eval_task)
+        db.commit()
+        
+        # 清理Redis中的数据
+        try:
+            RedisManager.delete_task_data(eval_id)
+        except Exception as e:
+            print(f"清理Redis数据出错: {str(e)}")
+            # 继续执行，不影响主流程
+        
+        return {"success": True, "message": "任务已成功删除"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"删除任务失败: {str(e)}"
+        )
+
+# 添加更新任务名称接口
+@router.patch("/evaluations/{eval_id}/name", response_model=Dict[str, Any])
+async def update_evaluation_name(eval_id: int, name_data: Dict[str, str], db: Session = Depends(get_db)):
+    """更新评估任务名称
+    
+    Args:
+        eval_id: 评估任务ID
+        name_data: 包含新名称的数据 {"name": "新名称"}
+        db: 数据库会话
+        
+    Returns:
+        Dict[str, Any]: 操作结果
+    """
+    # 验证请求数据
+    if "name" not in name_data or not name_data["name"].strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="必须提供有效的任务名称"
+        )
+    
+    # 查询任务是否存在
+    eval_task = db.query(Evaluation).filter(Evaluation.id == eval_id).first()
+    if not eval_task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"评估任务 {eval_id} 不存在"
+        )
+    
+    try:
+        # 更新任务名称
+        eval_task.name = name_data["name"].strip()
+        db.commit()
+        db.refresh(eval_task)
+        
+        # 同时更新Redis中的任务数据
+        try:
+            status_data = RedisManager.get_task_status(eval_id)
+            if status_data:
+                status_data["name"] = eval_task.name
+                RedisManager.set_task_status(eval_id, status_data)
+        except Exception as e:
+            print(f"更新Redis数据出错: {str(e)}")
+            # 继续执行，不影响主流程
+        
+        return {
+            "success": True, 
+            "message": "任务名称已更新",
+            "name": eval_task.name
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"更新任务名称失败: {str(e)}"
+        ) 

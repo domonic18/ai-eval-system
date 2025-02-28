@@ -19,6 +19,7 @@ class Evaluation(Base):
     __tablename__ = "evaluations"
 
     id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=True, comment="任务名称")
     model_name = Column(String(255), nullable=False, comment="模型名称")
     dataset_name = Column(String(255), nullable=False, comment="数据集名称")
     model_configuration = Column(JSON, nullable=True, comment="模型配置")

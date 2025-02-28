@@ -7,6 +7,7 @@ USE ai_eval;
 -- 创建evaluations表
 CREATE TABLE IF NOT EXISTS evaluations (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NULL COMMENT '任务名称',
     model_name VARCHAR(255) NOT NULL COMMENT '模型名称',
     dataset_name VARCHAR(255) NOT NULL COMMENT '数据集名称',
     model_configuration JSON NULL COMMENT '模型配置',

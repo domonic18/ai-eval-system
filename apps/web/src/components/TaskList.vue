@@ -21,26 +21,54 @@
     <div v-else class="table-responsive">
       <table class="tasks-table">
         <colgroup>
-          <col width="6%">
-          <col width="22%">
-          <col width="22%">
-          <col width="14%">
           <col width="20%">
-          <col width="10%">
+          <col width="20%">
+          <col width="18%">
+          <col width="12%">
+          <col width="15%">
+          <col width="15%">
         </colgroup>
         <thead>
           <tr>
-            <th class="resizable">ID</th>
-            <th class="resizable">模型</th>
-            <th class="resizable">数据集</th>
-            <th class="resizable">状态</th>
-            <th class="resizable">创建时间</th>
+            <th class="resizable">
+              任务名称
+            </th>
+            <th class="resizable">评测模型</th>
+            <th class="resizable">评测集</th>
+            <th class="resizable">评测状态</th>
+            <th class="resizable sort-header" @click="toggleSort">
+              创建时间
+              <span class="sort-icon">{{ sortDirection === 'desc' ? '↓' : '↑' }}</span>
+            </th>
             <th class="resizable">操作</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="task in tasks" :key="task.id" :class="{ 'running': getTaskStatusType(task.status) === 'running' }">
-            <td>{{ task.id }}</td>
+          <tr v-for="task in sortedTasks" :key="task.id" :class="{ 'running': getTaskStatusType(task.status) === 'running' }">
+            <td>
+              <div class="task-name-container">
+                <span v-if="!isEditing(task.id)">
+                  {{ task.name || `评测任务-${task.id}` }}
+                  <button class="edit-name-btn" @click="startEditing(task)">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                </span>
+                <div v-else class="edit-name-form">
+                  <input 
+                    type="text" 
+                    v-model="editingName" 
+                    @keyup.enter="saveTaskName(task.id)"
+                    @keyup.esc="cancelEditing"
+                    class="edit-name-input"
+                    ref="nameInput"
+                  />
+                  <div class="edit-actions">
+                    <button class="save-btn" @click="saveTaskName(task.id)">保存</button>
+                    <button class="cancel-btn" @click="cancelEditing">取消</button>
+                  </div>
+                </div>
+              </div>
+            </td>
             <td>{{ task.model_name }}</td>
             <td>{{ task.dataset_name }}</td>
             <td>
@@ -53,36 +81,18 @@
               </div>
             </td>
             <td class="actions">
-              <div class="action-icons">
-                <span class="icon-btn log-icon" @click="viewLogs(task.id)" title="查看日志">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                    <polyline points="10 9 9 9 8 9"></polyline>
-                  </svg>
-                </span>
+              <div class="action-buttons">
+                <button class="action-btn log-btn" @click="viewLogs(task.id)">日志</button>
                 
-                <span v-if="getTaskStatusType(task.status) === 'running'" 
-                      class="icon-btn terminate-icon" 
-                      @click="terminateTask(task.id)"
-                      title="终止任务">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon stop-icon">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                  </svg>
-                </span>
+                <button v-if="getTaskStatusType(task.status) === 'running'" 
+                      class="action-btn stop-btn" 
+                      @click="terminateTask(task.id)">
+                  停止
+                </button>
                 
-                <span v-if="getTaskStatusType(task.status) === 'completed'" 
-                      class="icon-btn results-icon" 
-                      @click="viewResults(task.id)"
-                      title="查看结果">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon">
-                    <line x1="18" y1="20" x2="18" y2="10"></line>
-                    <line x1="12" y1="20" x2="12" y2="4"></line>
-                    <line x1="6" y1="20" x2="6" y2="14"></line>
-                  </svg>
-                </span>
+                <button class="action-btn delete-btn" @click="deleteTask(task.id)">
+                  删除
+                </button>
               </div>
             </td>
           </tr>
@@ -112,7 +122,24 @@ export default {
       error: null,
       refreshInterval: null,
       activeTasks: new Set(), // 跟踪活动任务ID
-      loadingTaskId: null
+      loadingTaskId: null,
+      editingTaskId: null,
+      editingName: '',
+      sortDirection: 'desc' // 默认按创建时间降序排列（最新的在前）
+    }
+  },
+  computed: {
+    sortedTasks() {
+      if (!this.tasks.length) return [];
+      
+      return [...this.tasks].sort((a, b) => {
+        const dateA = new Date(a.created_at);
+        const dateB = new Date(b.created_at);
+        
+        return this.sortDirection === 'desc' 
+          ? dateB - dateA  // 降序，最新的在前
+          : dateA - dateB; // 升序，最早的在前
+      });
     }
   },
   mounted() {
@@ -204,16 +231,83 @@ export default {
       }
     },
     
-    viewResults(taskId) {
-      // 查找任务
-      const task = this.tasks.find(t => t.id === taskId);
-      if (!task || !task.results) {
-        alert('暂无结果数据');
+    async deleteTask(taskId) {
+      if (!confirm('确定要删除此任务吗？此操作不可恢复。')) return;
+      
+      try {
+        const response = await fetch(`/api/v1/evaluations/${taskId}`, {
+          method: 'DELETE',
+        });
+        
+        if (!response.ok) {
+          throw new Error(`删除任务失败: ${response.status} ${response.statusText}`);
+        }
+        
+        alert('任务已成功删除');
+        this.fetchTasks(); // 刷新列表
+      } catch (err) {
+        console.error('删除任务错误:', err);
+        alert(`删除任务失败: ${err.message}`);
+      }
+    },
+    
+    // 任务名称编辑相关方法
+    isEditing(taskId) {
+      return this.editingTaskId === taskId;
+    },
+    
+    startEditing(task) {
+      this.editingTaskId = task.id;
+      this.editingName = task.name || `评测任务-${task.id}`;
+      
+      // 下一个DOM更新周期后自动聚焦输入框
+      this.$nextTick(() => {
+        if (this.$refs.nameInput) {
+          this.$refs.nameInput.focus();
+        }
+      });
+    },
+    
+    cancelEditing() {
+      this.editingTaskId = null;
+      this.editingName = '';
+    },
+    
+    async saveTaskName(taskId) {
+      if (!this.editingName.trim()) {
+        alert('任务名称不能为空');
         return;
       }
       
-      // 显示结果，这里简单用alert，实际应使用模态框或页面
-      alert(`任务 #${taskId} 结果:\n${JSON.stringify(task.results, null, 2)}`);
+      try {
+        const response = await fetch(`/api/v1/evaluations/${taskId}/name`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name: this.editingName.trim() })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`更新任务名称失败: ${response.status} ${response.statusText}`);
+        }
+        
+        // 更新本地任务名称
+        const taskIndex = this.tasks.findIndex(t => t.id === taskId);
+        if (taskIndex !== -1) {
+          this.tasks[taskIndex].name = this.editingName.trim();
+        }
+        
+        this.cancelEditing();
+      } catch (err) {
+        console.error('更新任务名称错误:', err);
+        alert(`更新任务名称失败: ${err.message}`);
+      }
+    },
+    
+    // 排序相关方法
+    toggleSort() {
+      this.sortDirection = this.sortDirection === 'desc' ? 'asc' : 'desc';
     },
     
     getStatusText(status) {
@@ -293,62 +387,70 @@ export default {
       }).format(date);
     },
     
-    // 添加列宽调整功能的方法
+    // 改进列宽调整功能
     setupResizableColumns() {
       const table = document.querySelector('.tasks-table');
       if (!table) return;
       
       const cols = table.querySelectorAll('th.resizable');
       
-      cols.forEach((col) => {
+      cols.forEach((col, index) => {
         // 创建调整手柄
         const resizer = document.createElement('div');
         resizer.classList.add('column-resizer');
         
+        let startWidth, startX, currentColumn, nextColumn;
+        
+        // 鼠标按下事件
+        const mouseDownHandler = function(e) {
+          startX = e.pageX;
+          
+          currentColumn = col;
+          const colIndex = Array.from(col.parentElement.children).indexOf(col);
+          
+          // 获取当前列宽度
+          const styles = window.getComputedStyle(currentColumn);
+          startWidth = parseInt(styles.width, 10);
+          
+          // 禁用文本选择
+          document.body.style.userSelect = 'none';
+          
+          // 添加事件监听
+          document.addEventListener('mousemove', mouseMoveHandler);
+          document.addEventListener('mouseup', mouseUpHandler);
+          
+          resizer.classList.add('resizing');
+        };
+        
+        // 鼠标移动事件
+        const mouseMoveHandler = function(e) {
+          const widthChange = e.pageX - startX;
+          
+          if (startWidth + widthChange > 30) {
+            currentColumn.style.width = `${startWidth + widthChange}px`;
+            
+            // 更新colgroup中对应的col元素
+            const colgroup = table.querySelector('colgroup');
+            if (colgroup && colgroup.children[index]) {
+              colgroup.children[index].style.width = `${startWidth + widthChange}px`;
+            }
+          }
+        };
+        
+        // 鼠标释放事件
+        const mouseUpHandler = function() {
+          document.body.style.userSelect = '';
+          document.removeEventListener('mousemove', mouseMoveHandler);
+          document.removeEventListener('mouseup', mouseUpHandler);
+          resizer.classList.remove('resizing');
+        };
+        
         // 添加事件监听
-        resizer.addEventListener('mousedown', this.initResize);
+        resizer.addEventListener('mousedown', mouseDownHandler);
         
         col.appendChild(resizer);
         col.style.position = 'relative';
       });
-    },
-    
-    // 初始化拖动调整
-    initResize(e) {
-      const th = e.target.parentElement;
-      const startX = e.pageX;
-      const startWidth = th.offsetWidth;
-      
-      // 添加临时样式到body以防止文本选择
-      document.body.style.userSelect = 'none';
-      
-      // 列索引
-      const thIndex = Array.from(th.parentElement.children).indexOf(th);
-      
-      // 调整handler
-      const mouseMoveHandler = (e) => {
-        const table = document.querySelector('.tasks-table');
-        const colGroup = table.querySelector('colgroup');
-        const col = colGroup.children[thIndex];
-        
-        const width = startWidth + (e.pageX - startX);
-        if (width > 50) { // 最小宽度限制
-          col.style.width = `${width}px`;
-        }
-      };
-      
-      // 停止调整handler
-      const mouseUpHandler = () => {
-        document.removeEventListener('mousemove', mouseMoveHandler);
-        document.removeEventListener('mouseup', mouseUpHandler);
-        document.body.style.userSelect = '';
-      };
-      
-      // 添加临时事件监听
-      document.addEventListener('mousemove', mouseMoveHandler);
-      document.addEventListener('mouseup', mouseUpHandler);
-      
-      e.preventDefault();
     }
   }
 }
@@ -410,12 +512,13 @@ button:hover {
   border-collapse: collapse;
   margin-top: 20px;
   table-layout: fixed;
+  font-size: smaller; /* 调整表格整体字体大小 */
 }
 
 .tasks-table th,
 .tasks-table td {
   border: 1px solid #ddd;
-  padding: 10px;
+  padding: 8px; /* 减小内边距以适应更小字体 */
   text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -425,6 +528,16 @@ button:hover {
 .tasks-table th {
   background-color: #f2f2f2;
   font-weight: bold;
+  position: relative; /* 确保相对定位以支持调整手柄 */
+}
+
+.sort-header {
+  cursor: pointer;
+}
+
+.sort-icon {
+  margin-left: 5px;
+  display: inline-block;
 }
 
 .tasks-table tr:nth-child(even) {
@@ -438,10 +551,10 @@ button:hover {
 .status {
   padding: 4px 6px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: bold;
   display: inline-block;
-  min-width: 60px;
+  min-width: 50px;
   text-align: center;
 }
 
@@ -489,51 +602,50 @@ button:hover {
 }
 
 /* 操作图标样式 */
-.action-icons {
+.action-buttons {
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
-.icon-btn {
+.action-btn {
   cursor: pointer;
-  padding: 5px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  padding: 4px 8px;
   border-radius: 4px;
-  transition: background-color 0.2s, transform 0.2s;
-  position: relative;
+  border: none;
+  font-size: 11px;
+  font-weight: 500;
+  min-width: 45px;
+  color: #fff;
+  transition: all 0.2s;
 }
 
-.svg-icon {
-  color: #666;
-  transition: color 0.2s;
+.log-btn {
+  background-color: #3182ce;
 }
 
-.icon-btn:hover {
-  background-color: #f0f0f0;
-  transform: scale(1.1);
+.log-btn:hover {
+  background-color: #2c5282;
 }
 
-.icon-btn:hover .svg-icon {
-  color: #333;
+.stop-btn {
+  background-color: #e53e3e;
 }
 
-.log-icon:hover {
-  background-color: #e3f2fd;
+.stop-btn:hover {
+  background-color: #c53030;
 }
 
-.terminate-icon:hover {
-  background-color: #ffebee;
+.delete-btn {
+  background-color: #718096;
 }
 
-.results-icon:hover {
-  background-color: #e8f5e9;
+.delete-btn:hover {
+  background-color: #4a5568;
 }
 
-/* 可调整列宽样式 */
+/* 改进列宽调整样式 */
 .tasks-table th.resizable {
   position: relative;
   user-select: none;
@@ -547,16 +659,17 @@ button:hover {
   height: 100%;
   background-color: transparent;
   cursor: col-resize;
+  z-index: 1;
 }
 
 .column-resizer:hover,
-.column-resizer:active {
-  background-color: #ddd;
+.column-resizer.resizing {
+  background-color: #2c5282;
 }
 
 /* 日期单元格样式优化 */
 .date-cell {
-  padding: 5px 10px !important;
+  padding: 4px 8px !important;
 }
 
 .date-container {
@@ -574,10 +687,75 @@ button:hover {
   font-size: 0.9em;
 }
 
+/* 任务名称编辑样式 */
+.task-name-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.edit-name-btn {
+  opacity: 0.2;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: #4a5568;
+  padding: 2px 4px;
+  margin-left: 5px;
+  transition: opacity 0.2s;
+}
+
+.task-name-container:hover .edit-name-btn {
+  opacity: 1;
+}
+
+.edit-name-form {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.edit-name-input {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid #3182ce;
+  border-radius: 3px;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.save-btn, .cancel-btn {
+  padding: 2px 6px;
+  font-size: 11px;
+  border-radius: 3px;
+  cursor: pointer;
+  border: none;
+}
+
+.save-btn {
+  background-color: #3182ce;
+  color: white;
+}
+
+.cancel-btn {
+  background-color: #e2e8f0;
+  color: #4a5568;
+}
+
 @media (max-width: 1200px) {
   .actions {
     flex-direction: column;
     gap: 3px;
+  }
+  
+  .edit-actions {
+    flex-direction: row;
   }
 }
 
@@ -585,18 +763,18 @@ button:hover {
 @media (max-width: 1600px) {
   .tasks-table th,
   .tasks-table td {
-    padding: 8px 6px;
+    padding: 6px 4px;
   }
 }
 
 @media (max-width: 1400px) {
   .tasks-table th:nth-child(1) {
-    width: 5%;
+    width: 22%;
   }
   
   .tasks-table th:nth-child(2),
   .tasks-table th:nth-child(3) {
-    width: 20%;
+    width: 18%;
   }
   
   .tasks-table th:nth-child(4) {
@@ -604,11 +782,17 @@ button:hover {
   }
   
   .tasks-table th:nth-child(5) {
-    width: 20%;
+    width: 15%;
   }
   
   .tasks-table th:nth-child(6) {
-    width: 10%;
+    width: 15%;
+  }
+  
+  .action-btn {
+    font-size: 10px;
+    padding: 3px 6px;
+    min-width: 40px;
   }
 }
 
