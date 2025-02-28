@@ -16,6 +16,7 @@ from apps.server.src.tasks.opencompass_runner import get_runner
 from datetime import datetime
 import os
 from sqlalchemy import text as sqlalchemy_text
+import asyncio
 
 # 日志配置
 logger = logging.getLogger(__name__)
@@ -470,6 +471,7 @@ class EvaluationService:
         existing_logs = RedisManager.get_logs(eval_id, max_lines=200)
         if existing_logs:
             await websocket.send_json({"info": f"已加载{len(existing_logs)}条历史日志"})
+            # 一次性发送所有日志，而不是逐行发送，减少WebSocket通信次数
             for log_line in existing_logs:
                 await websocket.send_text(log_line)
         else:
@@ -490,10 +492,27 @@ class EvaluationService:
                     with open(log_file, 'r') as f:
                         lines = f.read().splitlines()
                         # 限制发送的行数
-                        for line in lines[-200:]:
-                            # 添加到Redis并发送
+                        recent_lines = lines[-200:] if len(lines) > 200 else lines
+                        
+                        # 使用集合去重日志行
+                        processed_lines = set()
+                        unique_lines = []
+                        
+                        for line in recent_lines:
+                            line = line.strip()
+                            if line and line not in processed_lines:
+                                processed_lines.add(line)
+                                unique_lines.append(line)
+                        
+                        # 首先清空旧日志
+                        RedisManager.clear_logs(eval_id)
+                        
+                        # 添加到Redis并发送
+                        for line in unique_lines:
                             RedisManager.append_log(eval_id, line)
                             await websocket.send_text(line)
+                        
+                        await websocket.send_json({"info": f"已从文件加载并去重后的{len(unique_lines)}条日志"})
                 else:
                     await websocket.send_json({"info": f"任务 {eval_id} 暂无日志"})
             except Exception as file_error:
@@ -564,16 +583,35 @@ class EvaluationService:
             websocket: WebSocket连接
             pubsub: Redis PubSub对象
         """
-        async for message in pubsub.listen():
-            if message["type"] == "message":
-                log_line = message["data"]
-                if isinstance(log_line, bytes):
-                    log_line = log_line.decode('utf-8')
-                await websocket.send_text(log_line)
+        # 设置超时，避免无限等待
+        timeout = 0.1  # 100毫秒超时
+        
+        try:
+            while True:
+                # 检查WebSocket连接状态
+                if not websocket.client_state.CONNECTED:
+                    logger.debug("WebSocket连接已断开，停止日志监听")
+                    break
                 
-            # 定期检查WebSocket连接状态
-            if not websocket.client_state.CONNECTED:
-                break
+                # 非阻塞方式获取消息，避免长时间阻塞事件循环
+                message = await asyncio.wait_for(pubsub.get_message(), timeout=timeout)
+                
+                if message and message["type"] == "message":
+                    log_line = message["data"]
+                    if isinstance(log_line, bytes):
+                        log_line = log_line.decode('utf-8')
+                    await websocket.send_text(log_line)
+                
+                # 短暂休眠，让出控制权给其他协程
+                await asyncio.sleep(0.01)
+        except asyncio.TimeoutError:
+            # 超时是正常的，继续循环
+            await asyncio.sleep(0.01)
+            pass
+        except Exception as e:
+            # 其他错误记录日志，但不终止循环
+            logger.warning(f"接收Redis消息时出错: {str(e)}")
+            # 继续下一轮循环
     
     async def _cleanup_websocket_resources(self, websocket: WebSocket, pubsub=None, redis=None):
         """清理WebSocket相关资源

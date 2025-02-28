@@ -48,14 +48,44 @@ class RedisManager:
         return f"task:{task_id}:status"
     
     @classmethod
-    def append_log(cls, task_id: int, log_line: str) -> None:
-        """添加日志行到Redis并发布更新"""
+    def clear_logs(cls, task_id: int) -> None:
+        """清空指定任务的所有日志
+        
+        Args:
+            task_id: 任务ID
+        """
         try:
             redis_client = cls.get_instance()
+            redis_client.delete(cls.get_log_key(task_id))
+            logger.info(f"已清空任务 {task_id} 的所有日志")
+        except Exception as e:
+            logger.error(f"清空Redis日志失败: {str(e)}")
+    
+    @classmethod
+    def append_log(cls, task_id: int, log_line: str) -> None:
+        """添加日志行到Redis并发布更新
+        
+        添加前会检查是否为最近的重复日志
+        """
+        if not log_line or not log_line.strip():
+            return  # 忽略空行
+            
+        try:
+            redis_client = cls.get_instance()
+            log_key = cls.get_log_key(task_id)
+            
+            # 检查最近几条日志，避免添加重复内容
+            # 获取最后5条日志用于比较
+            recent_logs = redis_client.lrange(log_key, -5, -1)
+            
+            # 如果是重复的日志行，则不添加
+            if log_line in recent_logs:
+                return
+                
             # 将日志行添加到列表中
-            redis_client.rpush(cls.get_log_key(task_id), log_line)
+            redis_client.rpush(log_key, log_line)
             # 设置TTL (1天)
-            redis_client.expire(cls.get_log_key(task_id), 86400)
+            redis_client.expire(log_key, 86400)
             # 发布日志更新
             redis_client.publish(cls.get_log_channel(task_id), log_line)
         except Exception as e:
