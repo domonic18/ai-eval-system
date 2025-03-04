@@ -32,7 +32,7 @@ celery_app.conf.update(
 # 添加调试配置
 if settings.debug:
     celery_app.conf.update(
-        task_always_eager=True,  # 同步模式方便调试
+        # task_always_eager=True,  # 同步模式方便调试
         task_eager_propagates=True,
         worker_redirect_stdouts=False
     ) 
