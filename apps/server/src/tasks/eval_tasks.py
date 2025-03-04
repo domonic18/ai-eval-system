@@ -84,10 +84,21 @@ def handle_task_status_update(status_dict):
     Args:
         status_dict: 包含状态信息的字典
     """
-    # 获取任务ID，假设已在runner初始化时设置
-    task_id = int(status_dict.get('task_id', -1))
-    if task_id == -1:
-        logger.warning(f"收到状态更新回调，但缺少task_id: {status_dict}")
+    # 获取任务ID
+    try:
+        task_id = status_dict.get('task_id')
+        if task_id is None:
+            logger.warning(f"收到状态更新回调，但缺少task_id: {status_dict}")
+            return
+            
+        # 尝试将task_id转换为整数
+        if isinstance(task_id, str) and task_id.isdigit():
+            task_id = int(task_id)
+        elif not isinstance(task_id, int):
+            logger.warning(f"收到无效的task_id格式: {task_id}, 类型: {type(task_id)}")
+            return
+    except Exception as e:
+        logger.error(f"处理task_id时出错: {str(e)}, 状态字典: {status_dict}")
         return
         
     # 提取状态信息并更新数据库
@@ -107,7 +118,7 @@ def handle_task_status_update(status_dict):
                     update_task_error(db, task_id, error_msg)
                     update_task_status(db, task_id, EvaluationStatus.FAILED)
     except Exception as e:
-        logger.error(f"处理状态更新回调时出错: {str(e)}")
+        logger.error(f"处理状态更新回调时出错: {str(e)}, task_id: {task_id}")
 
 @celery_app.task(bind=True, name='eval_task.run_evaluation', queue='eval_tasks')
 def run_evaluation(self, eval_id: int):

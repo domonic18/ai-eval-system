@@ -95,6 +95,10 @@ class OpenCompassRunner:
         Args:
             status: 当前状态字典
         """
+        # 确保状态字典中包含task_id
+        if "task_id" not in status and hasattr(self, "task_id") and self.task_id is not None:
+            status["task_id"] = self.task_id
+            
         for callback in self.status_callbacks[:]:  # 复制列表以防回调中修改
             try:
                 callback(status)
@@ -213,10 +217,13 @@ class OpenCompassRunner:
                     "status": "finished",
                     "return_code": self.return_code,
                     "is_successful": self.return_code == 0,
-                    "timestamp": time.time()
+                    "timestamp": time.time(),
+                    "task_id": self.task_id
                 }
                 RedisManager.update_task_status(self.task_id, status_data)
                 self._notify_status_change(status_data)
+            else:
+                print("警告: 无法更新状态，task_id未设置")
                 
         except Exception as e:
             error_msg = f"监控进程输出时出错: {str(e)}"
@@ -451,7 +458,8 @@ class OpenCompassRunner:
             "return_code": self.return_code,
             "progress": self.progress,
             "status_message": self.status_message,
-            "recent_logs": self.get_recent_logs()
+            "recent_logs": self.get_recent_logs(),
+            "task_id": self.task_id
         }
         return status
     
