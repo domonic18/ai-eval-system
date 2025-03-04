@@ -7,9 +7,9 @@ from apps.server.src.services.auth_service import auth_service
 from apps.server.src.tasks.log_sync import start_log_sync, stop_log_sync
 from sqlalchemy.orm import Session
 import logging
-import os
+# import os
 from pathlib import Path
-import sys
+# import sys
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
