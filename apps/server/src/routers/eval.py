@@ -134,7 +134,7 @@ async def websocket_logs(websocket: WebSocket, eval_id: int):
     await handle_websocket_logs(websocket, eval_id)
 
 @router.delete("/evaluations/{eval_id}", response_model=Dict[str, Any])
-def delete_eval(eval_id: int, db: Session = Depends(get_db)):
+async def delete_eval(eval_id: int, db: Session = Depends(get_db)):
     """删除评估任务
     
     Args:
@@ -145,7 +145,7 @@ def delete_eval(eval_id: int, db: Session = Depends(get_db)):
         Dict[str, Any]: 操作结果
     """
     try:
-        return delete_evaluation(eval_id, db)
+        return await delete_evaluation(eval_id, db)
     except HTTPException:
         raise
     except Exception as e:
