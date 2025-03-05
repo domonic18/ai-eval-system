@@ -61,8 +61,7 @@ async def startup_event():
 # 关闭事件
 @app.on_event("shutdown")
 async def shutdown_event():
-    # 停止日志同步服务
-    stop_log_sync()
+
     
     print("应用已关闭")
 
