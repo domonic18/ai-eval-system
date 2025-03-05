@@ -100,6 +100,18 @@ class TaskEvaluator:
             # 任务已完成，记录最终状态
             logger.info(f"任务[{self.eval_id}]监控完成，状态: {'成功' if self.runner.is_successful else '失败'}")
             
+            # 更新数据库中的任务状态
+            with db_session() as session:
+                from apps.server.src.tasks.eval_tasks import update_task_status
+                if self.runner.is_successful:
+                    # 任务成功完成
+                    update_task_status(session, self.eval_id, EvaluationStatus.COMPLETED, "任务执行完成")
+                    logger.info(f"任务[{self.eval_id}]已更新为已完成状态")
+                else:
+                    # 任务执行失败
+                    update_task_status(session, self.eval_id, EvaluationStatus.FAILED, "任务执行失败")
+                    logger.info(f"任务[{self.eval_id}]已更新为失败状态")
+            
             # 清理活动任务记录
             if self.eval_id in _active_tasks:
                 del _active_tasks[self.eval_id]
@@ -133,7 +145,8 @@ class TaskEvaluator:
         logger.info(f"开始执行评估任务[{self.eval_id}]")
         
         # 注册撤销处理
-        self.celery_task.request.on_revoked = self.handle_task_revoked
+        if self.celery_task is not None and hasattr(self.celery_task, 'request'):
+            self.celery_task.request.on_revoked = self.handle_task_revoked
         
         # 使用数据库会话上下文管理器处理任务启动
         with db_session() as db:
@@ -183,7 +196,8 @@ class TaskEvaluator:
                     runner.run(command, self.log_file)
                     
                     # 设置初始任务状态
-                    self.celery_task.update_state(state='PROGRESS', meta={'progress': 0, 'status': '任务已启动'})
+                    if self.celery_task is not None and hasattr(self.celery_task, 'update_state'):
+                        self.celery_task.update_state(state='PROGRESS', meta={'progress': 0, 'status': '任务已启动'})
                     
                     # 设置任务元数据
                     update_task_metadata(db, self.eval_id, {
@@ -201,7 +215,8 @@ class TaskEvaluator:
                     return {
                         "message": f"评估任务[{self.eval_id}]已启动，正在后台执行",
                         "eval_id": self.eval_id,
-                        "status": "RUNNING"
+                        "status": "RUNNING",
+                        "success": True
                     }
                 except Exception as e:
                     logger.exception(f"启动评估任务[{self.eval_id}]时出错: {str(e)}")

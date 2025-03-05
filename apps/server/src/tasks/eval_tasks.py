@@ -124,16 +124,58 @@ def handle_task_status_update(status_dict):
 def run_evaluation(self, eval_id: int):
     """
     运行评估任务
-
+    
+    此函数会被TaskManager调用并通过Celery异步执行
+    
     Args:
         eval_id: 评估任务ID
         
     Returns:
         dict: 任务状态信息
     """
-    # 创建任务执行器并执行任务
-    evaluator = TaskEvaluator(self, eval_id)
-    return evaluator.execute()
+    # 安全获取task_id
+    task_id = getattr(self.request, 'id', 'unknown') if hasattr(self, 'request') else 'unknown'
+    logger.info(f"开始执行评估任务 [eval_id={eval_id}, task_id={task_id}]")
+    
+    # 通过数据库更新任务状态
+    with SessionLocal() as db:
+        update_task_status(db, eval_id, EvaluationStatus.RUNNING)
+    
+    # 执行实际的评估
+    result = run_evaluation_internal(eval_id)
+    
+    # 基于结果更新数据库状态
+    with SessionLocal() as db:
+        if result.get("success", False):
+            update_task_status(db, eval_id, EvaluationStatus.COMPLETED, result.get("result"))
+            logger.info(f"评估任务执行成功 [eval_id={eval_id}]")
+        else:
+            update_task_status(db, eval_id, EvaluationStatus.FAILED, {"error": result.get("message")})
+            logger.error(f"评估任务执行失败 [eval_id={eval_id}]: {result.get('message')}")
+    
+    return result
+
+def run_evaluation_internal(eval_id: int) -> dict:
+    """
+    内部评估执行函数
+    
+    执行实际的评估逻辑，但不处理任务状态管理
+    
+    Args:
+        eval_id: 评估任务ID
+        
+    Returns:
+        dict: 执行结果
+    """
+    try:
+        # 创建任务执行器并执行任务
+        evaluator = TaskEvaluator(None, eval_id)
+        return evaluator.execute()
+    except Exception as e:
+        import traceback
+        error_msg = f"执行评估内部异常: {str(e)}\n{traceback.format_exc()}"
+        logger.exception(error_msg)
+        return {"success": False, "message": f"执行异常: {str(e)}", "error": error_msg}
 
 def update_task_status(db: Session, eval_id: int, status: EvaluationStatus, results=None):
     """更新任务状态
