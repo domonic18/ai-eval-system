@@ -9,10 +9,16 @@ import json
 import signal
 import tempfile
 import threading
+import traceback
+import logging
+import re
 from pathlib import Path
 from threading import Thread, Event
 from typing import Dict, Any, Optional, List, Tuple, Callable
 from apps.server.src.utils.redis_manager import RedisManager
+
+# 配置日志
+logger = logging.getLogger(__name__)
 
 class OpenCompassRunner:
     """OpenCompass评测任务执行器"""
@@ -183,6 +189,20 @@ class OpenCompassRunner:
                 # 写入日志文件
                 self._write_to_log_file(line_str + '\n')
 
+                # 处理Redis日志（添加+发布）
+                try:
+                    if self.task_id is not None and line_str:
+                        # 创建日志数据对象
+                        log_data = {
+                            "log": line_str,
+                            "timestamp": time.time(),
+                            "task_id": self.task_id
+                        }
+                        # 添加日志到Redis存储 - 这个方法内部会检查去重，且不会重复发布
+                        RedisManager.append_log(self.task_id, line_str)
+                except Exception as redis_error:
+                    print(f"添加日志到Redis失败: {str(redis_error)}")
+
                 # 打印工作日志
                 print(f"OpenCompass输出: {line_str}")
             
@@ -192,6 +212,13 @@ class OpenCompassRunner:
                 line_str = line.strip()
                 self._update_log(line_str)
                 self._write_to_log_file(line_str + '\n')
+                
+                # 处理Redis日志
+                try:
+                    if self.task_id is not None and line_str:
+                        RedisManager.append_log(self.task_id, line_str)
+                except Exception as redis_error:
+                    print(f"添加剩余日志到Redis失败: {str(redis_error)}")
             
             # 获取返回码
             self.return_code = self.process.poll()
@@ -222,6 +249,13 @@ class OpenCompassRunner:
                 }
                 RedisManager.update_task_status(self.task_id, status_data)
                 self._notify_status_change(status_data)
+                
+                # 发布任务完成日志
+                try:
+                    completion_log = f"任务执行完成，返回码: {self.return_code}"
+                    RedisManager.append_log(self.task_id, completion_log)
+                except Exception as redis_error:
+                    print(f"添加任务完成日志到Redis失败: {str(redis_error)}")
             else:
                 print("警告: 无法更新状态，task_id未设置")
                 
@@ -246,6 +280,13 @@ class OpenCompassRunner:
             if self.log_file:
                 self._write_to_log_file(f"{error_msg}\n")
                 self._close_log_file()
+            
+            # 发布错误日志到Redis
+            if self.task_id is not None:
+                try:
+                    RedisManager.append_log(self.task_id, error_msg)
+                except Exception as redis_error:
+                    print(f"添加错误日志到Redis失败: {str(redis_error)}")
     
     def join_monitor_thread(self, timeout=None):
         """等待监控线程完成
@@ -573,21 +614,31 @@ class OpenCompassRunner:
             RedisManager.update_task_status(self.task_id, status_data)
 
     def monitor_task(self):
-        """改进的监控方法"""
+        """监控任务的进度和状态
+        
+        This function runs in a separate thread and periodically updates the task status.
+        """
         try:
-            while self.is_running and not self.is_finished:
+            while self.is_running and not self._stop_event.is_set():
                 # 添加更多状态检查
                 if self.progress > 0:
-                    self._update_progress()
+                    self.update_status(progress=self.progress)
                 if self.status_message:
-                    self._update_status()
+                    self.update_status(message=self.status_message)
                 time.sleep(5)
                 
-            # 任务完成后的处理
-            self._handle_task_completion()
+            # 任务完成后记录最终状态
+            self.update_status(
+                progress=100 if self.is_successful else self.progress,
+                message=f"任务{'成功' if self.is_successful else '失败'}"
+            )
             
         except Exception as e:
-            self._handle_monitoring_error(e)
+            logger.error(f"监控任务线程出错: {str(e)}")
+            self.update_status(
+                message=f"监控错误: {str(e)}",
+                progress=self.progress
+            )
 
 # 单例模式，保存正在运行的任务
 _runners = {}

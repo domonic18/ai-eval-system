@@ -323,13 +323,18 @@ class EvaluationService:
         redis = None
         client_id = None
         
+        logger.debug(f"开始处理WebSocket连接 - 评估ID: {eval_id}")
+        
         try:
             # 验证任务存在性
             eval_task = await self._get_evaluation_for_websocket(eval_id)
             if not eval_task:
+                logger.warning(f"评估任务不存在 - 评估ID: {eval_id}")
                 await websocket.send_json({"error": f"评估任务 {eval_id} 不存在"})
                 await websocket.close()
                 return
+            
+            logger.debug(f"成功获取评估任务信息 - 评估ID: {eval_id}, 模型: {eval_task.model_name}")
             
             # 发送历史日志
             await self._send_historical_logs(websocket, eval_id)
@@ -342,20 +347,22 @@ class EvaluationService:
             
             # 如果一切正常，持续监听Redis消息
             if pubsub and redis:
+                logger.debug(f"开始监听Redis消息 - 评估ID: {eval_id}, 客户端ID: {client_id}")
                 await self._listen_for_log_messages(websocket, pubsub)
                 
         except WebSocketDisconnect:
-            logger.info(f"客户端断开WebSocket连接: {eval_id}")
+            logger.info(f"客户端主动断开WebSocket连接 - 评估ID: {eval_id}, 客户端ID: {client_id}")
         except Exception as e:
-            logger.error(f"WebSocket错误: {str(e)}")
+            logger.error(f"WebSocket处理发生错误 - 评估ID: {eval_id}, 错误: {str(e)}")
             logger.error(traceback.format_exc())
             try:
                 await websocket.send_json({"error": f"发生错误: {str(e)}"})
             except:
-                pass
+                logger.error("无法发送错误消息到WebSocket")
         finally:
             # 清理资源
             if client_id:
+                logger.debug(f"注销WebSocket客户端 - 评估ID: {eval_id}, 客户端ID: {client_id}")
                 RedisManager.unregister_websocket(eval_id, client_id)
             await self._cleanup_websocket_resources(websocket, pubsub, redis)
 
@@ -390,57 +397,65 @@ class EvaluationService:
             websocket: WebSocket连接
             eval_id: 评估任务ID
         """
+        logger.debug(f"开始获取历史日志 - 评估ID: {eval_id}")
+        
         # 先获取Redis中现有的日志
         existing_logs = RedisManager.get_logs(eval_id, max_lines=200)
         if existing_logs:
+            logger.debug(f"从Redis获取到{len(existing_logs)}条历史日志 - 评估ID: {eval_id}")
             await websocket.send_json({"info": f"已加载{len(existing_logs)}条历史日志"})
             # 一次性发送所有日志，而不是逐行发送，减少WebSocket通信次数
             for log_line in existing_logs:
                 await websocket.send_text(log_line)
         else:
+            logger.debug(f"Redis中无历史日志，尝试从文件加载 - 评估ID: {eval_id}")
             # 如果Redis中没有日志，尝试从文件加载
-            try:
-                BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
-                logs_dir = os.path.join(BASE_DIR, "logs", "opencompass")
-                os.makedirs(logs_dir, exist_ok=True)
+            # try:
+            #     BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
+            #     logs_dir = os.path.join(BASE_DIR, "logs", "opencompass")
+            #     os.makedirs(logs_dir, exist_ok=True)
                 
-                log_pattern = f"eval_{eval_id}_*.log"
-                log_files = list(Path(logs_dir).glob(log_pattern))
+            #     log_pattern = f"eval_{eval_id}_*.log"
+            #     log_files = list(Path(logs_dir).glob(log_pattern))
                 
-                if log_files:
-                    log_file = str(sorted(log_files, key=lambda x: x.stat().st_mtime, reverse=True)[0])
-                    await websocket.send_json({"info": f"从文件加载日志: {os.path.basename(log_file)}"})
+            #     if log_files:
+            #         log_file = str(sorted(log_files, key=lambda x: x.stat().st_mtime, reverse=True)[0])
+            #         logger.debug(f"找到日志文件 - 评估ID: {eval_id}, 文件: {log_file}")
+            #         await websocket.send_json({"info": f"从文件加载日志: {os.path.basename(log_file)}"})
                     
-                    # 读取文件
-                    with open(log_file, 'r') as f:
-                        lines = f.read().splitlines()
-                        # 限制发送的行数
-                        recent_lines = lines[-200:] if len(lines) > 200 else lines
+            #         # 读取文件
+            #         with open(log_file, 'r') as f:
+            #             lines = f.read().splitlines()
+            #             # 限制发送的行数
+            #             recent_lines = lines[-200:] if len(lines) > 200 else lines
                         
-                        # 使用集合去重日志行
-                        processed_lines = set()
-                        unique_lines = []
+            #             # 使用集合去重日志行
+            #             processed_lines = set()
+            #             unique_lines = []
                         
-                        for line in recent_lines:
-                            line = line.strip()
-                            if line and line not in processed_lines:
-                                processed_lines.add(line)
-                                unique_lines.append(line)
+            #             for line in recent_lines:
+            #                 line = line.strip()
+            #                 if line and line not in processed_lines:
+            #                     processed_lines.add(line)
+            #                     unique_lines.append(line)
                         
-                        # 首先清空旧日志
-                        RedisManager.clear_logs(eval_id)
+            #             logger.debug(f"从文件读取到{len(unique_lines)}条去重后的日志 - 评估ID: {eval_id}")
                         
-                        # 添加到Redis并发送
-                        for line in unique_lines:
-                            RedisManager.append_log(eval_id, line)
-                            await websocket.send_text(line)
+            #             # 首先清空旧日志
+            #             RedisManager.clear_logs(eval_id)
                         
-                        await websocket.send_json({"info": f"已从文件加载并去重后的{len(unique_lines)}条日志"})
-                else:
-                    await websocket.send_json({"info": f"任务 {eval_id} 暂无日志"})
-            except Exception as file_error:
-                logger.warning(f"读取日志文件时出错: {str(file_error)}")
-                await websocket.send_json({"warning": f"读取日志文件时出错: {str(file_error)}"})
+            #             # 添加到Redis并发送
+            #             for line in unique_lines:
+            #                 RedisManager.append_log(eval_id, line)
+            #                 await websocket.send_text(line)
+                        
+            #             await websocket.send_json({"info": f"已从文件加载并去重后的{len(unique_lines)}条日志"})
+            #     else:
+            #         logger.debug(f"未找到日志文件 - 评估ID: {eval_id}")
+            #         await websocket.send_json({"info": f"任务 {eval_id} 暂无日志"})
+            # except Exception as file_error:
+            #     logger.error(f"读取日志文件出错 - 评估ID: {eval_id}, 错误: {str(file_error)}")
+            #     await websocket.send_json({"warning": f"读取日志文件时出错: {str(file_error)}"})
     
     async def _update_task_status_for_websocket(self, websocket: WebSocket, eval_task: Evaluation):
         """为WebSocket连接更新任务状态到Redis
@@ -519,6 +534,8 @@ class EvaluationService:
         reconnect_count = 0
         max_reconnect_attempts = 3
         
+        logger.debug("开始监听Redis日志消息")
+        
         try:
             while True:
                 # 检查WebSocket连接状态
@@ -531,6 +548,7 @@ class EvaluationService:
                     message = await asyncio.wait_for(pubsub.get_message(), timeout=timeout)
                     
                     if message and message["type"] == "message":
+                        logger.debug(f"收到Redis消息: {message}")
                         # 解析消息内容
                         try:
                             data = message["data"]
@@ -542,9 +560,11 @@ class EvaluationService:
                             log_line = payload.get("log", "")
                             
                             if log_line:
+                                logger.debug(f"发送日志到WebSocket: {log_line[:100]}...")
                                 await websocket.send_text(log_line)
                         except json.JSONDecodeError:
                             # 兼容旧格式：直接发送文本
+                            logger.debug(f"发送旧格式日志到WebSocket: {data[:100]}...")
                             await websocket.send_text(data)
                         except Exception as parse_error:
                             logger.warning(f"解析日志消息失败: {str(parse_error)}")
@@ -570,14 +590,15 @@ class EvaluationService:
                         
                     # 指数退避重试
                     retry_delay = 0.1 * (2 ** reconnect_count)
+                    logger.debug(f"等待{retry_delay}秒后重试连接")
                     await asyncio.sleep(retry_delay)
         except Exception as e:
             # 其他错误记录日志
-            logger.warning(f"日志监听循环出错: {str(e)}")
+            logger.error(f"日志监听循环出错: {str(e)}")
             try:
                 await websocket.send_json({"error": f"日志监听出错: {str(e)}"})
             except Exception:
-                pass  # 忽略发送错误消息可能的异常
+                logger.error("无法发送错误消息到WebSocket")
 
     async def _cleanup_websocket_resources(self, websocket: WebSocket, pubsub=None, redis=None):
         """清理WebSocket相关资源
@@ -587,14 +608,18 @@ class EvaluationService:
             pubsub: Redis PubSub对象
             redis: Redis连接对象
         """
+        logger.debug("开始清理WebSocket资源")
         try:
             if pubsub:
+                logger.debug("关闭Redis PubSub连接")
                 await pubsub.unsubscribe()
                 await pubsub.close()
             
             if redis:
+                logger.debug("关闭Redis连接")
                 await redis.close()
                 
+            logger.debug("关闭WebSocket连接")
             await websocket.close()
         except Exception as cleanup_error:
             logger.error(f"清理WebSocket资源时出错: {str(cleanup_error)}")
@@ -670,27 +695,27 @@ class EvaluationService:
         if runner:
             return runner.get_recent_logs(lines)
         
-        # 最后尝试从文件获取
-        try:
-            BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
-            logs_dir = os.path.join(BASE_DIR, "logs", "opencompass")
-            log_pattern = f"eval_{eval_id}_*.log"
+        # # 最后尝试从文件获取
+        # try:
+        #     BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
+        #     logs_dir = os.path.join(BASE_DIR, "logs", "opencompass")
+        #     log_pattern = f"eval_{eval_id}_*.log"
             
-            log_files = list(Path(logs_dir).glob(log_pattern))
-            if log_files:
-                log_file = str(sorted(log_files, key=lambda x: x.stat().st_mtime, reverse=True)[0])
-                with open(log_file, 'r') as f:
-                    all_lines = f.read().splitlines()
-                    # 获取最后n行
-                    log_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
+        #     log_files = list(Path(logs_dir).glob(log_pattern))
+        #     if log_files:
+        #         log_file = str(sorted(log_files, key=lambda x: x.stat().st_mtime, reverse=True)[0])
+        #         with open(log_file, 'r') as f:
+        #             all_lines = f.read().splitlines()
+        #             # 获取最后n行
+        #             log_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
                     
-                    # 将日志添加到Redis
-                    for line in log_lines:
-                        RedisManager.append_log(eval_id, line)
+        #             # 将日志添加到Redis
+        #             for line in log_lines:
+        #                 RedisManager.append_log(eval_id, line)
                         
-                    return log_lines
-        except Exception as e:
-            logger.warning(f"从文件读取日志失败: {str(e)}")
+        #             return log_lines
+        # except Exception as e:
+        #     logger.warning(f"从文件读取日志失败: {str(e)}")
         
         # 如果没有运行中的任务，则返回空列表
         return []

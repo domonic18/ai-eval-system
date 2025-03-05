@@ -3,7 +3,7 @@ import aioredis
 import json
 import logging
 import time
-from typing import List, Optional, Dict, Any, Set, Tuple
+from typing import List, Optional, Dict, Any, Set, Tuple, Union
 import threading
 import os
 import asyncio
@@ -481,6 +481,35 @@ class RedisManager:
             return True
         except Exception as e:
             logger.error(f"清除Redis日志出错: {str(e)}")
+            return False
+    
+    @classmethod
+    def publish_log(cls, eval_id: int, log_data: Union[str, Dict[str, Any]]) -> bool:
+        """发布日志到指定的通道
+        
+        Args:
+            eval_id: 评估任务ID
+            log_data: 日志数据，可以是JSON字符串或字典对象
+            
+        Returns:
+            bool: 发布是否成功
+        """
+        try:
+            redis_client = cls.get_instance()
+            if not redis_client:
+                logger.error("无法获取Redis连接")
+                return False
+            
+            channel = cls.get_log_channel(eval_id)
+            
+            # 如果提供的是字典，转换为JSON字符串
+            log_data_str = log_data if isinstance(log_data, str) else json.dumps(log_data)
+            
+            # 发布到通道
+            redis_client.publish(channel, log_data_str)
+            return True
+        except Exception as e:
+            logger.error(f"发布日志到Redis通道出错: {str(e)}")
             return False
     
     #------------------
