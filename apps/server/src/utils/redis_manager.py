@@ -8,6 +8,7 @@ import threading
 import os
 import asyncio
 from datetime import datetime
+from fastapi import WebSocket
 
 logger = logging.getLogger(__name__)
 
@@ -144,100 +145,67 @@ class RedisManager:
     #------------------
     
     @classmethod
-    def register_websocket(cls, eval_id, client_id, pubsub) -> bool:
+    def register_websocket(cls, task_id: int, client_id: str, websocket: WebSocket) -> None:
         """注册WebSocket连接
         
-        将WebSocket连接与PubSub对象关联并加入注册表
-        
         Args:
-            eval_id: 评估任务ID
-            client_id: 客户端唯一标识
-            pubsub: Redis PubSub对象
-            
-        Returns:
-            bool: 注册是否成功
+            task_id: 任务ID
+            client_id: 客户端ID
+            websocket: WebSocket连接对象
         """
-        with cls._lock:
-            # 更新WebSocket注册表
-            if eval_id not in cls._websocket_registry:
-                cls._websocket_registry[eval_id] = {}
+        # 初始化任务的WebSocket注册表
+        if task_id not in cls._websocket_registry:
+            cls._websocket_registry[task_id] = {}
             
-            cls._websocket_registry[eval_id][client_id] = pubsub
-            
-            # 更新活跃通道跟踪
-            if eval_id not in cls._active_channels:
-                cls._active_channels[eval_id] = set()
-            
-            cls._active_channels[eval_id].add(client_id)
-            
-            logger.debug(f"已注册WebSocket连接: 任务={eval_id}, 客户端={client_id}")
-            return True
-    
+        # 添加WebSocket连接
+        cls._websocket_registry[task_id][client_id] = websocket
+        logger.debug(f"已注册WebSocket连接 - 任务ID: {task_id}, 客户端ID: {client_id}")
+        
+        # 更新Redis中的连接信息
+        try:
+            redis_client = cls.get_instance()
+            if redis_client:
+                connection_key = cls.get_connection_key(task_id)
+                redis_client.hset(connection_key, client_id, "active")
+        except Exception as e:
+            logger.error(f"更新Redis连接信息失败: {str(e)}")
+
     @classmethod
-    def unregister_websocket(cls, eval_id, client_id) -> bool:
+    async def unregister_websocket(cls, task_id: int, client_id: str) -> None:
         """注销WebSocket连接
         
-        安全地关闭PubSub连接并从注册表中移除
-        
         Args:
-            eval_id: 评估任务ID
-            client_id: 客户端唯一标识
-            
-        Returns:
-            bool: 注销是否成功
+            task_id: 任务ID
+            client_id: 客户端ID
         """
-        with cls._lock:
-            if eval_id in cls._websocket_registry and client_id in cls._websocket_registry[eval_id]:
-                # 获取PubSub对象
-                pubsub = cls._websocket_registry[eval_id][client_id]
+        try:
+            # 从注册表中移除连接
+            if task_id in cls._websocket_registry and client_id in cls._websocket_registry[task_id]:
+                # 关闭WebSocket连接
+                websocket = cls._websocket_registry[task_id][client_id]
+                if not websocket.client_state.value.startswith("DISCONNECTED"):
+                    await websocket.close()
                 
-                # 创建异步关闭PubSub连接的协程
-                async def close_pubsub():
-                    try:
-                        if pubsub:
-                            # 确保先取消订阅再关闭
-                            await pubsub.unsubscribe()
-                            await pubsub.close()
-                            logger.debug(f"已关闭PubSub连接: 任务={eval_id}, 客户端={client_id}")
-                    except Exception as e:
-                        logger.warning(f"关闭PubSub连接出错: {str(e)}")
+                # 从注册表中删除
+                del cls._websocket_registry[task_id][client_id]
                 
-                # 在当前事件循环中执行异步关闭
-                try:
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        # 创建任务，不再有对任务的引用，但会在事件循环中执行
-                        close_task = asyncio.create_task(close_pubsub())
-                        
-                        # 添加完成回调，以记录任何错误
-                        def log_task_completion(task):
-                            try:
-                                # 尝试获取任务结果，捕获可能的异常
-                                task.result()
-                            except Exception as e:
-                                logger.warning(f"关闭PubSub连接任务完成出错: {str(e)}")
-                        
-                        close_task.add_done_callback(log_task_completion)
-                    else:
-                        # 如果没有运行中的事件循环，则同步运行
-                        loop.run_until_complete(close_pubsub())
-                except Exception as e:
-                    logger.warning(f"执行异步关闭PubSub出错: {str(e)}")
+                # 如果任务没有更多连接，清理注册表
+                if not cls._websocket_registry[task_id]:
+                    del cls._websocket_registry[task_id]
                 
-                # 从注册表中移除
-                del cls._websocket_registry[eval_id][client_id]
-                if not cls._websocket_registry[eval_id]:
-                    del cls._websocket_registry[eval_id]
+                logger.debug(f"已注销WebSocket连接 - 任务ID: {task_id}, 客户端ID: {client_id}")
                 
-                # 从活跃通道跟踪中移除
-                if eval_id in cls._active_channels and client_id in cls._active_channels[eval_id]:
-                    cls._active_channels[eval_id].remove(client_id)
-                    if not cls._active_channels[eval_id]:
-                        del cls._active_channels[eval_id]
-                
-                logger.debug(f"已注销WebSocket连接: 任务={eval_id}, 客户端={client_id}")
-                return True
-            return False
+                # 更新Redis中的连接信息
+                redis_client = cls.get_instance()
+                if redis_client:
+                    connection_key = cls.get_connection_key(task_id)
+                    redis_client.hdel(connection_key, client_id)
+                    
+        except Exception as e:
+            logger.error(f"注销WebSocket连接失败: {str(e)}")
+            # 即使出错也尝试清理注册表
+            if task_id in cls._websocket_registry and client_id in cls._websocket_registry[task_id]:
+                del cls._websocket_registry[task_id][client_id]
     
     @classmethod
     async def subscribe_to_logs(cls, eval_id, client_id) -> Optional[aioredis.client.PubSub]:
@@ -608,7 +576,7 @@ class RedisManager:
     #------------------
     
     @classmethod
-    def delete_task_data(cls, task_id: int) -> None:
+    async def delete_task_data(cls, task_id: int) -> None:
         """删除任务相关的所有Redis数据
         
         包括日志、状态和连接信息的清理，同时关闭相关的WebSocket连接
@@ -632,19 +600,17 @@ class RedisManager:
             logger.info(f"已删除任务 {task_id} 的Redis数据")
             
             # 清理WebSocket连接
-            with cls._lock:
-                # 获取所有相关的客户端ID
-                client_ids = []
-                if task_id in cls._websocket_registry:
-                    client_ids = list(cls._websocket_registry[task_id].keys())
+            # 获取所有相关的客户端ID
+            if task_id in cls._websocket_registry:
+                client_ids = list(cls._websocket_registry[task_id].keys())
                 
                 # 逐个注销WebSocket连接
                 for client_id in client_ids:
-                    cls.unregister_websocket(task_id, client_id)
-                
-                # 清理活跃通道记录
-                if task_id in cls._active_channels:
-                    del cls._active_channels[task_id]
+                    await cls.unregister_websocket(task_id, client_id)
+            
+            # 清理活跃通道记录
+            if task_id in cls._active_channels:
+                del cls._active_channels[task_id]
                     
         except Exception as e:
             logger.error(f"删除任务Redis数据失败: {str(e)}") 
