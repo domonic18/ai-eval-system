@@ -21,6 +21,7 @@ import uuid
 from apps.server.src.repositories.evaluation_repository import EvaluationRepository
 from apps.server.src.utils.db_utils import db_operation, async_db_operation
 from fastapi import HTTPException, status
+from fastapi.websockets import WebSocketState
 
 # 日志配置
 logger = logging.getLogger(__name__)
@@ -318,7 +319,6 @@ class EvaluationService:
             eval_id: 评估任务ID
         """
         # 提前声明资源变量，以便在finally中安全释放
-        db_session = None
         pubsub = None
         redis = None
         client_id = None
@@ -326,21 +326,16 @@ class EvaluationService:
         logger.debug(f"开始处理WebSocket连接 - 评估ID: {eval_id}")
         
         try:
-            # 验证任务存在性
-            eval_task = await self._get_evaluation_for_websocket(eval_id)
-            if not eval_task:
-                logger.warning(f"评估任务不存在 - 评估ID: {eval_id}")
-                await websocket.send_json({"error": f"评估任务 {eval_id} 不存在"})
-                await websocket.close()
-                return
-            
-            logger.debug(f"成功获取评估任务信息 - 评估ID: {eval_id}, 模型: {eval_task.model_name}")
-            
-            # 发送历史日志
+            # 直接发送历史日志，不再验证任务存在性
             await self._send_historical_logs(websocket, eval_id)
             
-            # 更新任务状态到Redis
-            await self._update_task_status_for_websocket(websocket, eval_task)
+            # 获取Redis中的任务状态并发送
+            try:
+                status_data = RedisManager.get_task_status(eval_id)
+                if status_data:
+                    await websocket.send_json({"status": status_data})
+            except Exception as status_error:
+                logger.warning(f"获取任务状态失败: {str(status_error)}")
             
             # 订阅Redis日志通道
             pubsub, redis, client_id = await self._subscribe_to_log_channel(websocket, eval_id)
@@ -363,33 +358,12 @@ class EvaluationService:
             # 清理资源
             if client_id:
                 logger.debug(f"注销WebSocket客户端 - 评估ID: {eval_id}, 客户端ID: {client_id}")
-                RedisManager.unregister_websocket(eval_id, client_id)
+                try:
+                    await RedisManager.unregister_websocket(eval_id, client_id)
+                except Exception as e:
+                    logger.error(f"注销WebSocket客户端失败: {str(e)}")
             await self._cleanup_websocket_resources(websocket, pubsub, redis)
 
-    async def _get_evaluation_for_websocket(self, eval_id: int) -> Optional[Evaluation]:
-        """获取评估任务信息用于WebSocket处理
-        
-        Args:
-            eval_id: 评估任务ID
-            
-        Returns:
-            Optional[Evaluation]: 评估任务对象，如果不存在则返回None
-        """
-        try:
-            # 安全获取数据库会话
-            from apps.server.src.db import SessionLocal
-            db_session = SessionLocal()
-            
-            try:
-                return db_session.query(Evaluation).filter(Evaluation.id == eval_id).first()
-            finally:
-                # 确保数据库会话关闭
-                if db_session:
-                    db_session.close()
-        except Exception as db_error:
-            logger.error(f"获取评估任务数据库错误: {str(db_error)}")
-            return None
-            
     async def _send_historical_logs(self, websocket: WebSocket, eval_id: int):
         """发送历史日志到WebSocket
         
@@ -457,36 +431,6 @@ class EvaluationService:
             #     logger.error(f"读取日志文件出错 - 评估ID: {eval_id}, 错误: {str(file_error)}")
             #     await websocket.send_json({"warning": f"读取日志文件时出错: {str(file_error)}"})
     
-    async def _update_task_status_for_websocket(self, websocket: WebSocket, eval_task: Evaluation):
-        """为WebSocket连接更新任务状态到Redis
-        
-        Args:
-            websocket: WebSocket连接
-            eval_task: 评估任务对象
-        """
-        try:
-            progress = 0
-            if eval_task.results:
-                results_data = eval_task.results
-                if isinstance(results_data, str):
-                    import json
-                    results_data = json.loads(results_data)
-                if isinstance(results_data, dict):
-                    progress = float(results_data.get("progress", 0))
-                    
-            status_data = {
-                "id": eval_task.id,
-                "status": eval_task.status.upper() if eval_task.status else "UNKNOWN",
-                "progress": progress,
-                "model_name": eval_task.model_name or "未知模型",
-                "dataset_name": eval_task.dataset_name or "未知数据集",
-                "updated_at": eval_task.updated_at.isoformat() if eval_task.updated_at else None
-            }
-            RedisManager.update_task_status(eval_task.id, status_data)
-        except Exception as status_error:
-            logger.warning(f"更新任务状态时出错: {str(status_error)}")
-            await websocket.send_json({"warning": f"更新任务状态时出错: {str(status_error)}"})
-    
     async def _subscribe_to_log_channel(self, websocket: WebSocket, eval_id: int):
         """订阅Redis日志通道
         
@@ -495,20 +439,26 @@ class EvaluationService:
             eval_id: 评估任务ID
             
         Returns:
-            Tuple[Optional[aioredis.client.PubSub], Optional[aioredis.client.Redis]]: Redis PubSub和连接对象
+            Tuple[Optional[aioredis.client.PubSub], Optional[aioredis.client.Redis], Optional[str]]: 
+                Redis PubSub对象、Redis连接对象和客户端ID
         """
         try:
+            # 获取Redis连接
+            redis = await RedisManager.get_async_instance()
+            if not redis:
+                await websocket.send_json({"error": "无法获取Redis连接"})
+                return None, None, None
+            
             # 生成唯一的客户端ID
             client_id = str(uuid.uuid4())
             
-            # 使用增强的订阅方法
-            pubsub = await RedisManager.subscribe_to_logs(eval_id, client_id)
-            if not pubsub:
-                await websocket.send_json({"error": "无法订阅日志通道"})
-                return None, None, None
+            # 创建PubSub对象并订阅日志通道
+            pubsub = redis.pubsub()
+            channel = RedisManager.get_log_channel(eval_id)
+            await pubsub.subscribe(channel)
             
-            # 获取Redis连接用于后续操作
-            redis = await RedisManager.get_async_instance()
+            # 注册WebSocket连接
+            RedisManager.register_websocket(eval_id, client_id, websocket)
             
             # 发送初始连接成功消息
             await websocket.send_json({
@@ -516,7 +466,9 @@ class EvaluationService:
                 "client_id": client_id
             })
             
+            logger.debug(f"成功订阅日志通道 - 任务ID: {eval_id}, 客户端ID: {client_id}, 通道: {channel}")
             return pubsub, redis, client_id
+            
         except Exception as redis_error:
             logger.error(f"Redis订阅错误: {str(redis_error)}")
             await websocket.send_json({"error": f"日志订阅出错: {str(redis_error)}"})
@@ -539,7 +491,7 @@ class EvaluationService:
         try:
             while True:
                 # 检查WebSocket连接状态
-                if not websocket.client_state.CONNECTED:
+                if websocket.client_state != WebSocketState.CONNECTED:
                     logger.debug("WebSocket连接已断开，停止日志监听")
                     break
                 
@@ -555,17 +507,47 @@ class EvaluationService:
                             if isinstance(data, bytes):
                                 data = data.decode('utf-8')
                                 
+                            # 再次检查WebSocket连接状态
+                            if websocket.client_state != WebSocketState.CONNECTED:
+                                logger.debug("WebSocket连接已断开，停止发送日志")
+                                break
+                                
                             # 尝试解析JSON格式
                             payload = json.loads(data)
                             log_line = payload.get("log", "")
                             
                             if log_line:
                                 logger.debug(f"发送日志到WebSocket: {log_line[:100]}...")
-                                await websocket.send_text(log_line)
+                                try:
+                                    await websocket.send_text(log_line)
+                                except WebSocketDisconnect:
+                                    logger.info("发送日志时WebSocket连接已断开")
+                                    break
+                                except Exception as send_error:
+                                    if "close message has been sent" in str(send_error):
+                                        logger.info("发送日志时WebSocket连接已关闭")
+                                        break
+                                    else:
+                                        logger.warning(f"发送日志出错: {str(send_error)}")
                         except json.JSONDecodeError:
                             # 兼容旧格式：直接发送文本
+                            # 再次检查WebSocket连接状态
+                            if websocket.client_state != WebSocketState.CONNECTED:
+                                logger.debug("WebSocket连接已断开，停止发送日志")
+                                break
+                                
                             logger.debug(f"发送旧格式日志到WebSocket: {data[:100]}...")
-                            await websocket.send_text(data)
+                            try:
+                                await websocket.send_text(data)
+                            except WebSocketDisconnect:
+                                logger.info("发送日志时WebSocket连接已断开")
+                                break
+                            except Exception as send_error:
+                                if "close message has been sent" in str(send_error):
+                                    logger.info("发送日志时WebSocket连接已关闭")
+                                    break
+                                else:
+                                    logger.warning(f"发送日志出错: {str(send_error)}")
                         except Exception as parse_error:
                             logger.warning(f"解析日志消息失败: {str(parse_error)}")
                     
@@ -574,29 +556,44 @@ class EvaluationService:
                         reconnect_count = 0
                         
                     # 短暂休眠，让出控制权给其他协程
-                    await asyncio.sleep(0.01)
+                    await asyncio.sleep(0.1)  # 减少休眠时间，提高响应速度
                 except asyncio.TimeoutError:
                     # 超时是正常的，继续循环
-                    await asyncio.sleep(0.01)
+                    await asyncio.sleep(0.1)  # 减少休眠时间，提高响应速度
+                except WebSocketDisconnect:
+                    logger.info("在监听过程中WebSocket连接已断开")
+                    break
                 except Exception as message_error:
+                    # 检查是否是WebSocket断开连接的错误
+                    if "close message has been sent" in str(message_error) or "websocket disconnect" in str(message_error).lower():
+                        logger.info("WebSocket连接已关闭")
+                        break
+                        
                     # 处理消息获取出错
                     logger.warning(f"获取Redis消息出错: {str(message_error)}")
                     reconnect_count += 1
                     
                     if reconnect_count >= max_reconnect_attempts:
                         logger.error(f"Redis连接重试超过{max_reconnect_attempts}次，停止监听")
-                        await websocket.send_json({"error": f"日志监听失败: {str(message_error)}"})
+                        try:
+                            if websocket.client_state == WebSocketState.CONNECTED:
+                                await websocket.send_json({"error": f"日志监听失败: {str(message_error)}"})
+                        except Exception:
+                            logger.debug("无法发送错误消息，WebSocket可能已断开")
                         break
                         
                     # 指数退避重试
                     retry_delay = 0.1 * (2 ** reconnect_count)
                     logger.debug(f"等待{retry_delay}秒后重试连接")
                     await asyncio.sleep(retry_delay)
+        except WebSocketDisconnect:
+            logger.info("监听日志循环中WebSocket连接已断开")
         except Exception as e:
             # 其他错误记录日志
             logger.error(f"日志监听循环出错: {str(e)}")
             try:
-                await websocket.send_json({"error": f"日志监听出错: {str(e)}"})
+                if websocket.client_state == WebSocketState.CONNECTED:
+                    await websocket.send_json({"error": f"日志监听出错: {str(e)}"})
             except Exception:
                 logger.error("无法发送错误消息到WebSocket")
 
@@ -609,20 +606,34 @@ class EvaluationService:
             redis: Redis连接对象
         """
         logger.debug("开始清理WebSocket资源")
-        try:
-            if pubsub:
+        
+        # 关闭PubSub连接
+        if pubsub:
+            try:
                 logger.debug("关闭Redis PubSub连接")
                 await pubsub.unsubscribe()
                 await pubsub.close()
-            
-            if redis:
+            except Exception as pubsub_error:
+                logger.warning(f"关闭PubSub连接出错: {str(pubsub_error)}")
+        
+        # 关闭Redis连接
+        if redis:
+            try:
                 logger.debug("关闭Redis连接")
                 await redis.close()
+            except Exception as redis_error:
+                logger.warning(f"关闭Redis连接出错: {str(redis_error)}")
                 
-            logger.debug("关闭WebSocket连接")
-            await websocket.close()
-        except Exception as cleanup_error:
-            logger.error(f"清理WebSocket资源时出错: {str(cleanup_error)}")
+        # 关闭WebSocket连接
+        try:
+            # 检查WebSocket是否已关闭
+            if websocket.client_state == WebSocketState.CONNECTED:
+                logger.debug("关闭WebSocket连接")
+                await websocket.close()
+            else:
+                logger.debug("WebSocket连接已经关闭，无需再次关闭")
+        except Exception as ws_error:
+            logger.warning(f"关闭WebSocket连接出错: {str(ws_error)}")
 
     def list_evaluations(self, db: Session):
         """获取所有评估任务列表
@@ -768,7 +779,7 @@ class EvaluationService:
         # 任务不在运行
         return {"success": False, "message": "任务不在运行状态"}
     
-    def delete_evaluation(self, eval_id: int, db: Session):
+    async def delete_evaluation(self, eval_id: int, db: Session):
         """删除评估任务
         
         Args:
@@ -799,7 +810,7 @@ class EvaluationService:
             
             # 清理Redis中的数据
             try:
-                RedisManager.delete_task_data(eval_id)
+                await RedisManager.delete_task_data(eval_id)
             except Exception as e:
                 logger.warning(f"清理Redis数据出错: {str(e)}")
                 # 继续执行，不影响主流程
@@ -885,8 +896,17 @@ def get_evaluation_logs(eval_id: int, lines: Optional[int] = 50):
 def terminate_evaluation(eval_id: int, db: Session):
     return evaluation_service.terminate_evaluation(eval_id, db)
 
-def delete_evaluation(eval_id: int, db: Session):
-    return evaluation_service.delete_evaluation(eval_id, db)
+async def delete_evaluation(eval_id: int, db: Session):
+    """删除评估任务
+    
+    Args:
+        eval_id: 评估任务ID
+        db: 数据库会话
+        
+    Returns:
+        Dict[str, Any]: 操作结果
+    """
+    return await evaluation_service.delete_evaluation(eval_id, db)
 
 def update_evaluation_name(eval_id: int, name: str, db: Session):
     return evaluation_service.update_evaluation_name(eval_id, name, db)
