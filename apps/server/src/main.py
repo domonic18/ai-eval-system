@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from apps.server.src.db import engine, Base, SessionLocal, get_db
 from apps.server.src.routers import eval, auth
 from apps.server.src.services.auth_service import auth_service
-from apps.server.src.tasks.log_sync import start_log_sync, stop_log_sync
+# from apps.server.src.tasks.log_sync import start_log_sync, stop_log_sync
 from sqlalchemy.orm import Session
 import logging
 # import os
@@ -55,8 +55,6 @@ async def startup_event():
     logs_dir = Path("logs/opencompass")
     logs_dir.mkdir(parents=True, exist_ok=True)
     
-    # 启动日志同步服务
-    start_log_sync()
     
     print("应用已启动")
 
