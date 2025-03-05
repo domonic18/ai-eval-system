@@ -7,6 +7,28 @@ from typing import Generator
 from apps.server.src.core.config import DB_URL, settings
 from urllib import parse
 
+
+import logging
+
+# 配置根日志记录器
+logging.basicConfig(level=logging.WARNING)
+
+# 设置 SQLAlchemy 日志级别
+sqlalchemy_logger = logging.getLogger('sqlalchemy')
+sqlalchemy_logger.setLevel(logging.WARNING)
+
+# 移除所有现有的处理器
+for handler in sqlalchemy_logger.handlers[:]:
+    sqlalchemy_logger.removeHandler(handler)
+
+# 设置引擎日志级别
+engine_logger = logging.getLogger('sqlalchemy.engine')
+engine_logger.setLevel(logging.WARNING)
+
+# 移除所有现有的处理器
+for handler in engine_logger.handlers[:]:
+    engine_logger.removeHandler(handler)
+
 # 加载环境变量
 load_dotenv()
 
