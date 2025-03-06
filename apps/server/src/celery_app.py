@@ -10,7 +10,10 @@ celery_app = Celery(
     f"{settings.app_name.lower().replace(' ', '_')}_tasks",
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
-    include=["apps.server.src.tasks.eval_tasks"]
+    include=[
+        "apps.server.src.tasks.eval_tasks",
+        "apps.server.src.tasks.celery_tasks"  # 添加celery_tasks模块确保execute_evaluation_task被注册
+    ]
 )
 
 # 添加自动发现任务
