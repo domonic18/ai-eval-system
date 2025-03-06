@@ -104,10 +104,6 @@ def handle_task_status_update(status_dict):
     # 提取状态信息并更新数据库
     try:
         with db_session() as db:
-            # 如果状态含有progress，则更新进度
-            if 'progress' in status_dict:
-                update_task_progress(db, task_id, status_dict['progress'])
-                
             # 如果状态中含有完成标志，则更新任务状态
             if status_dict.get('status') == 'finished':
                 is_successful = status_dict.get('is_successful', False)
@@ -202,49 +198,6 @@ def update_task_status(db: Session, eval_id: int, status: EvaluationStatus, resu
             logger.debug(f"已通过Redis更新任务[{eval_id}]状态: {status.value}")
         except Exception as e:
             logger.error(f"Redis更新任务状态失败: {str(e)}")
-
-def update_task_progress(db: Session, eval_id: int, progress: float):
-    """仅更新任务进度，不查询完整对象
-    
-    Args:
-        db: 数据库会话
-        eval_id: 评估任务ID
-        progress: 进度百分比
-    """
-    try:
-        # 使用更高效的方式只更新progress字段
-        from sqlalchemy import text
-        
-        # 先检查任务结果字段的当前值
-        stmt = text("SELECT results FROM evaluations WHERE id = :id")
-        result = db.execute(stmt, {"id": eval_id}).first()
-        
-        if result and result[0]:
-            # 如果结果字段已存在，更新进度
-            current_results = result[0]
-            if isinstance(current_results, str):
-                import json
-                current_results = json.loads(current_results)
-            elif not isinstance(current_results, dict):
-                current_results = {}
-                
-            # 更新进度
-            current_results["progress"] = progress
-            
-            # 更新到数据库
-            update_stmt = text("UPDATE evaluations SET results = :results WHERE id = :id")
-            db.execute(update_stmt, {"id": eval_id, "results": current_results})
-        else:
-            # 如果结果字段不存在，创建新的
-            update_stmt = text("UPDATE evaluations SET results = :results WHERE id = :id")
-            db.execute(update_stmt, {"id": eval_id, "results": {"progress": progress}})
-            
-        # 提交事务
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        logger.warning(f"更新任务进度出错: {str(e)}")
-        raise
 
 def batch_append_logs(eval_id: int, log_lines: list, redis_client=None):
     """批量添加任务日志到Redis，避免重复
