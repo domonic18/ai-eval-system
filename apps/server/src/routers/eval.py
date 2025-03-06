@@ -2,19 +2,11 @@ from fastapi import APIRouter, HTTPException, status, Depends, Query, WebSocket,
 from sqlalchemy.orm import Session
 from apps.server.src.db import get_db
 from apps.server.src.schemas.eval import EvaluationCreate, EvaluationResponse, EvaluationStatusResponse
-from apps.server.src.services.eval_service import (
-    create_evaluation_task, 
-    get_evaluation_status, 
-    handle_websocket_logs,
-    list_evaluations,
-    get_evaluation_logs,
-    terminate_evaluation,
-    delete_evaluation,
-    update_evaluation_name
-)
+from apps.server.src.services.eval_service import EvaluationService, handle_websocket_logs
 from typing import Dict, Any, List, Optional
 
 router = APIRouter()
+eval_service = EvaluationService()
 
 @router.post("/evaluations", 
              response_model=EvaluationResponse,
@@ -30,25 +22,33 @@ async def create_evaluation(eval_data: EvaluationCreate, db: Session = Depends(g
         EvaluationResponse: 评估响应
     """
     try:
-        return await create_evaluation_task(eval_data, db)
+        return await eval_service.create_evaluation_task(eval_data, db)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
 
-@router.get("/evaluations", response_model=List[Dict[str, Any]])
-def get_evaluations(db: Session = Depends(get_db)):
-    """获取所有评估任务列表
+@router.get("/evaluations", response_model=Dict[str, Any])
+async def get_evaluations(
+    status: Optional[str] = None, 
+    limit: int = Query(100, ge=1, le=1000), 
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db)
+):
+    """获取评估任务列表，支持分页和状态过滤
     
     Args:
+        status: 可选的状态过滤
+        limit: 每页数量，默认100
+        offset: 分页偏移，默认0
         db: 数据库会话
         
     Returns:
-        List[Dict[str, Any]]: 评估任务列表
+        Dict[str, Any]: 包含评估任务列表和分页信息的字典
     """
     try:
-        return list_evaluations(db)
+        return await eval_service.list_evaluations(status, limit, offset, db)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -67,7 +67,7 @@ def get_evaluation(eval_id: int, db: Session = Depends(get_db)):
         EvaluationStatusResponse: 评估任务状态详情
     """
     try:
-        eval_status = get_evaluation_status(eval_id, db)
+        eval_status = eval_service.get_evaluation_status(eval_id, db)
         if eval_status is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -94,7 +94,7 @@ def get_logs(eval_id: int, lines: Optional[int] = Query(50, description="获取�
         List[str]: 日志行列表
     """
     try:
-        return get_evaluation_logs(eval_id, lines)
+        return eval_service.get_evaluation_logs(eval_id, lines)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -113,7 +113,13 @@ def terminate_eval(eval_id: int, db: Session = Depends(get_db)):
         Dict[str, Any]: 操作结果
     """
     try:
-        return terminate_evaluation(eval_id, db)
+        result = eval_service.terminate_evaluation(eval_id, db)
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=result.get("message", "终止评估任务失败")
+            )
+        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -130,7 +136,6 @@ async def websocket_logs(websocket: WebSocket, eval_id: int):
         websocket: WebSocket连接
         eval_id: 评估任务ID
     """
-    await websocket.accept()
     await handle_websocket_logs(websocket, eval_id)
 
 @router.delete("/evaluations/{eval_id}", response_model=Dict[str, Any])
@@ -145,7 +150,7 @@ async def delete_eval(eval_id: int, db: Session = Depends(get_db)):
         Dict[str, Any]: 操作结果
     """
     try:
-        return await delete_evaluation(eval_id, db)
+        return await eval_service.delete_evaluation(eval_id, db)
     except HTTPException:
         raise
     except Exception as e:
@@ -174,7 +179,7 @@ def update_eval_name(eval_id: int, name_data: Dict[str, str], db: Session = Depe
         )
     
     try:
-        return update_evaluation_name(eval_id, name_data["name"], db)
+        return eval_service.update_evaluation_name(eval_id, name_data["name"], db)
     except HTTPException:
         raise
     except Exception as e:
