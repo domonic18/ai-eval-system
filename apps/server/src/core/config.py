@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     celery_broker_url: str = os.getenv("CELERY_BROKER_URL", redis_url)
     celery_result_backend: str = os.getenv("CELERY_RESULT_BACKEND", redis_url)
     
+    # 任务管理器配置
+    task_manager_max_concurrent_tasks: int = int(os.getenv("TASK_MANAGER_MAX_CONCURRENT_TASKS", "10"))
+    task_manager_task_timeout_minutes: int = int(os.getenv("TASK_MANAGER_TASK_TIMEOUT_MINUTES", "10"))
+    task_manager_cleanup_hours: int = int(os.getenv("TASK_MANAGER_CLEANUP_HOURS", "24"))
+    
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
@@ -61,3 +66,8 @@ DEBUG = settings.debug
 OPENCOMPASS_PATH = str(settings.opencompass_path)
 DB_URL = settings.mysql_connection_string  # 使用MySQL连接字符串
 REDIS_URL = settings.redis_url 
+
+# 任务管理器常量
+TASK_MANAGER_MAX_CONCURRENT_TASKS = settings.task_manager_max_concurrent_tasks
+TASK_MANAGER_TASK_TIMEOUT_MINUTES = settings.task_manager_task_timeout_minutes
+TASK_MANAGER_CLEANUP_HOURS = settings.task_manager_cleanup_hours 
