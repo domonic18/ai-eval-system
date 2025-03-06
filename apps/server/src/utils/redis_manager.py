@@ -146,13 +146,16 @@ class RedisManager:
     
     @classmethod
     def register_websocket(cls, task_id: int, client_id: str, websocket: WebSocket) -> None:
-        """注册WebSocket连接
+        """注册WebSocket连接（已弃用，请直接使用EvaluationService.register_websocket）
         
         Args:
             task_id: 任务ID
             client_id: 客户端ID
             websocket: WebSocket连接对象
         """
+        # 已弃用的警告
+        logger.warning("RedisManager.register_websocket方法已弃用，请直接使用EvaluationService.register_websocket")
+        
         # 初始化任务的WebSocket注册表
         if task_id not in cls._websocket_registry:
             cls._websocket_registry[task_id] = {}
@@ -172,12 +175,15 @@ class RedisManager:
 
     @classmethod
     async def unregister_websocket(cls, task_id: int, client_id: str) -> None:
-        """注销WebSocket连接
+        """注销WebSocket连接（已弃用，请直接使用EvaluationService.register_websocket）
         
         Args:
             task_id: 任务ID
             client_id: 客户端ID
         """
+        # 已弃用的警告
+        logger.warning("RedisManager.unregister_websocket方法已弃用，请直接使用EvaluationService.register_websocket")
+        
         try:
             # 从注册表中移除连接
             if task_id in cls._websocket_registry and client_id in cls._websocket_registry[task_id]:
