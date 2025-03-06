@@ -1,3 +1,15 @@
+<!--
+  TaskList.vue - 任务列表组件
+
+  注意: 此组件已适配server API响应格式变更
+  后端API /api/v1/evaluations 现在返回格式为:
+  {
+    items: [...], // 任务列表数组
+    total: number, // 总任务数
+    limit: number, // 分页限制
+    offset: number // 分页偏移量
+  }
+-->
 <template>
   <div class="task-list">
     <!-- 如果hideHeader为false或未定义，则显示标题和按钮 -->
@@ -176,7 +188,10 @@ export default {
         }
         
         const data = await response.json();
-        this.tasks = data;
+        // 更新：适配新的API响应格式，使用data.items而不是直接使用data
+        console.log('API响应数据格式:', data);
+        this.tasks = data.items || [];
+        console.log('更新后的任务列表:', this.tasks);
         
         // 更新活动任务集合
         this.activeTasks.clear();
