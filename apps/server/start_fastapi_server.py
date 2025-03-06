@@ -14,4 +14,9 @@ import uvicorn
 if __name__ == "__main__":
     print("启动FastAPI服务器...")
     # 使用模块路径启动，支持热重载
-    uvicorn.run("apps.server.src.main:app", host="0.0.0.0", port=8000, reload=True) 
+    uvicorn.run(
+        "apps.server.src.main:app", 
+        host="0.0.0.0", 
+        port=8000, 
+        reload=True  # 添加热重载，便于开发调试
+    ) 

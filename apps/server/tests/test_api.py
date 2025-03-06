@@ -1,27 +1,19 @@
 import requests
-import json
 
-# 测试健康检查
-response = requests.get("http://localhost:8000/health")
-print("健康检查响应:", response.json())
+def test_evaluations_api():
+    """测试评估任务列表API是否正常工作"""
+    print('尝试向API请求任务列表...')
+    try:
+        response = requests.get('http://localhost:8000/api/v1/evaluations')
+        print(f'API响应状态码: {response.status_code}')
+        if response.status_code == 200:
+            print('API测试成功!')
+            data = response.json()
+            print(f'获取到 {len(data.get("items", []))} 条评估任务')
+        else:
+            print(f'API响应错误: {response.text}')
+    except Exception as e:
+        print(f'发送请求时出错: {str(e)}')
 
-# 测试创建评估任务
-payload = {
-    "task_name": "Python测试任务",
-    "model_configuration": {
-        "model_name": "gpt-3.5-turbo",
-        "parameters": {"temperature": 0.7}
-    },
-    "dataset_config": {
-        "dataset_name": "mmlu",
-        "split": "test"
-    }
-}
-
-response = requests.post(
-    "http://localhost:8000/api/v1/evaluations",
-    data=json.dumps(payload),
-    headers={"Content-Type": "application/json"}
-)
-
-print("创建评估任务响应:", response.json()) 
+if __name__ == '__main__':
+    test_evaluations_api() 

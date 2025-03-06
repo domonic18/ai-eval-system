@@ -28,7 +28,7 @@ from apps.server.src.tasks.eval_tasks import run_evaluation
 from apps.server.src.tasks.opencompass_runner import get_runner
 from apps.server.src.utils.redis_manager import RedisManager
 # 使用共享的任务状态模块
-from apps.server.src.tasks.task_status import TaskStatus, format_task_status, get_celery_task_state, map_celery_state_to_task_status
+from apps.server.src.tasks.task_status import TaskStatus, format_task_status, get_celery_task_state, map_celery_state_to_task_status, safe_parse_task_status
 from apps.server.src.utils.db_utils import DatabaseSessionManager
 import redis
 
@@ -400,7 +400,8 @@ class TaskManager:
                 
                 # 执行任务
                 logger.info(f"从等待队列调度任务 [eval_id={next_eval_id}], 当前等待任务数: {len(self.waiting_queue)}")
-                self._execute_task(next_eval_id, db)
+                with SessionLocal() as db:
+                    self._execute_task(next_eval_id, db)
                 
                 # 更新其他等待任务的信息
                 self._update_waiting_tasks(db)
@@ -977,8 +978,9 @@ class TaskManager:
                 # 获取下一个等待任务
                 eval_id = self.waiting_queue.popleft()
                 
-                # 执行任务
-                self._execute_task(eval_id)
+                # 执行任务（添加缺失的db参数）
+                with SessionLocal() as db:
+                    self._execute_task(eval_id, db)
                 
                 # 更新活跃任务计数
                 current_active += 1
@@ -1114,9 +1116,9 @@ class TaskManager:
                 logger.warning("Redis未连接，无法保存任务状态")
                 return False
                 
-            # 保存任务状态
+            # 保存任务状态（使用名称字符串而非整数值）
             status_key = self._get_task_status_key(eval_id)
-            self.redis_client.set(status_key, status.value)
+            self.redis_client.set(status_key, status.name)
             
             # 保存任务消息
             if metadata and "message" in metadata:
@@ -1128,9 +1130,9 @@ class TaskManager:
                 result_key = self._get_task_result_key(eval_id)
                 self.redis_client.set(result_key, json.dumps(metadata["result"]))
                 
-            # 发布状态更新通知
+            # 发布状态更新通知（也使用名称字符串）
             channel = f"task_status:{eval_id}"
-            self.redis_client.publish(channel, status.value)
+            self.redis_client.publish(channel, status.name)
             
             return True
         except Exception as e:
@@ -1168,7 +1170,7 @@ class TaskManager:
             result = json.loads(result_json) if result_json else None
             
             return {
-                "status": TaskStatus(status_value),
+                "status": safe_parse_task_status(status_value),
                 "message": message,
                 "result": result
             }
@@ -1293,15 +1295,18 @@ class TaskManager:
                                 
                                 # 将Redis状态转换为TaskStatus
                                 try:
-                                    # 尝试将字符串转换为TaskStatus
-                                    status = TaskStatus(status_value)
+                                    # 添加调试日志
+                                    self.logger.info(f"获取到的状态值类型: {type(status_value)}, 值: {status_value}")
+                                    
+                                    # 使用安全解析函数
+                                    status = safe_parse_task_status(status_value)
                                     
                                     # 更新数据库状态
                                     self._update_db_status(eval_id, status, message, result)
                                     
                                     self.logger.info(f"任务状态已更新 [eval_id={eval_id}, status={status.name}]")
-                                except ValueError:
-                                    self.logger.warning(f"无法识别的任务状态值 [eval_id={eval_id}, value={status_value}]")
+                                except Exception as e:
+                                    self.logger.error(f"处理任务状态更新失败 [eval_id={eval_id}, value={status_value}]: {str(e)}")
                     except Exception as e:
                         self.logger.exception(f"处理任务状态更新异常: {str(e)}")
                 

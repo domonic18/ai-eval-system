@@ -31,7 +31,7 @@ async def create_evaluation(eval_data: EvaluationCreate, db: Session = Depends(g
 
 @router.get("/evaluations", response_model=Dict[str, Any])
 async def get_evaluations(
-    status: Optional[str] = None, 
+    task_status: Optional[str] = None, 
     limit: int = Query(100, ge=1, le=1000), 
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db)
@@ -39,7 +39,7 @@ async def get_evaluations(
     """获取评估任务列表，支持分页和状态过滤
     
     Args:
-        status: 可选的状态过滤
+        task_status: 可选的状态过滤
         limit: 每页数量，默认100
         offset: 分页偏移，默认0
         db: 数据库会话
@@ -48,7 +48,7 @@ async def get_evaluations(
         Dict[str, Any]: 包含评估任务列表和分页信息的字典
     """
     try:
-        return await eval_service.list_evaluations(status, limit, offset, db)
+        return await eval_service.list_evaluations(task_status, limit, offset, db)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

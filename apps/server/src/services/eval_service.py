@@ -639,6 +639,56 @@ class EvaluationService:
         # 没有找到日志，返回空列表
         return []
 
+    async def list_evaluations(self, status: Optional[str] = None, limit: int = 100, offset: int = 0, db: Union[Session, Iterator[Session]] = Depends(get_db)):
+        """列出评估任务
+        
+        Args:
+            status: 可选的状态过滤条件
+            limit: 分页限制
+            offset: 分页偏移
+            db: 数据库会话
+            
+        Returns:
+            dict: 评估任务列表
+        """
+        async with async_db_operation(db) as db_session:
+            try:
+                # 获取评估任务列表
+                evaluations = await EvaluationRepository.list_evaluations_async(
+                    db_session,
+                    status,
+                    limit,
+                    offset
+                )
+                
+                # 获取活动任务的最新状态
+                items = evaluations.get("items", [])
+                for item in items:
+                    # 如果任务正在运行，尝试获取最新进度
+                    if item.get("status") == EvaluationStatus.RUNNING.value:
+                        try:
+                            # 从Redis获取最新状态
+                            task_status = RedisManager.get_task_status(item.get("id"))
+                            if task_status:                           
+                                # 如果Redis中的状态与数据库不一致，更新状态
+                                redis_status = task_status.get("status")
+                                if redis_status and redis_status != item.get("status"):
+                                    logger.info(f"更新任务状态 [eval_id={item.get('id')}]: {item.get('status')} -> {redis_status}")
+                                    item["status"] = redis_status
+                        except Exception as e:
+                            logger.warning(f"获取任务最新状态时出错 [eval_id={item.get('id')}]: {str(e)}")
+                
+                # 构建响应
+                return {
+                    "items": items,
+                    "total": evaluations.get("total", 0),
+                    "limit": limit,
+                    "offset": offset
+                }
+            except Exception as e:
+                logger.exception(f"列出评估任务异常: {str(e)}")
+                raise Exception(f"列出评估任务异常: {str(e)}")
+
     async def delete_evaluation(self, eval_id: int, db: Session):
         """删除评估任务
         
@@ -736,6 +786,27 @@ class EvaluationService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"更新任务名称失败: {str(e)}"
             )
+
+    def terminate_evaluation(self, eval_id: int, db: Session) -> Dict[str, Any]:
+        """终止评估任务
+        
+        Args:
+            eval_id: 评估任务ID
+            db: 数据库会话
+            
+        Returns:
+            Dict[str, Any]: 包含操作结果的字典
+        """
+        try:
+            # 调用TaskManager的terminate_task方法
+            result = self.task_manager.terminate_task(eval_id)
+            return result
+        except Exception as e:
+            logger.error(f"终止评估任务失败 [eval_id={eval_id}]: {str(e)}")
+            return {
+                "success": False,
+                "message": f"终止评估任务失败: {str(e)}"
+            }
 
 # 创建服务实例
 evaluation_service = EvaluationService()

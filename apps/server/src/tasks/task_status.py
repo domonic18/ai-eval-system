@@ -20,13 +20,13 @@ class TaskStatus(Enum):
     
     定义任务在TaskManager中的不同状态
     """
-    PENDING = auto()      # 等待中（新创建）
-    WAITING = auto()      # 等待队列中
-    QUEUED = auto()       # 已加入Celery队列
-    RUNNING = auto()      # 正在运行
-    COMPLETED = auto()    # 已完成
-    FAILED = auto()       # 失败
-    TERMINATED = auto()   # 被终止
+    PENDING = 1      # 等待中（新创建）
+    WAITING = 2      # 等待队列中
+    QUEUED = 3       # 已加入Celery队列
+    RUNNING = 4      # 正在运行
+    COMPLETED = 5    # 已完成
+    FAILED = 6       # 失败
+    TERMINATED = 7   # 被终止
     
     @staticmethod
     def from_evaluation_status(status: EvaluationStatus) -> 'TaskStatus':
@@ -110,4 +110,65 @@ def map_celery_state_to_task_status(state: str) -> TaskStatus:
         'FAILURE': TaskStatus.FAILED,        # 任务执行失败
         'REVOKED': TaskStatus.TERMINATED,    # 任务被撤销
     }
-    return state_map.get(state, TaskStatus.PENDING) 
+    return state_map.get(state, TaskStatus.PENDING)
+
+
+def safe_parse_task_status(status_value) -> TaskStatus:
+    """安全解析任务状态值
+    
+    从多种不同类型的输入安全地解析为TaskStatus枚举
+    
+    Args:
+        status_value: 状态值，可能是整数、字符串、字节串或TaskStatus实例
+        
+    Returns:
+        TaskStatus: 解析后的任务状态，如果无法解析则返回PENDING
+        
+    Examples:
+        >>> safe_parse_task_status(4)
+        TaskStatus.RUNNING
+        >>> safe_parse_task_status("4")
+        TaskStatus.RUNNING
+        >>> safe_parse_task_status(b"4")
+        TaskStatus.RUNNING
+        >>> safe_parse_task_status("RUNNING")
+        TaskStatus.RUNNING
+    """
+    # 如果已经是TaskStatus实例，直接返回
+    if isinstance(status_value, TaskStatus):
+        return status_value
+        
+    # 处理字节串
+    if isinstance(status_value, bytes):
+        try:
+            status_value = status_value.decode('utf-8')
+        except:
+            return TaskStatus.PENDING
+    
+    # 处理名称字符串 (如 "RUNNING")
+    if isinstance(status_value, str):
+        # 先检查是否是枚举名称
+        try:
+            upper_value = status_value.upper()
+            for status in TaskStatus:
+                if status.name == upper_value:
+                    return status
+            
+            # 尝试转换为整数
+            status_value = int(status_value)
+        except (ValueError, TypeError):
+            # 如果无法转换为整数，返回默认状态
+            return TaskStatus.PENDING
+    
+    # 处理整数值
+    try:
+        # 注意：这里使用枚举值匹配而不是直接用整数构造枚举
+        for status in TaskStatus:
+            if status.value == status_value:
+                return status
+        
+        # 如果找不到匹配的值，返回默认状态
+        return TaskStatus.PENDING
+    except Exception:
+        # 处理任何其他异常
+        return TaskStatus.PENDING 

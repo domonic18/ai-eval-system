@@ -52,10 +52,10 @@ def publish_task_status(eval_id: int, status: TaskStatus, message: str = None, r
         return False
     
     try:
-        # 保存状态
-        redis_client.set(get_task_status_key(eval_id), status.value)
-        # 发布通知
-        redis_client.publish(get_task_channel(eval_id), status.value)
+        # 保存状态（使用名称字符串而非整数值）
+        redis_client.set(get_task_status_key(eval_id), status.name)
+        # 发布通知（也使用名称字符串）
+        redis_client.publish(get_task_channel(eval_id), status.name)
         
         # 保存消息和结果（如果有）
         if message:
