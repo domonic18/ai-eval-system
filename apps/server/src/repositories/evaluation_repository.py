@@ -285,4 +285,62 @@ class EvaluationRepository:
             return result
         except Exception as e:
             logger.error(f"异步获取评估记录失败: {str(e)}")
-            return None 
+            return None
+            
+    @staticmethod
+    async def list_evaluations_async(db: Session, status: Optional[str] = None, limit: int = 100, offset: int = 0) -> Dict[str, Any]:
+        """异步获取评估任务列表
+        
+        Args:
+            db: 数据库会话
+            status: 可选的状态过滤
+            limit: 结果数量限制
+            offset: 分页偏移量
+            
+        Returns:
+            Dict[str, Any]: 包含评估列表和总数的字典
+        """
+        try:
+            # 构建查询
+            query = db.query(Evaluation)
+            
+            # 应用状态过滤
+            if status:
+                query = query.filter(Evaluation.status == status)
+                
+            # 获取总数
+            total_count = await asyncio.to_thread(lambda: query.count())
+            
+            # 应用分页并执行查询
+            query = query.order_by(Evaluation.created_at.desc())
+            query = query.limit(limit).offset(offset)
+            
+            # 执行查询并获取结果
+            evaluations = await asyncio.to_thread(lambda: query.all())
+            
+            # 格式化结果
+            items = []
+            for eval_task in evaluations:
+                items.append({
+                    "id": eval_task.id,
+                    "model_name": eval_task.model_name,
+                    "dataset_name": eval_task.dataset_name,
+                    "status": eval_task.status,
+                    "log_dir": eval_task.log_dir,
+                    "task_id": eval_task.task_id,
+                    "results": eval_task.results,
+                    "created_at": eval_task.created_at.isoformat() if eval_task.created_at else None,
+                    "updated_at": eval_task.updated_at.isoformat() if eval_task.updated_at else None,
+                    "error_message": eval_task.error_message,
+                    "name": eval_task.name
+                })
+                
+            return {
+                "items": items,
+                "total": total_count,
+                "limit": limit,
+                "offset": offset
+            }
+        except Exception as e:
+            logger.error(f"异步获取评估列表失败: {str(e)}")
+            return {"items": [], "total": 0, "limit": limit, "offset": offset} 
