@@ -8,6 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent.parent
 
 class Settings(BaseSettings):
     # 基础配置
+    APP_NAME: str = "AI Eval System"
     PROJECT_NAME: str = "AI Eval System"
     API_VERSION: str = "1.0.0"
     DEBUG: bool = True
@@ -45,6 +46,9 @@ class Settings(BaseSettings):
     # Celery配置
     celery_broker_url: RedisDsn = "redis://localhost:6379/0"
     celery_result_backend: RedisDsn = "redis://localhost:6379/1"  # 建议与broker使用不同DB
+
+    # 并发配置
+    celery_concurrency: int = os.getenv("CELERY_CONCURRENCY", 1)  # 全局并发限制
 
     model_config = SettingsConfigDict(
         env_file=".env",
