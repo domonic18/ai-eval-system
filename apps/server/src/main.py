@@ -78,7 +78,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from core.config import settings
 from core.database import engine, Base
+from fastapi.security import OAuth2PasswordBearer
 from api.routers import auth  # 导入你的路由模块
+from api.routers import eval  # 添加这行导入语句
 
 # 配置日志格式
 logging.basicConfig(
@@ -130,7 +132,7 @@ app.add_middleware(
 
 # 注册路由
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["认证"])
-app.include_router(eval.router, prefix="/api/v1", tags=["评测"])
+# app.include_router(eval.router, prefix="/api/v1/eval", tags=["评测"])
 
 # 获取令牌依赖
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
