@@ -14,7 +14,7 @@ class EvaluationStatus(PyEnum):
     TERMINATED = "terminated"  # 已终止
     UNKNOWN = "unknown"      # 未知状态
 
-class Evaluation(Base):
+class Evaluation(Base, TimestampMixin):
     """评估模型"""
     __tablename__ = "evaluations"
 

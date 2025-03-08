@@ -29,3 +29,11 @@ async def create_tables():
     """创建所有数据表（仅用于开发环境）"""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+class TimestampMixin:
+    created_at = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+        onupdate=text("CURRENT_TIMESTAMP")
+    )
