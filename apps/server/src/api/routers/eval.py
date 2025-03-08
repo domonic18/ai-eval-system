@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, status, Depends, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
-from apps.server.src.db import get_db
-from apps.server.src.schemas.eval import EvaluationCreate, EvaluationResponse, EvaluationStatusResponse
-from apps.server.src.services.eval_service import (
+from api.deps import get_db
+from schemas.eval import EvaluationCreate, EvaluationResponse, EvaluationStatusResponse
+from services.eval_service import (
     create_evaluation_task, 
     get_evaluation_status, 
     handle_websocket_logs,
