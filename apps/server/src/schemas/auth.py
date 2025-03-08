@@ -9,24 +9,22 @@ class UserCreate(BaseModel):
 
 class UserLogin(BaseModel):
     """用户登录模型"""
-    username: str
+    username: str = Field(..., min_length=3, max_length=50)
     password: str
 
 class Token(BaseModel):
     """令牌模型"""
     access_token: str
-    token_type: str = "bearer"
-    user_id: int
-    username: str
-    is_admin: bool
+    token_type: str = "Bearer"
+
 
 class UserResponse(BaseModel):
     """用户响应模型"""
     id: int
     username: str
     email: EmailStr
-    avatar: Optional[str] = None
     is_admin: bool
+    avatar: Optional[str] = None
 
     class Config:
         from_attributes = True 
