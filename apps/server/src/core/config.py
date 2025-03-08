@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     @property
     def db_url(self) -> MySQLDsn:
         return MySQLDsn.build(
-            scheme="mysql+asyncmy",
+            scheme="mysql+pymysql",
             username=self.mysql_user,
             password=self.mysql_password,
             host=self.mysql_host,
