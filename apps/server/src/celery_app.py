@@ -27,9 +27,9 @@ celery_app.conf.update(
     task_track_started=True,
     worker_send_task_events=True,
     task_send_sent_event=True,
-    task_acks_late=True,                  # 任务完成后确认
-    worker_prefetch_multiplier=1,         # 严格并发控制
-    task_concurrency=os.getenv("CELERY_CONCURRENCY", 1),                    # 全局并发限制
+    task_acks_late=True,                                            # 任务完成后确认
+    worker_prefetch_multiplier=1,                                   # 严格并发控制
+    task_concurrency=os.getenv("CELERY_CONCURRENCY", 1),            # 全局并发限制
     task_default_queue='eval_tasks'
 )
 
