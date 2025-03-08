@@ -76,7 +76,7 @@ class TaskEvaluator:
         # 更新数据库中的任务状态为CANCELED
         try:
             with db_session() as db:
-                from apps.server.src.tasks.eval_tasks import update_task_status
+                from tasks.task_eval import update_task_status
                 update_task_status(db, self.eval_id, EvaluationStatus.CANCELED)
                 logger.info(f"已将任务[{self.eval_id}]标记为已取消")
         except Exception as e:
@@ -109,7 +109,7 @@ class TaskEvaluator:
             
             # 发生异常时尝试更新任务状态
             with db_session() as session:
-                from apps.server.src.tasks.eval_tasks import update_task_error, update_task_status
+                from tasks.task_eval import update_task_error, update_task_status
                 update_task_error(session, self.eval_id, str(e))
                 update_task_status(session, self.eval_id, EvaluationStatus.FAILED)
                 
@@ -138,7 +138,7 @@ class TaskEvaluator:
         # 使用数据库会话上下文管理器处理任务启动
         with db_session() as db:
             # 更新任务状态为运行中
-            from apps.server.src.tasks.eval_tasks import update_task_status, create_eval_config, update_task_metadata, update_task_error
+            from tasks.task_eval import update_task_status, create_eval_config, update_task_metadata, update_task_error
             update_task_status(db, self.eval_id, EvaluationStatus.RUNNING)
             
             try:
@@ -165,7 +165,7 @@ class TaskEvaluator:
                 self.runner.task_id = self.eval_id
                 
                 # 注册状态更新回调
-                from apps.server.src.tasks.eval_tasks import handle_task_status_update
+                from tasks.task_eval import handle_task_status_update
                 self.runner.register_status_callback(handle_task_status_update)
                 
                 # 构建命令
