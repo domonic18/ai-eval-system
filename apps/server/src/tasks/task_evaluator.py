@@ -11,11 +11,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from apps.server.src.db import SessionLocal
-from apps.server.src.models.eval import Evaluation, EvaluationStatus
-from apps.server.src.core.config import OPENCOMPASS_PATH
-from apps.server.src.tasks.opencompass_runner import OpenCompassRunner, create_runner, get_runner, remove_runner
-from apps.server.src.utils.redis_manager import RedisManager
+from core.database import SessionLocal
+from models.eval import Evaluation, EvaluationStatus
+from core.config import OPENCOMPASS_PATH
+from tasks.runners.runner_opencompas import OpenCompassRunner, create_runner, get_runner, remove_runner
+from utils.redis_manager import RedisManager
 
 # 获取项目根目录
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent

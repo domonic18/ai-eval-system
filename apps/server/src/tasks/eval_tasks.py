@@ -8,14 +8,14 @@ from datetime import datetime
 from celery import shared_task
 from sqlalchemy import update
 from sqlalchemy.orm import Session
-from apps.server.src.celery_app import celery_app
-from apps.server.src.db import SessionLocal
-from apps.server.src.models.eval import Evaluation, EvaluationStatus
-from apps.server.src.core.config import OPENCOMPASS_PATH
+from core.celery_app import celery_app
+from core.database import SessionLocal
+from models.eval import Evaluation, EvaluationStatus
+from core.config import OPENCOMPASS_PATH
 from pathlib import Path
-from apps.server.src.tasks.opencompass_runner import OpenCompassRunner, create_runner, get_runner, remove_runner
-from apps.server.src.utils.redis_manager import RedisManager
-from apps.server.src.tasks.task_evaluator import TaskEvaluator
+from tasks.runners.runner_opencompas import OpenCompassRunner, create_runner, get_runner, remove_runner
+from utils.redis_manager import RedisManager
+from tasks.task_evaluator import TaskEvaluator
 
 
 # 使用相对于项目根目录的绝对路径

@@ -1,9 +1,9 @@
-from fastapi import Depends, WebSocket, WebSocketDisconnect
+
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
-from apps.server.src.db import get_db, SessionLocal
-from apps.server.src.models.eval import Evaluation, EvaluationStatus
-from apps.server.src.schemas.eval import EvaluationCreate, EvaluationResponse, EvaluationStatusResponse
+from core.database import get_db, SessionLocal  
+from models.eval import Evaluation, EvaluationStatus
+from schemas.eval import EvaluationCreate, EvaluationResponse, EvaluationStatusResponse
 from celery.result import AsyncResult
 import traceback
 from typing import Optional, Union, Iterator, Dict, Any, List, Tuple, Callable, cast
@@ -12,14 +12,14 @@ import json
 import os
 from pathlib import Path
 from datetime import datetime
-from apps.server.src.tasks.eval_tasks import run_evaluation
-from apps.server.src.utils.redis_manager import RedisManager
-from apps.server.src.tasks.opencompass_runner import get_runner
+from tasks.eval_tasks import run_evaluation
+from utils.redis_manager import RedisManager
+from tasks.runners.runner_opencompas import get_runner
 from sqlalchemy import text as sqlalchemy_text
 import asyncio
 import uuid
-from apps.server.src.repositories.evaluation_repository import EvaluationRepository
-from apps.server.src.utils.db_utils import db_operation, async_db_operation
+from core.evaluation_repository import EvaluationRepository
+from utils.db_utils import db_operation, async_db_operation
 from fastapi import HTTPException, status
 
 # 日志配置
@@ -42,9 +42,9 @@ class EvaluationService:
         Returns:
             EvaluationResponse: 评估响应
         """
-        from apps.server.src.repositories.evaluation_repository import EvaluationRepository
-        from apps.server.src.utils.db_utils import async_db_operation
-        from apps.server.src.tasks.eval_tasks import run_evaluation
+        from core.evaluation_repository import EvaluationRepository
+        from utils.db_utils import async_db_operation
+        from tasks.eval_tasks import run_evaluation
         import traceback
         
         # 使用异步数据库操作上下文管理器
@@ -148,7 +148,7 @@ class EvaluationService:
         Returns:
             Optional[EvaluationStatusResponse]: 评估任务状态
         """
-        from apps.server.src.repositories.evaluation_repository import EvaluationRepository
+        from apps.server.src.core.evaluation_repository import EvaluationRepository
         from apps.server.src.utils.db_utils import db_operation
         
         try:

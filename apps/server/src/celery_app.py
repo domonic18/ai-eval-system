@@ -1,6 +1,6 @@
 from celery import Celery
 from dotenv import load_dotenv
-from apps.server.src.core.config import REDIS_URL, APP_NAME, settings
+from core.config import REDIS_URL, APP_NAME, settings
 import os
 
 load_dotenv()
