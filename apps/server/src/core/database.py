@@ -1,3 +1,4 @@
+from sqlalchemy import Column, DateTime, text  # 新增关键导入
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 from core.config import settings
@@ -20,6 +21,16 @@ AsyncSessionLocal = sessionmaker(
 # 声明式基类
 Base = declarative_base()
 
+class TimestampMixin:
+    """自动时间戳 Mixin 类（需要被模型继承）"""
+    created_at = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+        onupdate=text("CURRENT_TIMESTAMP")  # 更新时自动触发
+    )
+
+
 async def get_db() -> AsyncSession:
     """依赖注入用的异步数据库会话"""
     async with AsyncSessionLocal() as session:
@@ -29,11 +40,3 @@ async def create_tables():
     """创建所有数据表（仅用于开发环境）"""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
-class TimestampMixin:
-    created_at = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
-    updated_at = Column(
-        DateTime(timezone=True),
-        server_default=text("CURRENT_TIMESTAMP"),
-        onupdate=text("CURRENT_TIMESTAMP")
-    )
