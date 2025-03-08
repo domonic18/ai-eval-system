@@ -20,3 +20,4 @@ class Dataset(Base, TimestampMixin):
     
     # 关系
     user = relationship("User", back_populates="datasets")
+    arenas = relationship("Arena", back_populates="dataset")
