@@ -2,16 +2,16 @@ from fastapi import APIRouter, HTTPException, status, Depends, Query, WebSocket,
 from sqlalchemy.orm import Session
 from api.deps import get_db
 from schemas.eval import EvaluationCreate, EvaluationResponse, EvaluationStatusResponse
-# from services.eval_service import (
-#     create_evaluation_task
-#     # get_evaluation_status, 
-#     # handle_websocket_logs,
-#     # list_evaluations,
-#     # get_evaluation_logs,
-#     # terminate_evaluation,
-#     # delete_evaluation,
-#     # update_evaluation_name
-# )
+from services.eval_service import (
+    create_evaluation_task,
+    get_evaluation_status, 
+    handle_websocket_logs,
+    list_evaluations,
+    get_evaluation_logs,
+    terminate_evaluation,
+    delete_evaluation,
+    update_evaluation_name
+)
 from typing import Dict, Any, List, Optional
 
 router = APIRouter()
