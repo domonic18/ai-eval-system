@@ -78,6 +78,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from core.config import settings
 from core.database import engine, Base
+from core.database import Base
 from fastapi.security import OAuth2PasswordBearer
 from api.routers import auth  # 导入你的路由模块
 from api.routers import eval  # 添加这行导入语句
@@ -90,25 +91,25 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """应用生命周期管理"""
-    # 启动时执行
-    logger.info("Creating database tables...")
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     """应用生命周期管理"""
+#     # 启动时执行
+#     logger.info("Creating database tables...")
+#     async with engine.begin() as conn:
+#         await conn.run_sync(Base.metadata.create_all)
     
-    yield  # 这里保持应用运行
+#     yield  # 这里保持应用运行
     
-    # 关闭时执行
-    logger.info("Closing database connections...")
-    await engine.dispose()
+#     # 关闭时执行
+#     logger.info("Closing database connections...")
+#     await engine.dispose()
 
 # 创建FastAPI应用实例
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.API_VERSION,
-    lifespan=lifespan,
+    # lifespan=lifespan,
     docs_url="/api/docs",  # 自定义Swagger文档路径
     redoc_url=None         # 禁用Redoc文档
 )
