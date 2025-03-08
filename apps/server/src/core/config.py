@@ -1,7 +1,7 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import MySQLDsn, RedisDsn, computed_field
-
+import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent.parent
 
@@ -12,11 +12,11 @@ class Settings(BaseSettings):
     opencompass_path: Path = BASE_DIR / "libs" / "OpenCompass"
     
     # 数据库配置（分项模式）
-    mysql_host: str = "localhost"
-    mysql_port: int = 3306
-    mysql_user: str = "root"
-    mysql_password: str = "password"
-    mysql_db: str = "ai_eval"
+    mysql_host: str = os.getenv("MYSQL_HOST")
+    mysql_port: int = os.getenv("MYSQL_PORT")
+    mysql_user: str = os.getenv("MYSQL_USER")
+    mysql_password: str = os.getenv("MYSQL_PASSWORD")
+    mysql_db: str = os.getenv("MYSQL_DB")
     
     # 调试模式
     mysql_debug: bool = True
