@@ -27,17 +27,18 @@
             "request": "launch",
             "module": "celery",
             "args": [
-                "-A", "apps.server.src.celery_app:celery_app",
+                "-A", "celery_app:celery_app",
                 "worker",
                 "--loglevel=INFO",
-                "--pool=solo"
+                "--concurrency=2",
+                "-Q", "eval_tasks"
             ],
             "console": "integratedTerminal",
             "justMyCode": false,
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/apps/server/src",
             "python": "${command:python.interpreterPath}",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}"
+                "PYTHONPATH": "${workspaceFolder}/apps/server/src"
             }
         },
         {
