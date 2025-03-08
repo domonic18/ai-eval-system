@@ -114,18 +114,26 @@ app = FastAPI(
 # 配置CORS中间件
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    # allow_origins=settings.CORS_ORIGINS,
+    allow_origins=["*"],  # 允许所有来源，生产环境应该限制
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 包含路由模块
-app.include_router(
-    auth.router,
-    prefix="/api/auth",  # 统一添加路由前缀
-    tags=["Authentication"]
-)
+# # 包含路由模块
+# app.include_router(
+#     auth.router,
+#     prefix="/api/auth",  # 统一添加路由前缀
+#     tags=["认证"]
+# )
+
+# 注册路由
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["认证"])
+app.include_router(eval.router, prefix="/api/v1", tags=["评测"])
+
+# 获取令牌依赖
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 # 健康检查端点
 @app.get("/api/healthcheck")
