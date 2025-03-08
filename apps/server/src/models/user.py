@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, text
-from core.database import Base
+from core.database import Base, TimestampMixin
+from sqlalchemy.orm import relationship
 
 
 class User(Base, TimestampMixin):

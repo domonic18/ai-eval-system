@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, ForeignKey, Boolean, text
 from sqlalchemy.orm import relationship
-from core.database import Base
+from core.database import Base, TimestampMixin
 
 
 class AIModel(Base, TimestampMixin):

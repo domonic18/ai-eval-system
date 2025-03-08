@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, JSON, DateTime, Enum, Text, Float, ForeignKey, text
 from sqlalchemy.sql import func
 from enum import Enum as PyEnum
-from core.database import Base
+from core.database import Base, TimestampMixin
 
 
 class EvaluationStatus(PyEnum):

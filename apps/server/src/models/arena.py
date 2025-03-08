@@ -1,7 +1,7 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, ForeignKey, Float, text
+from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, ForeignKey, Float, text, Enum
 from sqlalchemy.orm import relationship
 from enum import Enum as PyEnum
-from core.database import Base
+from core.database import Base, TimestampMixin
 
 
 class ArenaStatus(PyEnum):
