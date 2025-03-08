@@ -1,7 +1,8 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, ForeignKey, Float, text
 from sqlalchemy.orm import relationship
 from enum import Enum as PyEnum
-from apps.server.src.db import Base
+from core.database import Base
+
 
 class ArenaStatus(PyEnum):
     """竞技场状态枚举"""

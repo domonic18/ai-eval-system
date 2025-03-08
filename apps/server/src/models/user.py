@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, text
-from apps.server.src.db import Base
+from core.database import Base
+
 
 class User(Base):
     """用户模型"""

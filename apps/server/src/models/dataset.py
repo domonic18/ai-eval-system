@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, ForeignKey, text
 from sqlalchemy.orm import relationship
-from apps.server.src.db import Base
+from core.database import Base
+
 
 class Dataset(Base):
     """数据集模型"""
