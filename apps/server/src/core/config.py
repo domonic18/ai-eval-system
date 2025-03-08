@@ -7,7 +7,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent.parent
 
 
 class Settings(BaseSettings):
-    
+    # 基础配置
+    PROJECT_NAME: str = "AI Eval System"
+    API_VERSION: str = "1.0.0"
+    DEBUG: bool = True
+
+    # 服务器配置
+    SERVER_HOST: str = "0.0.0.0"
+    SERVER_PORT: int = 8000
+
     # 路径配置
     opencompass_path: Path = BASE_DIR / "libs" / "OpenCompass"
     
@@ -21,6 +29,16 @@ class Settings(BaseSettings):
     # 调试模式
     mysql_debug: bool = True
     
+    # 安全配置
+    JWT_SECRET_KEY: str = "your-secret-key-here"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24小时
+
+    # CORS配置
+    CORS_ORIGINS: list = [
+        "http://localhost:3000",    # 前端开发地址
+        "https://your-domain.com"   # 生产环境域名
+    ]
+
     # Redis配置
     redis_url: RedisDsn = "redis://localhost:6379/0"  # 使用RedisDsn类型验证
     
