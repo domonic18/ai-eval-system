@@ -59,22 +59,23 @@ class TaskManager:
                 return {"success": False, "message": "Evaluation not found"}
 
             # 提交Celery任务
-            from tasks.task_eval import run_evaluation  # 使用绝对路径
-            celery_task = run_evaluation.apply_async(
-                args=[eval_id],
-                queue='high_priority',
-                priority=0
+            from tasks.task_eval import run_evaluation  # 确保相对路径正确
+            task = run_evaluation.apply_async(
+                args=(eval_id,),  # 使用元组格式
+                queue='eval_tasks',
+                # priority=0,
+                serializer='json'
             )
 
             # 更新数据库记录
-            evaluation.task_id = celery_task.id
+            evaluation.task_id = task.id
             evaluation.status = EvaluationStatus.PENDING.value
             evaluation.updated_at = datetime.now()
             db.commit()
 
             return {
                 "success": True,
-                "task_id": celery_task.id,
+                "task_id": task.id,
                 "status": "PENDING",
                 "message": "任务已提交到Celery队列"
             }
