@@ -1,7 +1,7 @@
 from celery import Celery
 from dotenv import load_dotenv
 from core.config import settings
-# from core.config import REDIS_URL, APP_NAME, settings
+    # from core.config import REDIS_URL, APP_NAME, settings
 import os
 
 load_dotenv()
@@ -11,7 +11,7 @@ celery_app = Celery(
     f"{settings.APP_NAME.lower().replace(' ', '_')}_tasks",
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
-    include=["tasks.eval_tasks"]  # 明确包含任务模块
+    include=["tasks.task_eval"]  # 明确包含任务模块
 )
 
 # # 添加自动发现任务
@@ -19,18 +19,27 @@ celery_app = Celery(
 
 # Celery配置
 celery_app.conf.update(
+    # 序列化和内容设置
     task_serializer="json",
     accept_content=["json"],
     result_serializer="json",
+
+    # 时区设置
     timezone="Asia/Shanghai",
     enable_utc=False,
+
+    # 任务跟踪和事件设置
     task_track_started=True,
     worker_send_task_events=True,
     task_send_sent_event=True,
+
+    # 默认队列
+    task_default_queue='eval_tasks',
+
+    # 限制并发任务数量
+    worker_concurrency=os.getenv("CELERY_CONCURRENCY", 1),
     task_acks_late=True,                                            # 任务完成后确认
     worker_prefetch_multiplier=1,                                   # 严格并发控制
-    task_concurrency=os.getenv("CELERY_CONCURRENCY", 1),            # 全局并发限制
-    task_default_queue='eval_tasks'
 )
 
 # # 添加调试配置
