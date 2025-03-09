@@ -426,7 +426,7 @@ def handle_task_status_update(status_dict):
     except Exception as e:
         logger.error(f"处理状态更新回调时出错: {str(e)}")
 
-@celery_app.task(bind=True, name='eval_task.run_evaluation', queue='eval_tasks')
+@celery_app.task(bind=True, name='task_eval.run_evaluation', queue='eval_tasks')
 def run_evaluation(self, eval_id: int):
     """
     运行评估任务
@@ -460,10 +460,10 @@ def update_task_status(db: Session, eval_id: int, status: EvaluationStatus, resu
         # 通过Redis更新任务状态
         try:
             RedisManager.update_task_status(eval_id, {
-                "status": status.value,
+                "status": status,
                 "updated_at": datetime.now().isoformat()
             })
-            logger.debug(f"已通过Redis更新任务[{eval_id}]状态: {status.value}")
+            logger.debug(f"已通过Redis更新任务[{eval_id}]状态: {status}")
         except Exception as e:
             logger.error(f"Redis更新任务状态失败: {str(e)}")
 
