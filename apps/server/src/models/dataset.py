@@ -1,8 +1,9 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, ForeignKey, text
 from sqlalchemy.orm import relationship
-from apps.server.src.db import Base
+from core.database import Base, TimestampMixin
 
-class Dataset(Base):
+
+class Dataset(Base, TimestampMixin):
     """数据集模型"""
     __tablename__ = "datasets"
 
@@ -18,4 +19,5 @@ class Dataset(Base):
                         onupdate=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"), comment="更新时间")
     
     # 关系
-    user = relationship("User", backref="datasets") 
+    user = relationship("User", back_populates="datasets")
+    arenas = relationship("Arena", back_populates="dataset")

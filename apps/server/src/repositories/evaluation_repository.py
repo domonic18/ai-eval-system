@@ -7,7 +7,7 @@ from datetime import datetime
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from typing import Dict, Any, Optional, List
-from apps.server.src.models.eval import Evaluation, EvaluationStatus
+from models.eval import Evaluation, EvaluationStatus
 import asyncio
 
 logger = logging.getLogger(__name__)

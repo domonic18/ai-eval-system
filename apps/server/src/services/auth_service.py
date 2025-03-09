@@ -3,8 +3,8 @@ from typing import Optional, Union, Dict, Any
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
-from apps.server.src.models.user import User
-from apps.server.src.schemas.auth import UserCreate, UserResponse, Token
+from models.user import User
+from schemas.auth import UserCreate, Token
 import os
 import logging
 
@@ -156,10 +156,7 @@ class AuthService:
         )
         return Token(
             access_token=access_token,
-            token_type="bearer",
-            user_id=user.id,
-            username=user.username,
-            is_admin=user.is_admin
+            token_type="Bearer"
         )
 
 # 创建服务实例

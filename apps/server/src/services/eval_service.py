@@ -1,29 +1,20 @@
-from fastapi import Depends, WebSocket, WebSocketDisconnect
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
-from apps.server.src.db import get_db, SessionLocal
-from apps.server.src.models.eval import Evaluation, EvaluationStatus
-from apps.server.src.schemas.eval import EvaluationCreate, EvaluationResponse, EvaluationStatusResponse
-from celery.result import AsyncResult
-import traceback
-from typing import Optional, Union, Iterator, Dict, Any, List, Tuple, Callable, cast
 import logging
 import json
-import os
-from pathlib import Path
-from datetime import datetime
-from apps.server.src.tasks.eval_tasks import run_evaluation
-from apps.server.src.utils.redis_manager import RedisManager
-from apps.server.src.tasks.opencompass_runner import get_runner
-from sqlalchemy import text as sqlalchemy_text
-import asyncio
-import uuid
-from apps.server.src.repositories.evaluation_repository import EvaluationRepository
-from apps.server.src.utils.db_utils import db_operation, async_db_operation
+from sqlalchemy.orm import Session
+from fastapi import Depends, WebSocket, WebSocketDisconnect
 from fastapi import HTTPException, status
-from fastapi.websockets import WebSocketState
-from apps.server.src.tasks.task_manager import TaskManager
-from apps.server.src.utils.resource_manager import ResourceManager
+from typing import Optional, Union, Iterator, Dict, Any, List, Tuple, Callable, cast
+from models.eval import Evaluation, EvaluationStatus
+from schemas.eval import EvaluationCreate, EvaluationResponse, EvaluationStatusResponse
+from api.deps import get_db
+from utils.db_utils import async_db_operation
+from tasks.task_manager import TaskManager
+from repositories.evaluation_repository import EvaluationRepository
+from utils.redis_manager import RedisManager
+from tasks.runners.runner import get_runner
+# from utils.logger import get_logger
+# from tasks.eval_tasks import run_evaluation_task
+
 
 # 日志配置
 logger = logging.getLogger(__name__)
@@ -34,7 +25,6 @@ class EvaluationService:
     def __init__(self):
         """初始化评估服务"""
         self.task_manager = TaskManager()
-        self.redis_manager = RedisManager()
     
     async def create_evaluation_task(self, eval_data: EvaluationCreate, db: Union[Session, Iterator[Session]] = Depends(get_db)):
         """创建评估任务
@@ -48,174 +38,34 @@ class EvaluationService:
         Returns:
             dict: 创建结果
         """
-        async with async_db_operation(db) as db_session:
-            try:
-                # 验证输入数据
-                if not eval_data.model_name:
-                    raise ValueError("模型名称不能为空")
-                if not eval_data.dataset_name:
-                    raise ValueError("数据集名称不能为空")
-                
-                # 解析模型配置
-                model_configuration = {}
-                if eval_data.model_configuration:
-                    try:
-                        if isinstance(eval_data.model_configuration, str):
-                            model_configuration = json.loads(eval_data.model_configuration)
-                        else:
-                            model_configuration = eval_data.model_configuration
-                    except json.JSONDecodeError:
-                        model_configuration = {"config_error": "无效的 JSON 格式"}
-                
-                # 解析数据集配置
-                dataset_configuration = {}
-                if eval_data.dataset_configuration:
-                    try:
-                        if isinstance(eval_data.dataset_configuration, str):
-                            dataset_configuration = json.loads(eval_data.dataset_configuration)
-                        else:
-                            dataset_configuration = eval_data.dataset_configuration
-                    except json.JSONDecodeError:
-                        dataset_configuration = {"config_error": "无效的 JSON 格式"}
-                
-                # 创建评估记录
-                db_eval = await EvaluationRepository.create_evaluation_async(
-                    db_session,
-                    eval_data.model_name,
-                    eval_data.dataset_name,
-                    model_configuration,
-                    dataset_configuration,
-                    eval_data.eval_config or {}
-                )
-                
-                # 使用任务管理器创建任务
-                task_result = self.task_manager.create_task(db_eval.id, db_session)
-                
-                if task_result["success"]:
-                    logger.info(f"评估任务创建成功 [eval_id={db_eval.id}, task_id={task_result['task_id']}]")
-                    
-                    # 构建返回对象
-                    return EvaluationResponse(
-                        id=db_eval.id,
-                        model_name=db_eval.model_name,
-                        dataset_name=db_eval.dataset_name,
-                        status=db_eval.status,
-                        created_at=db_eval.created_at,
-                        updated_at=db_eval.updated_at,
-                        task_id=task_result.get("task_id")
-                    )
-                else:
-                    logger.error(f"评估任务创建失败 [eval_id={db_eval.id}]: {task_result['message']}")
-                    raise Exception(task_result["message"])
-            except Exception as e:
-                logger.exception(f"创建评估任务异常: {str(e)}")
-                raise Exception(f"创建评估任务异常: {str(e)}")
-
-    async def legacy_create_evaluation_task(self, eval_data: EvaluationCreate, db: Union[Session, Iterator[Session]] = Depends(get_db)):
-        """旧版的评估任务创建方法（保留作为备用）
+        # 创建评估记录
+        db_eval = await EvaluationRepository.create_evaluation_async(
+            db,
+            eval_data.model_name,
+            eval_data.dataset_name,
+            eval_data.model_configuration,
+            eval_data.dataset_configuration,
+            eval_data.eval_config or {}
+        )
         
-        Args:
-            eval_data: 评估数据
-            db: 数据库会话（可能是 Session 对象或 FastAPI 依赖的生成器）
-            
-        Returns:
-            EvaluationResponse: 评估响应
-        """
-        from apps.server.src.repositories.evaluation_repository import EvaluationRepository
-        from apps.server.src.utils.db_utils import async_db_operation
-        from apps.server.src.tasks.eval_tasks import run_evaluation
-        import traceback
+        # 使用TaskManager创建任务
+        task_result = self.task_manager.create_task(db_eval.id, db)
         
-        # 使用异步数据库操作上下文管理器
-        async with async_db_operation(db) as db_session:
-            try:
-                # 验证输入数据
-                if not eval_data.model_name:
-                    raise ValueError("模型名称不能为空")
-                if not eval_data.dataset_name:
-                    raise ValueError("数据集名称不能为空")
-                
-                # 解析模型配置
-                model_configuration = {}
-                if eval_data.model_configuration:
-                    try:
-                        if isinstance(eval_data.model_configuration, str):
-                            model_configuration = json.loads(eval_data.model_configuration)
-                        else:
-                            model_configuration = eval_data.model_configuration
-                    except json.JSONDecodeError:
-                        model_configuration = {"config_error": "无效的 JSON 格式"}
-                
-                # 解析数据集配置
-                dataset_configuration = {}
-                if eval_data.dataset_configuration:
-                    try:
-                        if isinstance(eval_data.dataset_configuration, str):
-                            dataset_configuration = json.loads(eval_data.dataset_configuration)
-                        else:
-                            dataset_configuration = eval_data.dataset_configuration
-                    except json.JSONDecodeError:
-                        dataset_configuration = {"config_error": "无效的 JSON 格式"}
-
-                # 使用存储库创建评估记录（异步）
-                db_eval = await EvaluationRepository.create_evaluation_async(
-                    db_session,
-                    eval_data.model_name,
-                    eval_data.dataset_name,
-                    model_configuration,
-                    dataset_configuration,
-                    eval_data.eval_config or {}
-                )
-                
-                # 启动 Celery 任务
-                try:
-                    # 使用run_evaluation函数创建Celery任务（异步包装）
-                    task = await asyncio.to_thread(run_evaluation.delay, db_eval.id)
-                    logger.info(f"启动评估任务 {db_eval.id}，Celery 任务 ID: {task.id}")
-                    
-                    # 异步更新任务ID
-                    await EvaluationRepository.update_task_id_async(db_session, db_eval.id, task.id)
-                    
-                    # 异步获取最新数据
-                    db_eval = await EvaluationRepository.get_evaluation_by_id_async(db_session, db_eval.id)
-                    
-                    # 构建响应
-                    return EvaluationResponse(
-                        id=db_eval.id,
-                        model_name=db_eval.model_name,
-                        dataset_name=db_eval.dataset_name,
-                        status=db_eval.status,
-                        created_at=db_eval.created_at,
-                        updated_at=db_eval.updated_at,
-                        task_id=task.id
-                    )
-                except Exception as e:
-                    # 记录 Celery 任务创建失败的详细信息
-                    error_detail = traceback.format_exc()
-                    logger.error(f"创建 Celery 任务失败: {str(e)}")
-                    logger.error(error_detail)
-                    
-                    # 异步更新评估状态为失败
-                    await EvaluationRepository.update_error_async(db_session, db_eval.id, f"启动评估任务失败: {str(e)}")
-                    
-                    # 重新抛出异常
-                    raise Exception(f"启动评估任务失败: {str(e)}")
-                    
-            except SQLAlchemyError as e:
-                # 回滚事务
-                if db_session:
-                    await asyncio.to_thread(db_session.rollback)
-                error_msg = f"数据库错误: {str(e)}"
-                logger.error(error_msg)
-                logger.error(traceback.format_exc())
-                raise Exception(error_msg)
-            
-            except Exception as e:
-                # 处理其他异常
-                error_msg = f"创建评估任务时出错: {str(e)}"
-                logger.error(error_msg)
-                logger.error(traceback.format_exc())
-                raise Exception(error_msg)
+        if not task_result["success"]:
+            raise HTTPException(
+                status_code=500,
+                detail=task_result["message"]
+            )
+        
+        return EvaluationResponse(
+            id=db_eval.id,
+            model_name=db_eval.model_name,
+            dataset_name=db_eval.dataset_name,
+            status=db_eval.status,
+            created_at=db_eval.created_at,
+            updated_at=db_eval.updated_at,
+            task_id=task_result["task_id"]
+        )
 
     def get_evaluation_status(self, eval_id: int, db: Session):
         """获取评估任务状态
@@ -310,7 +160,7 @@ class EvaluationService:
             if eval_task.status == EvaluationStatus.RUNNING.value:
                 try:
                     # 从任务运行器获取进度
-                    runner = get_runner(f"eval_{eval_id}")
+                    runner = get_runner(eval_id)
                     if runner:
                         status_response.progress = runner.progress
                         
@@ -351,58 +201,6 @@ class EvaluationService:
                 logger.warning(f"更新Redis缓存出错: {str(redis_update_error)}")
                 
             return status_response
-
-    def get_opencompass_config(self, model_name: str, dataset_name: str, 
-                              model_configuration: Dict[str, Any], 
-                              dataset_configuration: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        构建 OpenCompass 配置
-        
-        Args:
-            model_name: 模型名称
-            dataset_name: 数据集名称
-            model_configuration: 模型配置
-            dataset_configuration: 数据集配置
-        
-        Returns:
-            Dict[str, Any]: OpenCompass 配置
-        """
-        # OpenCompass执行路径，应该在libs/OpenCompass下执行
-        opencompass_path = "libs/OpenCompass"
-        
-        # 基础配置
-        config = {
-            "model": {
-                "name": model_name,
-                "path": model_configuration.get("path", ""),
-                "type": model_configuration.get("type", "huggingface"),
-            },
-            "dataset": {
-                "name": dataset_name,
-                "path": dataset_configuration.get("path", ""),
-            },
-            "output_path": model_configuration.get("output_path", "outputs/default"),
-            "run_command": f"cd {opencompass_path} && python run.py --models {model_name}.py --datasets {dataset_name}.py --debug"
-        }
-        
-        # 添加其他模型配置
-        if "api_key" in model_configuration:
-            config["model"]["api_key"] = model_configuration["api_key"]
-        
-        if "api_base" in model_configuration:
-            config["model"]["api_base"] = model_configuration["api_base"]
-        
-        if "parameters" in model_configuration:
-            config["model"]["parameters"] = model_configuration["parameters"]
-        
-        # 添加数据集特定配置
-        if "subset" in dataset_configuration:
-            config["dataset"]["subset"] = dataset_configuration["subset"]
-        
-        if "split" in dataset_configuration:
-            config["dataset"]["split"] = dataset_configuration["split"]
-        
-        return config
 
     async def handle_websocket_logs(self, websocket: WebSocket, eval_id: int):
         """处理WebSocket日志连接
@@ -518,8 +316,7 @@ class EvaluationService:
                 "type": "warning", 
                 "data": f"获取历史日志失败: {str(e)}"
             })
-
-    async def _subscribe_to_log_channel(self, eval_id: int):
+    async def _subscribe_to_log_channel(self, websocket: WebSocket, eval_id: int):
         """订阅Redis日志通道
         
         Args:
@@ -614,6 +411,35 @@ class EvaluationService:
                 logger.debug("已关闭Redis PubSub连接")
             except Exception as e:
                 logger.warning(f"关闭PubSub连接失败: {str(e)}")
+    async def _get_evaluation_for_websocket(self, eval_id: int) -> Optional[Evaluation]:
+        """获取评估任务信息用于WebSocket处理
+        
+        Args:
+            eval_id: 评估任务ID
+            
+        Returns:
+            Optional[Evaluation]: 评估任务对象，如果不存在则返回None
+        """
+        pass
+    
+    async def _update_task_status_for_websocket(self, websocket: WebSocket, eval_task: Evaluation):
+        """为WebSocket连接更新任务状态到Redis
+        
+        Args:
+            websocket: WebSocket连接
+            eval_task: 评估任务对象
+        """
+        pass
+    
+
+    async def _cleanup_websocket_resources(self, websocket: WebSocket, pubsub=None, redis=None):
+        """清理WebSocket相关资源
+        
+        Args:
+            pubsub: Redis PubSub对象
+            redis_client: Redis客户端
+        """
+        pass
 
     def get_evaluation_logs(self, eval_id: int, lines: Optional[int] = 50):
         """获取评估任务的日志
@@ -632,7 +458,7 @@ class EvaluationService:
             return logs
         
         # 如果Redis中没有日志，尝试从运行器获取
-        runner = get_runner(f"eval_{eval_id}")
+        runner = get_runner(eval_id)
         if runner:
             return runner.get_recent_logs(lines)
         
@@ -640,6 +466,14 @@ class EvaluationService:
         return []
 
     async def list_evaluations(self, status: Optional[str] = None, limit: int = 100, offset: int = 0, db: Union[Session, Iterator[Session]] = Depends(get_db)):
+        """获取所有评估任务列表
+        
+        Args:
+            db: 数据库会话
+            
+        Returns:
+            dict: 评估任务列表
+        """
         """列出评估任务
         
         Args:
@@ -689,6 +523,7 @@ class EvaluationService:
                 logger.exception(f"列出评估任务异常: {str(e)}")
                 raise Exception(f"列出评估任务异常: {str(e)}")
 
+   
     async def delete_evaluation(self, eval_id: int, db: Session):
         """删除评估任务
         
@@ -710,7 +545,7 @@ class EvaluationService:
         try:
             # 如果任务正在运行，先尝试终止它
             if eval_task.status in [EvaluationStatus.PENDING.value, EvaluationStatus.RUNNING.value]:
-                runner = get_runner(f"eval_{eval_id}")
+                runner = get_runner(eval_id)
                 if runner and runner.is_running:
                     runner.terminate()
             
@@ -732,7 +567,7 @@ class EvaluationService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"删除任务失败: {str(e)}"
             )
-    
+
     def update_evaluation_name(self, eval_id: int, name: str, db: Session):
         """更新评估任务名称
         
@@ -786,6 +621,7 @@ class EvaluationService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"更新任务名称失败: {str(e)}"
             )
+
 
     def terminate_evaluation(self, eval_id: int, db: Session) -> Dict[str, Any]:
         """终止评估任务

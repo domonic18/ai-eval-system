@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "FastAPI 服务",
+            "name": "后端服务(FastAPI)",
             "type": "python",
             "request": "launch",
             "module": "uvicorn",
@@ -22,26 +22,28 @@
             }
         },
         {
-            "name": "Celery Worker",
+            "name": "后端服务(Celery)",
             "type": "python",
             "request": "launch",
             "module": "celery",
             "args": [
-                "-A", "apps.server.src.celery_app:celery_app",
+                "-A", "celery_app:celery_app",
                 "worker",
-                "--loglevel=INFO",
-                "--pool=solo"
+                "--loglevel=DEBUG",
+                "--concurrency=1",
+                "--pool=prefork",
+                "-Q", "eval_tasks"
             ],
             "console": "integratedTerminal",
             "justMyCode": false,
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/apps/server/src",
             "python": "${command:python.interpreterPath}",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}"
+                "PYTHONPATH": "${workspaceFolder}/apps/server/src"
             }
         },
         {
-            "name": "前端开发服务器",
+            "name": "前端服务",
             "type": "node",
             "request": "launch",
             "cwd": "${workspaceFolder}/apps/web",
@@ -59,22 +61,12 @@
     "compounds": [
         {
             "name": "全栈开发环境",
-            "configurations": ["FastAPI 服务", "Celery Worker", "前端开发服务器"],
+            "configurations": ["后端服务(FastAPI)", "后端服务(Celery)", "前端服务"],
             "stopAll": true,
             "presentation": {
                 "hidden": false,
                 "group": "开发环境",
                 "order": 1
-            }
-        },
-        {
-            "name": "后端服务",
-            "configurations": ["FastAPI 服务", "Celery Worker"],
-            "stopAll": true,
-            "presentation": {
-                "hidden": false,
-                "group": "开发环境",
-                "order": 2
             }
         }
     ]

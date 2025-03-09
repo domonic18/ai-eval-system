@@ -1,102 +1,119 @@
--- AI评测系统数据库初始化脚本
--- 创建数据库（如果不存在）
-CREATE DATABASE IF NOT EXISTS ai_eval CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- 创建数据库
+CREATE DATABASE IF NOT EXISTS ai_eval 
+CHARACTER SET utf8mb4 
+COLLATE utf8mb4_unicode_ci;
 
 USE ai_eval;
 
--- 创建evaluations表
+-- 用户表（新增时区字段）
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    username VARCHAR(50) NOT NULL UNIQUE COMMENT '用户名',
+    password VARCHAR(255) NOT NULL COMMENT '密码（加密存储）',
+    email VARCHAR(255) NOT NULL UNIQUE COMMENT '邮箱',
+    avatar VARCHAR(255) COMMENT '头像URL',
+    is_active BOOL DEFAULT TRUE COMMENT '是否激活',
+    is_admin BOOL DEFAULT FALSE COMMENT '是否管理员',
+    created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) COMMENT '创建时间',
+    updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6) COMMENT '更新时间',
+    INDEX idx_user_username (username),
+    INDEX idx_user_email (email)
+) ENGINE=InnoDB COMMENT='用户表';
+
+-- AI模型表（增加版本约束）
+CREATE TABLE IF NOT EXISTS ai_models (
+    id INT AUTO_INCREMENT PRIMARY KEY COMMENT '模型ID',
+    name VARCHAR(255) NOT NULL COMMENT '模型名称',
+    provider VARCHAR(100) NOT NULL COMMENT '提供商',
+    description TEXT COMMENT '模型描述',
+    model_type VARCHAR(50) NOT NULL COMMENT '模型类型',
+    version VARCHAR(50) COMMENT '版本',
+    configuration JSON COMMENT '运行时配置',
+    is_public BOOL DEFAULT TRUE COMMENT '可见性',
+    user_id INT NOT NULL COMMENT '所属用户ID',
+    created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) COMMENT '创建时间',
+    updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6) COMMENT '更新时间',
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE INDEX uniq_model_name_version (name, version),
+    INDEX idx_model_type (model_type)
+) ENGINE=InnoDB COMMENT='AI模型表';
+
+-- 数据集表（新增类型约束）
+CREATE TABLE IF NOT EXISTS datasets (
+    id INT AUTO_INCREMENT PRIMARY KEY COMMENT '数据集ID',
+    name VARCHAR(255) NOT NULL COMMENT '数据集名称',
+    description TEXT COMMENT '数据集描述',
+    type VARCHAR(50) NOT NULL COMMENT '数据集类型',
+    file_path VARCHAR(255) COMMENT '文件路径',
+    configuration JSON COMMENT '数据集配置',
+    user_id INT NOT NULL COMMENT '创建者ID',
+    created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) COMMENT '创建时间',
+    updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6) COMMENT '更新时间',
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE INDEX uniq_dataset_name (name),
+    INDEX idx_dataset_type (type)
+) ENGINE=InnoDB COMMENT='数据集表';
+
+-- 竞技场表（状态枚举标准化）
+CREATE TABLE IF NOT EXISTS arenas (
+    id INT AUTO_INCREMENT PRIMARY KEY COMMENT '竞技场ID',
+    name VARCHAR(255) NOT NULL COMMENT '竞技场名称',
+    description TEXT COMMENT '竞技场描述',
+    status ENUM('pending', 'running', 'completed', 'failed') NOT NULL DEFAULT 'pending' COMMENT '状态',
+    dataset_id INT NOT NULL COMMENT '数据集ID',
+    configuration JSON COMMENT '竞技场配置',
+    results JSON COMMENT '聚合结果',
+    user_id INT NOT NULL COMMENT '创建者ID',
+    created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) COMMENT '创建时间',
+    updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6) COMMENT '更新时间',
+    FOREIGN KEY (dataset_id) REFERENCES datasets(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_arena_status (status),
+    INDEX idx_arena_user (user_id)
+) ENGINE=InnoDB COMMENT='竞技场表';
+
+-- 竞技场参与者表（新增排名约束）
+CREATE TABLE IF NOT EXISTS arena_participants (
+    id INT AUTO_INCREMENT PRIMARY KEY COMMENT '参与记录ID',
+    arena_id INT NOT NULL COMMENT '竞技场ID',
+    model_id INT NOT NULL COMMENT '模型ID',
+    score FLOAT COMMENT '综合得分',
+    `rank` INT COMMENT '排名',
+    results JSON COMMENT '原始结果',
+    created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) COMMENT '参与时间',
+    FOREIGN KEY (arena_id) REFERENCES arenas(id) ON DELETE CASCADE,
+    FOREIGN KEY (model_id) REFERENCES ai_models(id) ON DELETE CASCADE,
+    UNIQUE INDEX uniq_arena_model (arena_id, model_id),
+    INDEX idx_participant_rank (`rank`)
+) ENGINE=InnoDB COMMENT='竞技场参与者表';
+
+-- 评估任务表（调整状态枚举）
 CREATE TABLE IF NOT EXISTS evaluations (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NULL COMMENT '任务名称',
+    id INT AUTO_INCREMENT PRIMARY KEY COMMENT '评估ID',
+    name VARCHAR(255) COMMENT '任务名称',
     model_name VARCHAR(255) NOT NULL COMMENT '模型名称',
     dataset_name VARCHAR(255) NOT NULL COMMENT '数据集名称',
-    model_configuration JSON NULL COMMENT '模型配置',
-    dataset_configuration JSON NULL COMMENT '数据集配置',
-    eval_config JSON NULL COMMENT '评估配置',
-    status VARCHAR(50) NOT NULL DEFAULT 'pending' COMMENT '任务状态',
-    task_id VARCHAR(255) NULL COMMENT 'Celery 任务 ID',
-    error_message TEXT NULL COMMENT '错误信息',
-    log_dir VARCHAR(255) NULL COMMENT '日志目录',
-    progress FLOAT NOT NULL DEFAULT 0.0 COMMENT '进度百分比',
-    results JSON NULL COMMENT '评估结果',
-    user_id INT NULL COMMENT '用户ID',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    INDEX idx_status (status),
-    INDEX idx_task_id (task_id),
-    INDEX idx_created_at (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='评估任务表';
+    model_configuration JSON COMMENT '模型配置',
+    dataset_configuration JSON COMMENT '数据集配置',
+    eval_config JSON COMMENT '评估配置',
+    status ENUM('pending', 'running', 'completed', 'failed', 'stopped', 'terminated') DEFAULT 'pending' COMMENT '状态',
+    task_id VARCHAR(255) COMMENT 'Celery任务ID',
+    error_message TEXT COMMENT '错误信息',
+    log_dir VARCHAR(255) COMMENT '日志目录',
+    progress FLOAT DEFAULT 0.0 COMMENT '进度百分比',
+    results JSON COMMENT '评估结果',
+    user_id INT COMMENT '用户ID',
+    created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) COMMENT '创建时间',
+    updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6) COMMENT '更新时间',
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_eval_status (status),
+    INDEX idx_eval_task_id (task_id)
+) ENGINE=InnoDB COMMENT='评估任务表';
 
--- 为存储的日志创建表
-CREATE TABLE IF NOT EXISTS evaluation_logs (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    evaluation_id INT NOT NULL COMMENT '评估ID',
-    log_content TEXT NOT NULL COMMENT '日志内容',
-    log_level VARCHAR(20) DEFAULT 'INFO' COMMENT '日志级别',
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '时间戳',
-    INDEX idx_evaluation_id (evaluation_id),
-    INDEX idx_timestamp (timestamp),
-    CONSTRAINT fk_logs_evaluation FOREIGN KEY (evaluation_id) REFERENCES evaluations(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='评估日志表';
 
--- 创建模型表（可以用于存储预定义的模型）
-CREATE TABLE IF NOT EXISTS models (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL COMMENT '模型名称',
-    type VARCHAR(50) NOT NULL COMMENT '模型类型',
-    provider VARCHAR(100) NULL COMMENT '提供者',
-    path VARCHAR(255) NULL COMMENT '模型路径',
-    api_base VARCHAR(255) NULL COMMENT 'API基础URL',
-    description TEXT NULL COMMENT '描述',
-    parameters JSON NULL COMMENT '默认参数',
-    is_active BOOLEAN DEFAULT TRUE COMMENT '是否活跃',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    INDEX idx_name (name),
-    INDEX idx_type (type),
-    INDEX idx_provider (provider),
-    UNIQUE INDEX unq_name_provider (name, provider)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='模型表';
-
--- 创建数据集表
-CREATE TABLE IF NOT EXISTS datasets (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL COMMENT '数据集名称',
-    path VARCHAR(255) NULL COMMENT '数据集路径',
-    format VARCHAR(50) NULL COMMENT '数据格式',
-    description TEXT NULL COMMENT '描述',
-    category VARCHAR(100) NULL COMMENT '分类',
-    size INT NULL COMMENT '数据集大小',
-    metrics JSON NULL COMMENT '评估指标',
-    is_active BOOLEAN DEFAULT TRUE COMMENT '是否活跃',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    INDEX idx_name (name),
-    INDEX idx_category (category),
-    UNIQUE INDEX unq_name (name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='数据集表';
-
--- 以下是未来可扩展的用户相关表
--- 如果需要添加用户功能，可以取消这些注释
-
--- CREATE TABLE IF NOT EXISTS users (
---     id INT AUTO_INCREMENT PRIMARY KEY,
---     username VARCHAR(50) NOT NULL COMMENT '用户名',
---     email VARCHAR(100) NOT NULL COMMENT '邮箱',
---     password_hash VARCHAR(255) NOT NULL COMMENT '密码哈希',
---     is_active BOOLEAN DEFAULT TRUE COMMENT '是否活跃',
---     is_admin BOOLEAN DEFAULT FALSE COMMENT '是否管理员',
---     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
---     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
---     INDEX idx_username (username),
---     INDEX idx_email (email),
---     UNIQUE INDEX unq_username (username),
---     UNIQUE INDEX unq_email (email)
--- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
-
--- 如果需要用户关联功能，可以修改evaluations表添加user_id字段
--- ALTER TABLE evaluations ADD COLUMN user_id INT NULL COMMENT '创建者ID' AFTER results;
--- ALTER TABLE evaluations ADD CONSTRAINT fk_evaluations_user FOREIGN KEY (user_id) REFERENCES users(id);
+ALTER TABLE arena_participants 
+MODIFY model_id INT NOT NULL COMMENT '模型ID',
+ADD FOREIGN KEY (model_id) REFERENCES ai_models(id) ON DELETE CASCADE;
 
 -- 初始化一些默认数据
 INSERT INTO models (name, type, provider, description)

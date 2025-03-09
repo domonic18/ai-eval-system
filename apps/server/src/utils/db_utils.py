@@ -6,7 +6,7 @@ import contextlib
 from typing import Union, Iterator, Optional, TypeVar, Callable, Any, AsyncIterator
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
-from apps.server.src.db import SessionLocal
+# from core.database import SessionLocal
 import asyncio
 from contextlib import contextmanager, asynccontextmanager
 
@@ -14,95 +14,35 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar('T')
 
-class DatabaseSessionManager:
-    """数据库会话管理器
+def get_db_session(db: Union[Session, Iterator[Session], None] = None) -> tuple[Session, bool]:
+    """获取数据库会话
     
-    提供同步和异步数据库会话的上下文管理器支持，
-    简化数据库会话的获取和释放过程。
+    如果提供了会话则直接使用，否则创建新会话
+    
+    Args:
+        db: 可选的数据库会话对象或生成器
+        
+    Returns:
+        tuple[Session, bool]: 会话对象和是否需要关闭的标志
     """
-    
-    @staticmethod
-    @contextmanager
-    def session() -> Iterator[Session]:
-        """获取数据库会话的上下文管理器
-        
-        用法:
-            with DatabaseSessionManager.session() as db:
-                # 使用db进行数据库操作
-                
-        确保在退出上下文时自动关闭会话
-        """
-        db = SessionLocal()
-        try:
-            yield db
-        except Exception as e:
-            db.rollback()
-            logger.error(f"数据库操作异常，已回滚: {str(e)}")
-            raise
-        finally:
-            db.close()
-    
-    @staticmethod
-    @asynccontextmanager
-    async def async_session() -> AsyncIterator[Session]:
-        """获取异步数据库会话的上下文管理器
-        
-        用法:
-            async with DatabaseSessionManager.async_session() as db:
-                # 使用db进行异步数据库操作
-                
-        确保在退出上下文时自动关闭会话
-        """
-        db = SessionLocal()
-        try:
-            yield db
-        except Exception as e:
-            await asyncio.to_thread(db.rollback)
-            logger.error(f"异步数据库操作异常，已回滚: {str(e)}")
-            raise
-        finally:
-            db.close()
-    
-    @staticmethod
-    def execute_with_session(func: Callable[[Session], T]) -> T:
-        """使用数据库会话执行函数
-        
-        Args:
-            func: 接受数据库会话作为参数的函数
-            
-        Returns:
-            函数执行的结果
-            
-        用法:
-            result = DatabaseSessionManager.execute_with_session(
-                lambda db: db.query(User).filter(User.id == 1).first()
-            )
-        """
-        with DatabaseSessionManager.session() as db:
-            return func(db)
-    
-    @staticmethod
-    async def execute_with_async_session(func: Callable[[Session], T]) -> T:
-        """使用异步数据库会话执行函数
-        
-        Args:
-            func: 接受数据库会话作为参数的函数
-            
-        Returns:
-            函数执行的结果
-            
-        用法:
-            result = await DatabaseSessionManager.execute_with_async_session(
-                lambda db: db.query(User).filter(User.id == 1).first()
-            )
-        """
-        async with DatabaseSessionManager.async_session() as db:
-            return await asyncio.to_thread(func, db)
+    if db is not None:
+        # 直接使用提供的会话，不需要额外处理
+        if isinstance(db, Iterator):
+            try:
+                return next(db), False
+            except StopIteration:
+                # 如果迭代器已耗尽，创建新会话
+                logger.warning("提供的数据库会话迭代器已耗尽，创建新会话")
+                return AsyncSessionLocal(), True
+        else:
+            return db, False
+    else:
+        # 如果没有提供会话，创建一个新的
+        return AsyncSessionLocal(), True
 
-# 兼容现有代码的辅助函数
-@contextmanager
-def get_db_session() -> Iterator[Session]:
-    """获取数据库会话的上下文管理器（兼容接口）
+@contextlib.contextmanager
+def db_operation(db: Union[Session, Iterator[Session], None] = None):
+    """数据库操作上下文管理器
     
     用法:
         with get_db_session() as db:

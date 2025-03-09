@@ -9,22 +9,16 @@ import json
 import signal
 import tempfile
 import threading
-import traceback
-import logging
-import re
-from pathlib import Path
 from threading import Thread, Event
 from typing import Dict, Any, Optional, List, Tuple, Callable
-from apps.server.src.utils.redis_manager import RedisManager
-
-# 配置日志
-logger = logging.getLogger(__name__)
+from utils.redis_manager import RedisManager
+from datetime import datetime
 
 class OpenCompassRunner:
     """OpenCompass评测任务执行器"""
     
     def __init__(self, 
-                task_id: Optional[int] = None,
+                eval_id: Optional[int] = None,
                 working_dir: str = None, 
                 log_buffer_size: int = 1000,
                 opencompass_path: str = None):
@@ -37,7 +31,8 @@ class OpenCompassRunner:
             opencompass_path: OpenCompass安装路径
         """
         # 设置任务ID
-        self.task_id = task_id
+        self.eval_id = eval_id
+        # self.task_id = task_id
         # 设置工作目录
         self.working_dir = working_dir or os.getcwd()
         # 日志缓冲区
@@ -59,12 +54,14 @@ class OpenCompassRunner:
         self.return_code = None
         # 监控线程
         self.monitor_thread = None
-        # 停止信号
+        # # 停止信号
         self._stop_event = Event()
-        # 状态回调函数列表
-        self.status_callbacks = []
+        # # 状态回调函数列表
+        # self.status_callbacks = []
         # PID文件
         self.pid_file = None
+        self.start_time = None
+        self.end_time = None
     
     def __enter__(self):
         """支持上下文管理器模式"""
@@ -74,42 +71,9 @@ class OpenCompassRunner:
         """上下文管理器退出时自动清理资源"""
         self.terminate()
         self._close_log_file()
-        self.join_monitor_thread(timeout=5)
+        self._join_monitor_thread(timeout=5)
         return False  # 不抑制异常
     
-    def register_status_callback(self, callback: Callable[[Dict[str, Any]], None]):
-        """注册状态变更回调函数
-        
-        Args:
-            callback: 回调函数，接收状态字典作为参数
-        """
-        if callback not in self.status_callbacks:
-            self.status_callbacks.append(callback)
-    
-    def unregister_status_callback(self, callback: Callable):
-        """取消注册状态回调函数
-        
-        Args:
-            callback: 之前注册的回调函数
-        """
-        if callback in self.status_callbacks:
-            self.status_callbacks.remove(callback)
-    
-    def _notify_status_change(self, status: Dict[str, Any]):
-        """通知所有回调函数状态已变更
-        
-        Args:
-            status: 当前状态字典
-        """
-        # 确保状态字典中包含task_id
-        if "task_id" not in status and hasattr(self, "task_id") and self.task_id is not None:
-            status["task_id"] = self.task_id
-            
-        for callback in self.status_callbacks[:]:  # 复制列表以防回调中修改
-            try:
-                callback(status)
-            except Exception as e:
-                print(f"执行状态回调时出错: {str(e)}")
     
     def build_command(self, 
                      model_name: str, 
@@ -170,125 +134,7 @@ class OpenCompassRunner:
             if old_message != self.status_message:
                 self._notify_status_change(self.get_status())
     
-    def _monitor_output(self):
-        """监控进程输出并记录日志"""
-        print(f"开始监控进程输出...")
-        try:
-            while not self._stop_event.is_set() and self.process.poll() is None:  # 进程还在运行
-                # 读取输出
-                line = self.process.stdout.readline()
-                if not line:
-                    break
-                
-                # 由于subprocess.Popen已经设置了text=True，line已经是字符串
-                line_str = line.strip()
-                
-                # 保存到缓冲区
-                self._update_log(line_str)
-                
-                # 写入日志文件
-                self._write_to_log_file(line_str + '\n')
-
-                # 处理Redis日志（添加+发布）
-                try:
-                    if self.task_id is not None and line_str:
-                        # 创建日志数据对象
-                        log_data = {
-                            "log": line_str,
-                            "timestamp": time.time(),
-                            "task_id": self.task_id
-                        }
-                        # 添加日志到Redis存储 - 这个方法内部会检查去重，且不会重复发布
-                        RedisManager.append_log(self.task_id, line_str)
-                except Exception as redis_error:
-                    print(f"添加日志到Redis失败: {str(redis_error)}")
-
-                # 打印工作日志
-                print(f"OpenCompass输出: {line_str}")
-            
-            # 处理剩余输出
-            for line in self.process.stdout:
-                # 由于subprocess.Popen已经设置了text=True，line已经是字符串
-                line_str = line.strip()
-                self._update_log(line_str)
-                self._write_to_log_file(line_str + '\n')
-                
-                # 处理Redis日志
-                try:
-                    if self.task_id is not None and line_str:
-                        RedisManager.append_log(self.task_id, line_str)
-                except Exception as redis_error:
-                    print(f"添加剩余日志到Redis失败: {str(redis_error)}")
-            
-            # 获取返回码
-            self.return_code = self.process.poll()
-            print(f"进程已结束，返回码: {self.return_code}")
-            
-            # 关闭日志文件
-            self._close_log_file()
-            
-            # 更新状态
-            old_running = self.is_running
-            old_finished = self.is_finished
-            
-            self.is_running = False
-            self.is_finished = True
-            
-            # 如果状态发生变化，通知回调
-            if old_running != self.is_running or old_finished != self.is_finished:
-                self._notify_status_change(self.get_status())
-            
-            # 更新Redis状态
-            if self.task_id is not None:
-                status_data = {
-                    "status": "finished",
-                    "return_code": self.return_code,
-                    "is_successful": self.return_code == 0,
-                    "timestamp": time.time(),
-                    "task_id": self.task_id
-                }
-                RedisManager.update_task_status(self.task_id, status_data)
-                self._notify_status_change(status_data)
-                
-                # 发布任务完成日志
-                try:
-                    completion_log = f"任务执行完成，返回码: {self.return_code}"
-                    RedisManager.append_log(self.task_id, completion_log)
-                except Exception as redis_error:
-                    print(f"添加任务完成日志到Redis失败: {str(redis_error)}")
-            else:
-                print("警告: 无法更新状态，task_id未设置")
-                
-        except Exception as e:
-            error_msg = f"监控进程输出时出错: {str(e)}"
-            print(error_msg)
-            self._update_log(error_msg)
-            
-            # 确保状态被更新
-            old_running = self.is_running
-            old_finished = self.is_finished
-            
-            self.is_running = False
-            self.is_finished = True
-            self.return_code = self.process.poll() or -1
-            
-            # 如果状态发生变化，通知回调
-            if old_running != self.is_running or old_finished != self.is_finished:
-                self._notify_status_change(self.get_status())
-            
-            # 确保日志文件被关闭并记录错误
-            if self.log_file:
-                self._write_to_log_file(f"{error_msg}\n")
-                self._close_log_file()
-            
-            # 发布错误日志到Redis
-            if self.task_id is not None:
-                try:
-                    RedisManager.append_log(self.task_id, error_msg)
-                except Exception as redis_error:
-                    print(f"添加错误日志到Redis失败: {str(redis_error)}")
-    
-    def join_monitor_thread(self, timeout=None):
+    def _join_monitor_thread(self, timeout=None):
         """等待监控线程完成
         
         Args:
@@ -359,78 +205,6 @@ class OpenCompassRunner:
             print(f"写入日志文件时出错: {str(e)}")
             self._close_log_file()
             
-    def run(self, command: str, log_file_path: str = None) -> bool:
-        """执行命令
-        
-        Args:
-            command: 要执行的命令
-            log_file_path: 日志文件路径
-            
-        Returns:
-            bool: 是否成功启动
-        """
-        # 如果已经在运行，则返回失败
-        if self.is_running:
-            print(f"任务已经在运行中")
-            return False
-        
-        # 重置停止信号
-        self._stop_event.clear()
-        
-        # 设置日志文件
-        if not self._setup_log_file(log_file_path):
-            return False
-        
-        # 设置命令
-        # 假设是在Linux环境下，需要使用bash -c
-        full_command = f"cd {self.opencompass_path} && {command}"
-        print(f"正在执行命令: {full_command}")
-        
-        # 使用一个临时文件来记录进程ID，以便后续终止
-        self.pid_file = tempfile.mktemp()
-        
-        try:
-            # 创建新进程
-            self.process = subprocess.Popen(
-                full_command,
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-                cwd=self.working_dir
-            )
-            print(f"进程已启动，PID: {self.process.pid}")
-            
-            # 保存进程ID
-            with open(self.pid_file, 'w') as f:
-                f.write(str(self.process.pid))
-            
-            # 启动监控线程
-            self.monitor_thread = Thread(target=self._monitor_output)
-            self.monitor_thread.daemon = True
-            self.monitor_thread.start()
-            
-            # 将任务标记为运行状态
-            old_running = self.is_running
-            old_finished = self.is_finished
-            
-            self.is_running = True
-            self.is_finished = False
-            
-            # 如果状态变更，通知回调
-            if old_running != self.is_running or old_finished != self.is_finished:
-                self._notify_status_change(self.get_status())
-                
-            print(f"任务已标记为运行状态，监控线程已启动")
-            
-            return True
-        
-        except Exception as e:
-            print(f"执行命令时出错: {str(e)}")
-            # 确保资源被清理
-            self._close_log_file()
-            return False
     
     def terminate(self) -> bool:
         """终止OpenCompass进程
@@ -485,7 +259,7 @@ class OpenCompassRunner:
             return False
         finally:
             # 等待监控线程结束
-            self.join_monitor_thread(timeout=5)
+            self._join_monitor_thread(timeout=5)
     
     def get_status(self) -> Dict[str, Any]:
         """获取当前状态
@@ -499,8 +273,7 @@ class OpenCompassRunner:
             "return_code": self.return_code,
             "progress": self.progress,
             "status_message": self.status_message,
-            "recent_logs": self.get_recent_logs(),
-            "task_id": self.task_id
+            "recent_logs": self.get_recent_logs()
         }
         return status
     
@@ -563,14 +336,6 @@ class OpenCompassRunner:
         else:
             return f"任务执行失败，返回码: {self.return_code}"
     
-    @property
-    def is_successful(self) -> bool:
-        """判断任务是否成功完成
-        
-        Returns:
-            bool: 是否成功完成
-        """
-        return self.is_finished and self.return_code == 0
 
     def add_log(self, log_line: str) -> None:
         """添加日志行
@@ -585,8 +350,8 @@ class OpenCompassRunner:
             self.log_buffer = self.log_buffer[-self.log_buffer_size:]
         
         # 如果有任务ID，则添加到Redis
-        if self.task_id is not None:
-            RedisManager.append_log(self.task_id, log_line)
+        if self.eval_id is not None:
+            RedisManager.append_log(self.eval_id, log_line)
 
     def update_status(self, progress: float = None, message: str = None) -> None:
         """更新状态信息
@@ -605,45 +370,115 @@ class OpenCompassRunner:
         self.add_log(status_log)
         
         # 如果有任务ID，则更新Redis中的任务状态
-        if self.task_id is not None:
+        if self.eval_id is not None:
             status_data = {
                 "progress": self.progress,
                 "status_message": self.status_message,
                 "timestamp": time.time()
             }
-            RedisManager.update_task_status(self.task_id, status_data)
+            RedisManager.update_task_status(self.eval_id, status_data)
 
-    def monitor_task(self):
-        """监控任务的进度和状态
-        
-        This function runs in a separate thread and periodically updates the task status.
-        """
+
+    def run_sync(self, command: str, log_file: str) -> int:
+        """同步执行命令并实时处理输出"""
+        self.start_time = datetime.now()
         try:
-            while self.is_running and not self._stop_event.is_set():
-                # 添加更多状态检查
-                if self.progress > 0:
-                    self.update_status(progress=self.progress)
-                if self.status_message:
-                    self.update_status(message=self.status_message)
-                time.sleep(5)
+            self.process = subprocess.Popen(
+                command.split(),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                universal_newlines=True
+            )
+        
+            while not self._stop_event.is_set() and self.process.poll() is None:  # 进程还在运行
+                # 读取输出
+                line = self.process.stdout.readline()
+                if not line:
+                    break
                 
-            # 任务完成后记录最终状态
-            self.update_status(
-                progress=100 if self.is_successful else self.progress,
-                message=f"任务{'成功' if self.is_successful else '失败'}"
-            )
+                # 由于subprocess.Popen已经设置了text=True，line已经是字符串
+                line_str = line.strip()
+                
+                # 保存到缓冲区
+                self._update_log(line_str)
+                
+                # 写入日志文件
+                self._write_to_log_file(line_str + '\n')
+
+                # 打印工作日志
+                print(f"OpenCompass输出: {line_str}")
+
+            # 处理剩余输出
+            for line in self.process.stdout:
+                # 由于subprocess.Popen已经设置了text=True，line已经是字符串
+                line_str = line.strip()
+                self._update_log(line_str)
+                self._write_to_log_file(line_str + '\n')
+                
+            # 获取返回码
+            self.return_code = self.process.poll()
+            print(f"进程已结束，返回码: {self.return_code}")
             
+            # 关闭日志文件
+            # self._close_log_file()
+            
+            self.is_running = False
+            self.is_finished = True
+            # 更新Redis状态
+
+            if self.eval_id is not None:
+                status_data = {
+                    "status": "finished",
+                    "return_code": self.return_code,
+                    "is_successful": self.return_code == 0,
+                    "timestamp": time.time()
+                }
+                RedisManager.update_task_status(self.eval_id, status_data)
+                # self._notify_status_change(status_data)
+            return self.return_code
         except Exception as e:
-            logger.error(f"监控任务线程出错: {str(e)}")
-            self.update_status(
-                message=f"监控错误: {str(e)}",
-                progress=self.progress
-            )
+            error_msg = f"监控进程输出时出错: {str(e)}"
+            print(error_msg)
+            self._update_log(error_msg)
+
+            
+            self.is_running = False
+            self.is_finished = True
+            self.return_code = self.process.poll() or -1
+            
+
+            # 确保日志文件被关闭并记录错误
+            if self.log_file:
+                self._write_to_log_file(f"{error_msg}\n")
+                self._close_log_file()
+            
+        finally:
+            self._close_log_file()
+            self.end_time = datetime.now()
+            self._finalize_task()
+
+    def _finalize_task(self):
+        """任务结束后的最终处理"""
+        # 更新最终状态
+        if self.eval_id:
+            status = {
+                "status": "finished" if self.process.returncode == 0 else "failed",
+                "exit_code": self.process.returncode,
+                "end_time": self.end_time.isoformat(),
+                "duration": (self.end_time - self.start_time).total_seconds()
+            }
+            RedisManager.update_task_status(self.eval_id, status)
+        
+        # 关闭资源
+        if self.process:
+            self.process.stdout.close()
 
 # 单例模式，保存正在运行的任务
 _runners = {}
 
-def get_runner(task_id: str) -> Optional[OpenCompassRunner]:
+def get_runner(eval_id: str) -> Optional[OpenCompassRunner]:
     """获取指定任务ID的运行器
     
     Args:
@@ -652,9 +487,9 @@ def get_runner(task_id: str) -> Optional[OpenCompassRunner]:
     Returns:
         Optional[OpenCompassRunner]: 运行器实例，不存在则返回None
     """
-    return _runners.get(task_id)
+    return _runners.get(eval_id)
 
-def create_runner(task_id: str, working_dir: str = None, opencompass_path: str = None) -> OpenCompassRunner:
+def create_runner(eval_id: str, working_dir: str = None, opencompass_path: str = None) -> OpenCompassRunner:
     """创建任务运行器
     
     Args:
@@ -666,11 +501,11 @@ def create_runner(task_id: str, working_dir: str = None, opencompass_path: str =
         OpenCompassRunner: 新创建的运行器实例
     """
     # 支持上下文管理器模式
-    runner = OpenCompassRunner(task_id=task_id, working_dir=working_dir, opencompass_path=opencompass_path)
-    _runners[task_id] = runner
+    runner = OpenCompassRunner(eval_id=eval_id, working_dir=working_dir, opencompass_path=opencompass_path)
+    _runners[eval_id] = runner
     return runner
 
-def remove_runner(task_id: str) -> bool:
+def remove_runner(eval_id: str) -> bool:
     """移除任务运行器
     
     Args:
@@ -679,20 +514,20 @@ def remove_runner(task_id: str) -> bool:
     Returns:
         bool: 是否成功移除
     """
-    if task_id in _runners:
-        runner = _runners[task_id]
+    if eval_id in _runners:
+        runner = _runners[eval_id]
         # 如果任务正在运行，先终止
         if runner.is_running:
             runner.terminate()
             # 等待监控线程结束
-            runner.join_monitor_thread(timeout=5)
+            runner._join_monitor_thread(timeout=5)
         # 移除任务
-        del _runners[task_id]
+        del _runners[eval_id]
         return True
     return False
 
-# 测试代码
-if __name__ == "__main__":
+# # 测试代码
+# if __name__ == "__main__":
     # 创建临时日志文件
     log_file = tempfile.mktemp(suffix=".log")
     

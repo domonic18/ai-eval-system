@@ -1,44 +1,28 @@
+from sqlalchemy import Column, DateTime, text
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from dotenv import load_dotenv
-import os
+from sqlalchemy.orm import sessionmaker, declarative_base
 from typing import Generator
-from apps.server.src.core.config import DB_URL, settings
 from urllib import parse
+from core.config import settings
 
 
-import logging
-
-# 配置根日志记录器
-logging.basicConfig(level=logging.WARNING)
-
-# 设置 SQLAlchemy 日志级别
-sqlalchemy_logger = logging.getLogger('sqlalchemy')
-sqlalchemy_logger.setLevel(logging.WARNING)
-
-# 移除所有现有的处理器
-for handler in sqlalchemy_logger.handlers[:]:
-    sqlalchemy_logger.removeHandler(handler)
-
-# 设置引擎日志级别
-engine_logger = logging.getLogger('sqlalchemy.engine')
-engine_logger.setLevel(logging.WARNING)
-
-# 移除所有现有的处理器
-for handler in engine_logger.handlers[:]:
-    engine_logger.removeHandler(handler)
-
-# 加载环境变量
-load_dotenv()
-
-# 创建基类
+# 声明式基类
 Base = declarative_base()
+
+class TimestampMixin:
+    """自动时间戳 Mixin 类（需要被模型继承）"""
+    created_at = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+        onupdate=text("CURRENT_TIMESTAMP")  # 更新时自动触发
+    )
+
 
 class Database:
     def __init__(self):
         # 获取数据库URL
-        self.DATABASE_URL = os.getenv("DB_URL", DB_URL)
+        self.DATABASE_URL = settings.db_url.unicode_string()
         
         # 添加调试输出
         print(f"当前数据库连接URL: {self.DATABASE_URL}")
@@ -52,7 +36,7 @@ class Database:
             max_overflow=10,  # 超出连接池大小后可以创建的连接数
             pool_timeout=30,  # 等待连接的超时时间（秒）
             pool_recycle=1800,  # 连接重置周期（秒）
-            echo=settings.debug,  # 调试模式下打印SQL语句
+            echo=settings.mysql_debug,  # 调试模式下打印SQL语句
         )
         
         # 创建会话工厂
@@ -81,18 +65,6 @@ class Database:
 
 # 创建全局数据库实例
 db = Database()
-
-# 为了向后兼容，保留原来的函数
-def get_db():
-    """为了依赖注入而提供的获取数据库会话的函数
-    
-    在FastAPI中使用 Depends(get_db) 来注入会话
-    """
-    db_session = db.SessionLocal()
-    try:
-        yield db_session
-    finally:
-        db_session.close()
 
 # 为了向后兼容，提供模块级别的SessionLocal
 SessionLocal = db.SessionLocal

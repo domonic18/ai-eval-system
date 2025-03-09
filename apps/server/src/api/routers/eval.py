@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, status, Depends, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
-from apps.server.src.db import get_db
-from apps.server.src.schemas.eval import EvaluationCreate, EvaluationResponse, EvaluationStatusResponse
-from apps.server.src.services.eval_service import EvaluationService, handle_websocket_logs
+from api.deps import get_db
+from schemas.eval import EvaluationCreate, EvaluationResponse, EvaluationStatusResponse
+from services.eval_service import EvaluationService, handle_websocket_logs
 from typing import Dict, Any, List, Optional
 
 router = APIRouter()
@@ -31,8 +31,8 @@ async def create_evaluation(eval_data: EvaluationCreate, db: Session = Depends(g
 
 @router.get("/evaluations", response_model=Dict[str, Any])
 async def get_evaluations(
-    task_status: Optional[str] = None, 
-    limit: int = Query(100, ge=1, le=1000), 
+    task_status: Optional[str] = None,
+    limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db)
 ):
@@ -136,6 +136,7 @@ async def websocket_logs(websocket: WebSocket, eval_id: int):
         websocket: WebSocket连接
         eval_id: 评估任务ID
     """
+    await websocket.accept()
     await handle_websocket_logs(websocket, eval_id)
 
 @router.delete("/evaluations/{eval_id}", response_model=Dict[str, Any])
