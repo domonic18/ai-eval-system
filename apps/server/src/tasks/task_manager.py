@@ -1,28 +1,16 @@
-# import os
-# import time
 import logging
-# import threading
-# import queue
-# import concurrent.futures
-from typing import Dict, List, Optional, Any, Tuple, Deque, Set
-from datetime import datetime, timedelta
-# from pathlib import Path
-# from collections import deque
-# import json
-# import re
-
 from sqlalchemy.orm import Session
-from celery.result import AsyncResult
 from sqlalchemy import text
-
+from typing import Dict, List, Optional, Any, Tuple, Deque, Set
+from datetime import datetime
+from celery.result import AsyncResult
+from celery_app import celery_app
 from core.database import SessionLocal
 from models.eval import Evaluation, EvaluationStatus
-# from celery_app import celery_app
 from tasks.task_eval import run_evaluation
-# from tasks.runners.runner import get_runner
+from tasks.runners.runner import get_runner
 from utils.redis_manager import RedisManager
-# from utils.utils_db import DatabaseSessionManager
-# import redis
+import psutil
 
 
 # 配置日志
@@ -59,11 +47,11 @@ class TaskManager:
                 args=(eval_id,),
                 queue='eval_tasks',  # 显式指定队列
                 priority=0,
-                serializer='json',
+                serializer='json'
                 # 添加以下参数确保严格顺序
-                ignore_result=False,
-                acks_late=True,
-                track_started=True
+                # ignore_result=False,
+                # acks_late=True,
+                # track_started=True
             )
 
             # 更新数据库记录
@@ -118,13 +106,52 @@ class TaskManager:
 
     def terminate_task(self, eval_id: int) -> dict:
         """使用Celery原生终止功能"""
-        evaluation = self._get_db_evaluation(eval_id)
-        if not evaluation:
-            return {"success": False, "message": "Task not found"}
-            
-        AsyncResult(evaluation.task_id).revoke(terminate=True)
-        return {"success": True}
+        try:
+            # 获取数据库中的任务记录
+            evaluation = self._get_db_evaluation(eval_id)
+            if not evaluation or not evaluation.task_id:
+                return {"success": False, "message": "任务不存在"}
 
+            # 获取Celery任务实例
+            task = AsyncResult(evaluation.task_id)
+            
+            # 双重检查任务状态
+            if task.state in ['SUCCESS', 'FAILURE', 'REVOKED']:
+                return {"success": False, "message": "任务已处于最终状态无法终止"}
+
+            try:
+                task.revoke(terminate=True, signal='SIGTERM', timeout=10)
+                # 如果5秒后仍在运行，强制终止
+                if not task.ready():
+                    task.revoke(terminate=True, signal='SIGKILL')
+                    logger.warning(f"强制终止任务 {evaluation.task_id}")
+
+                # 清理子进程（关键修复点）
+                self._cleanup_child_processes(eval_id)
+                
+                return {"success": True, "message": "任务终止指令已发送"}
+            except Exception as e:
+                logger.error(f"终止任务异常: {str(e)}")
+                return {"success": False, "message": f"终止失败: {str(e)}"}
+        except Exception as e:
+            logger.exception("终止任务时发生意外错误")
+            return {"success": False, "message": "内部服务错误"}
+    
+    def _cleanup_child_processes(self, task_id: str):
+        """清理子进程"""
+        try:
+            # 获取运行器实例
+            runner = get_runner(task_id)
+            if runner and runner.process:
+                # 终止进程树
+                parent = psutil.Process(runner.process.pid)
+                children = parent.children(recursive=True)
+                for child in children:
+                    child.kill()
+                parent.kill()
+                logger.info(f"已清理任务 {task_id} 的 {len(children)+1} 个进程")
+        except Exception as e:
+            logger.warning(f"清理子进程失败: {str(e)}")
     def _get_db_evaluation(self, eval_id: int):
         """辅助方法获取数据库记录"""
         with SessionLocal() as db:
