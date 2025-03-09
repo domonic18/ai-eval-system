@@ -30,7 +30,7 @@
                 "-A", "celery_app:celery_app",
                 "worker",
                 "--loglevel=INFO",
-                "--concurrency=2",
+                "--concurrency=1",
                 "-Q", "eval_tasks"
             ],
             "console": "integratedTerminal",
