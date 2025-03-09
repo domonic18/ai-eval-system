@@ -2,20 +2,20 @@
 # 评估任务执行器
 
 import os
-import json
+# import json
 import time
 import logging
 import threading
 import contextlib
 from datetime import datetime
-from pathlib import Path
+# from pathlib import Path
 from typing import Dict, Any, Optional
-
 from core.database import SessionLocal
 from models.eval import Evaluation, EvaluationStatus
 from core.config import settings
 from tasks.runners.runner import OpenCompassRunner, create_runner, get_runner, remove_runner
 from utils.redis_manager import RedisManager
+from core.config import BASE_DIR
 
 # 配置日志
 logger = logging.getLogger("eval_tasks")
@@ -136,7 +136,7 @@ class TaskEvaluator:
         with db_session() as db:
             # 更新任务状态为运行中
             from tasks.task_eval import update_task_status, create_eval_config, update_task_metadata, update_task_error
-            update_task_status(db, self.eval_id, EvaluationStatus.RUNNING)
+            update_task_status(db, self.eval_id, EvaluationStatus.RUNNING.value)
             
             try:
                 # 读取评估任务
@@ -152,7 +152,7 @@ class TaskEvaluator:
                 
                 # 使用上下文管理器创建并管理Runner
                 runner = create_runner(
-                    task_id=self.task_id, 
+                    task_id=self.eval_id, 
                     working_dir=str(BASE_DIR),
                     opencompass_path=settings.opencompass_path
                 )
