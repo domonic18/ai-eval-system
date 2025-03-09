@@ -133,7 +133,7 @@ app.add_middleware(
 
 # 注册路由
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["认证"])
-# app.include_router(eval.router, prefix="/api/v1/eval", tags=["评测"])
+app.include_router(eval.router, prefix="/api/v1", tags=["评测"])
 
 # 获取令牌依赖
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
