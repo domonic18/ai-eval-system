@@ -13,6 +13,7 @@ from pathlib import Path
 from threading import Thread, Event
 from typing import Dict, Any, Optional, List, Tuple, Callable
 from utils.redis_manager import RedisManager
+from datetime import datetime
 
 class OpenCompassRunner:
     """OpenCompass评测任务执行器"""
@@ -59,6 +60,8 @@ class OpenCompassRunner:
         self.status_callbacks = []
         # PID文件
         self.pid_file = None
+        self.start_time = None
+        self.end_time = None
     
     def __enter__(self):
         """支持上下文管理器模式"""
@@ -580,6 +583,112 @@ class OpenCompassRunner:
             
         except Exception as e:
             self._handle_monitoring_error(e)
+
+    def run_sync(self, command: str, log_file: str) -> int:
+        """同步执行命令并实时处理输出"""
+        self.start_time = datetime.now()
+        try:
+            self.process = subprocess.Popen(
+                command.split(),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                universal_newlines=True
+            )
+        
+            while not self._stop_event.is_set() and self.process.poll() is None:  # 进程还在运行
+                # 读取输出
+                line = self.process.stdout.readline()
+                if not line:
+                    break
+                
+                # 由于subprocess.Popen已经设置了text=True，line已经是字符串
+                line_str = line.strip()
+                
+                # 保存到缓冲区
+                self._update_log(line_str)
+                
+                # 写入日志文件
+                self._write_to_log_file(line_str + '\n')
+
+                # 打印工作日志
+                print(f"OpenCompass输出: {line_str}")
+
+            # 处理剩余输出
+            for line in self.process.stdout:
+                # 由于subprocess.Popen已经设置了text=True，line已经是字符串
+                line_str = line.strip()
+                self._update_log(line_str)
+                self._write_to_log_file(line_str + '\n')
+                
+            # 获取返回码
+            self.return_code = self.process.poll()
+            print(f"进程已结束，返回码: {self.return_code}")
+            
+            # 关闭日志文件
+            # self._close_log_file()
+
+            # # 更新状态
+            # old_running = self.is_running
+            # old_finished = self.is_finished
+            
+            # self.is_running = False
+            # self.is_finished = True
+            # 更新Redis状态
+
+            if self.task_id is not None:
+                status_data = {
+                    "status": "finished",
+                    "return_code": self.return_code,
+                    "is_successful": self.return_code == 0,
+                    "timestamp": time.time()
+                }
+                RedisManager.update_task_status(self.task_id, status_data)
+                # self._notify_status_change(status_data)
+            return self.return_code
+        except Exception as e:
+            error_msg = f"监控进程输出时出错: {str(e)}"
+            print(error_msg)
+            self._update_log(error_msg)
+            
+            # # 确保状态被更新
+            # old_running = self.is_running
+            # old_finished = self.is_finished
+            
+            # self.is_running = False
+            # self.is_finished = True
+            # self.return_code = self.process.poll() or -1
+            
+            # # 如果状态发生变化，通知回调
+            # if old_running != self.is_running or old_finished != self.is_finished:
+            #     self._notify_status_change(self.get_status())
+            
+            # # 确保日志文件被关闭并记录错误
+            # if self.log_file:
+            #     self._write_to_log_file(f"{error_msg}\n")
+            #     self._close_log_file()
+            
+        finally:
+            self._close_log_file()
+            self.end_time = datetime.now()
+            self._finalize_task()
+
+    def _finalize_task(self):
+        """任务结束后的最终处理"""
+        # 更新最终状态
+        if self.task_id:
+            status = {
+                "status": "finished" if self.process.returncode == 0 else "failed",
+                "exit_code": self.process.returncode,
+                "end_time": self.end_time.isoformat(),
+                "duration": (self.end_time - self.start_time).total_seconds()
+            }
+            RedisManager.update_task_status(self.task_id, status)
+        
+        # 关闭资源
+        if self.process:
+            self.process.stdout.close()
 
 # 单例模式，保存正在运行的任务
 _runners = {}

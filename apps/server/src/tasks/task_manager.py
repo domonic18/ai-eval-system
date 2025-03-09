@@ -1,15 +1,15 @@
-import os
-import time
+# import os
+# import time
 import logging
-import threading
-import queue
-import concurrent.futures
+# import threading
+# import queue
+# import concurrent.futures
 from typing import Dict, List, Optional, Any, Tuple, Deque, Set
 from datetime import datetime, timedelta
-from pathlib import Path
-from collections import deque
-import json
-import re
+# from pathlib import Path
+# from collections import deque
+# import json
+# import re
 
 from sqlalchemy.orm import Session
 from celery.result import AsyncResult
@@ -17,18 +17,13 @@ from sqlalchemy import text
 
 from core.database import SessionLocal
 from models.eval import Evaluation, EvaluationStatus
-from celery_app import celery_app
+# from celery_app import celery_app
 from tasks.task_eval import run_evaluation
-from tasks.runners.runner import get_runner
+# from tasks.runners.runner import get_runner
 from utils.redis_manager import RedisManager
-from utils.utils_db import DatabaseSessionManager
-import redis
+# from utils.utils_db import DatabaseSessionManager
+# import redis
 
-# from apps.server.src.core.config import (
-#     TASK_MANAGER_MAX_CONCURRENT_TASKS,
-#     TASK_MANAGER_TASK_TIMEOUT_MINUTES,
-#     TASK_MANAGER_CLEANUP_HOURS
-# )
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -59,12 +54,16 @@ class TaskManager:
                 return {"success": False, "message": "Evaluation not found"}
 
             # 提交Celery任务
-            from tasks.task_eval import run_evaluation  # 确保相对路径正确
+            # from tasks.task_eval import run_evaluation  # 确保相对路径正确
             task = run_evaluation.apply_async(
-                args=(eval_id,),  # 使用元组格式
-                queue='eval_tasks',
-                # priority=0,
-                serializer='json'
+                args=(eval_id,),
+                queue='eval_tasks',  # 显式指定队列
+                priority=0,
+                serializer='json',
+                # 添加以下参数确保严格顺序
+                ignore_result=False,
+                acks_late=True,
+                track_started=True
             )
 
             # 更新数据库记录
