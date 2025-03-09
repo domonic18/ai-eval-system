@@ -125,14 +125,6 @@ class OpenCompassRunner:
         # 添加新日志
         self.log_buffer.append(line)
         
-        # 更新状态消息
-        if "status" in line.lower() or "stage" in line.lower():
-            old_message = self.status_message
-            self.status_message = line.strip()
-            
-            # 如果状态消息变更，通知回调
-            if old_message != self.status_message:
-                self._notify_status_change(self.get_status())
     
     def _join_monitor_thread(self, timeout=None):
         """等待监控线程完成
@@ -525,27 +517,3 @@ def remove_runner(eval_id: str) -> bool:
         del _runners[eval_id]
         return True
     return False
-
-# # 测试代码
-# if __name__ == "__main__":
-    # 创建临时日志文件
-    log_file = tempfile.mktemp(suffix=".log")
-    
-    # 创建运行器
-    runner = OpenCompassRunner()
-    
-    # 构建命令 - 这里使用echo模拟OpenCompass输出
-    cmd = 'for i in {1..10}; do echo "Progress: $i%"; sleep 1; done'
-    
-    # 运行命令
-    runner.run(cmd, log_file)
-    
-    # 监控状态
-    while runner.is_running or not runner.is_finished:
-        status = runner.get_status()
-        print(f"进度: {status['progress']}%, 状态: {status['status_message']}")
-        time.sleep(2)
-    
-    # 打印结果
-    print(f"命令执行完成，返回码: {runner.return_code}")
-    print(f"日志文件: {log_file}") 

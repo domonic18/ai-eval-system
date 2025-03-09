@@ -1,17 +1,22 @@
 import logging
-import json
+import traceback
+import asyncio
+import uuid
+from datetime import datetime
 from sqlalchemy.orm import Session
 from fastapi import Depends, WebSocket, WebSocketDisconnect
+from fastapi.websockets import WebSocketState
 from fastapi import HTTPException, status
 from typing import Optional, Union, Iterator, Dict, Any, List, Tuple, Callable, cast
 from models.eval import Evaluation, EvaluationStatus
 from schemas.eval import EvaluationCreate, EvaluationResponse, EvaluationStatusResponse
 from api.deps import get_db
-from utils.db_utils import async_db_operation
+from utils.utils_db import async_db_operation
 from tasks.task_manager import TaskManager
 from repositories.evaluation_repository import EvaluationRepository
 from utils.redis_manager import RedisManager
 from tasks.runners.runner import get_runner
+
 # from utils.logger import get_logger
 # from tasks.eval_tasks import run_evaluation_task
 
@@ -229,7 +234,7 @@ class EvaluationService:
             await self._send_historical_logs(websocket, eval_id)
             
             # 3. 订阅Redis日志通道
-            redis_client, pubsub = await self._subscribe_to_log_channel(eval_id)
+            redis_client, pubsub = await self._subscribe_to_log_channel(websocket, eval_id)
             if not redis_client or not pubsub:
                 await websocket.send_json({"error": "无法连接到日志服务"})
                 return

@@ -1,7 +1,7 @@
 from celery import Celery
 from dotenv import load_dotenv
 from core.config import settings
-import os
+
 
 load_dotenv()
 
