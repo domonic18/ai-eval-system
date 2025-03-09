@@ -13,8 +13,9 @@ celery_app = Celery(
     include=["tasks.task_eval"]  # 明确包含任务模块
 )
 
-# # 添加自动发现任务
-# # celery_app.autodiscover_tasks(["apps.server.src.tasks"])
+celery_app.conf.task_routes = {
+    'tasks.task_eval.*': {'queue': 'eval_tasks'}
+}   
 
 # Celery配置
 celery_app.conf.update(
@@ -36,26 +37,26 @@ celery_app.conf.update(
     task_default_queue='eval_tasks',
 
     # 限制并发任务数量
-    task_concurrency=os.getenv("CELERY_CONCURRENCY", 1),
-    task_acks_late=True,                                            # 任务完成后确认
-    worker_prefetch_multiplier=1,                                   # 严格并发控制
+    task_acks_late=True,                  # 任务完成后确认
+    worker_prefetch_multiplier=1,         # 严格并发控制
+    worker_concurrency=1,                 # 单worker模式
+    worker_max_tasks_per_child=1,         # 每个进程只处理一个任务
+    task_concurrency=1,                    # 全局并发限制
+
+    # 失败重试机制
+    task_reject_on_worker_lost=True, # worker失败时放回队列
+    task_acks_on_failure_or_timeout=False, # 失败不确认，重新入队
 )
 
-# # 添加调试配置
-# if settings.debug:
+# 添加调试配置
+# if settings.DEBUG:
 #     celery_app.conf.update(
 #         # task_always_eager=True,  # 同步模式方便调试
 #         task_eager_propagates=True,
 #         worker_redirect_stdouts=False
 #     )
 
-# # 添加健康检查路由
-# @celery_app.task(name="health_check")
-# def health_check():
-#     return {"status": "ok"}
-
-# 确保队列配置正确
-task_routes = {
-    'tasks.task_eval.*': {'queue': 'eval_tasks'}
-    # 'tasks.high_priority.*': {'queue': 'high_priority'}
-} 
+# 添加健康检查路由
+@celery_app.task(name="health_check")
+def health_check():
+    return {"status": "ok"}
