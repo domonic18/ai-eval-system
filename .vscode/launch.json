@@ -29,8 +29,11 @@
             "args": [
                 "-A", "celery_app:celery_app",
                 "worker",
-                "--loglevel=INFO",
+                "--loglevel=DEBUG",
                 "--concurrency=1",
+                "--pool=solo",
+                "--without-gossip",
+                "--without-mingle",
                 "-Q", "eval_tasks"
             ],
             "console": "integratedTerminal",
