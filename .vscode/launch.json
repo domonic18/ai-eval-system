@@ -36,10 +36,10 @@
             ],
             "console": "integratedTerminal",
             "justMyCode": false,
-            "cwd": "${workspaceFolder}/apps/server/src",
+            "cwd": "${workspaceFolder}",
             "python": "${command:python.interpreterPath}",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}/apps/server/src"
+                "PYTHONPATH": "${workspaceFolder}"
             }
         },
         {
