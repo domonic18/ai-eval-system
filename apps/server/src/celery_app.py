@@ -1,7 +1,6 @@
 from celery import Celery
 from dotenv import load_dotenv
 from core.config import settings
-    # from core.config import REDIS_URL, APP_NAME, settings
 import os
 
 load_dotenv()
@@ -37,7 +36,7 @@ celery_app.conf.update(
     task_default_queue='eval_tasks',
 
     # 限制并发任务数量
-    worker_concurrency=os.getenv("CELERY_CONCURRENCY", 1),
+    task_concurrency=os.getenv("CELERY_CONCURRENCY", 1),
     task_acks_late=True,                                            # 任务完成后确认
     worker_prefetch_multiplier=1,                                   # 严格并发控制
 )
@@ -53,4 +52,10 @@ celery_app.conf.update(
 # # 添加健康检查路由
 # @celery_app.task(name="health_check")
 # def health_check():
-#     return {"status": "ok"} 
+#     return {"status": "ok"}
+
+# 确保队列配置正确
+task_routes = {
+    'tasks.task_eval.*': {'queue': 'eval_tasks'}
+    # 'tasks.high_priority.*': {'queue': 'high_priority'}
+} 
