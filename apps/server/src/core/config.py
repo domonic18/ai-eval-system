@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import MySQLDsn, RedisDsn, computed_field
 import os
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
 
 
 class Settings(BaseSettings):
