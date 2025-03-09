@@ -19,7 +19,7 @@ from core.database import SessionLocal
 from models.eval import Evaluation, EvaluationStatus
 from celery_app import celery_app
 from tasks.task_eval import run_evaluation
-from tasks.runners.runner_opencompas import get_runner
+from tasks.runners.runner import get_runner
 from utils.redis_manager import RedisManager
 from utils.utils_db import DatabaseSessionManager
 import redis
@@ -59,7 +59,7 @@ class TaskManager:
                 return {"success": False, "message": "Evaluation not found"}
 
             # 提交Celery任务
-            from apps.server.src.tasks.eval_tasks import run_evaluation  # 使用绝对路径
+            from tasks.task_eval import run_evaluation  # 使用绝对路径
             celery_task = run_evaluation.apply_async(
                 args=[eval_id],
                 queue='high_priority',
@@ -93,7 +93,7 @@ class TaskManager:
         try:
             evaluation = self._get_db_evaluation(eval_id)
             if not evaluation:
-                return {"status": EvaluationStatus.NOT_FOUND.value}
+                return {"status": EvaluationStatus.UNKNOWN.value}
             
             # 从Celery获取原生状态
             celery_status = AsyncResult(evaluation.task_id).status if evaluation.task_id else None
