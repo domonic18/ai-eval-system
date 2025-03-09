@@ -176,7 +176,10 @@ export default {
         }
         
         const data = await response.json();
-        this.tasks = data;
+        // 更新：适配新的API响应格式，使用data.items而不是直接使用data
+        console.log('API响应数据格式:', data);
+        this.tasks = data.items || [];
+        console.log('更新后的任务列表:', this.tasks);
         
         // 更新活动任务集合
         this.activeTasks.clear();
