@@ -5,7 +5,8 @@ import logging
 import contextlib
 from typing import Union, Iterator, Optional, TypeVar, Callable, Any, AsyncIterator
 from sqlalchemy.orm import Session
-from apps.server.src.db import SessionLocal
+from sqlalchemy.ext.asyncio import AsyncSession
+# from core.database import SessionLocal
 import asyncio
 
 logger = logging.getLogger(__name__)
@@ -31,12 +32,12 @@ def get_db_session(db: Union[Session, Iterator[Session], None] = None) -> tuple[
             except StopIteration:
                 # 如果迭代器已耗尽，创建新会话
                 logger.warning("提供的数据库会话迭代器已耗尽，创建新会话")
-                return SessionLocal(), True
+                return AsyncSessionLocal(), True
         else:
             return db, False
     else:
         # 如果没有提供会话，创建一个新的
-        return SessionLocal(), True
+        return AsyncSessionLocal(), True
 
 @contextlib.contextmanager
 def db_operation(db: Union[Session, Iterator[Session], None] = None):

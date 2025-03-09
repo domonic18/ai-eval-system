@@ -12,7 +12,7 @@ import threading
 from pathlib import Path
 from threading import Thread, Event
 from typing import Dict, Any, Optional, List, Tuple, Callable
-from apps.server.src.utils.redis_manager import RedisManager
+from utils.redis_manager import RedisManager
 
 class OpenCompassRunner:
     """OpenCompass评测任务执行器"""

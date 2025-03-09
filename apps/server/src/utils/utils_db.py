@@ -6,7 +6,7 @@ import contextlib
 from typing import Union, Iterator, Optional, TypeVar, Callable, Any, AsyncIterator
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
-from apps.server.src.db import SessionLocal
+from core.database import SessionLocal
 import asyncio
 from contextlib import contextmanager, asynccontextmanager
 

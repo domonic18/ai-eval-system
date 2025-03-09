@@ -13,12 +13,9 @@ from typing import Dict, Any, Optional
 
 from core.database import SessionLocal
 from models.eval import Evaluation, EvaluationStatus
-from core.config import OPENCOMPASS_PATH
+from core.config import settings
 from tasks.runners.runner_opencompas import OpenCompassRunner, create_runner, get_runner, remove_runner
 from utils.redis_manager import RedisManager
-
-# 获取项目根目录
-BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
 
 # 配置日志
 logger = logging.getLogger("eval_tasks")
@@ -157,7 +154,7 @@ class TaskEvaluator:
                 runner = create_runner(
                     task_id=self.task_id, 
                     working_dir=str(BASE_DIR),
-                    opencompass_path=OPENCOMPASS_PATH
+                    opencompass_path=settings.opencompass_path
                 )
                 self.runner = runner
                 

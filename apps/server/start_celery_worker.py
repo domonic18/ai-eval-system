@@ -10,18 +10,18 @@ project_root = os.path.abspath(os.path.join(current_dir, '../..'))
 sys.path.insert(0, project_root)
 
 # 显式导入任务模块以确保任务被注册
-from apps.server.src.tasks import eval_tasks
+from tasks import task_eval
 
 # 从apps.server导入celery应用
 from apps.server.src.celery_app import celery_app
 
 print("启动Celery Worker服务...")
 print("加载的任务:", celery_app.tasks.keys())
-print("eval_tasks模块中的任务:", eval_tasks.run_evaluation.name)
+print("eval_tasks模块中的任务:", task_eval.run_evaluation.name)
 
 if __name__ == "__main__":
     # 尝试重新导入一次任务模块
-    importlib.reload(eval_tasks)
+    importlib.reload(task_eval)
     
     print("重新加载后的任务:", celery_app.tasks.keys())
     
