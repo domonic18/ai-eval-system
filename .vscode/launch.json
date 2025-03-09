@@ -31,9 +31,7 @@
                 "worker",
                 "--loglevel=DEBUG",
                 "--concurrency=1",
-                "--pool=solo",
-                "--without-gossip",
-                "--without-mingle",
+                "--pool=prefork",
                 "-Q", "eval_tasks"
             ],
             "console": "integratedTerminal",

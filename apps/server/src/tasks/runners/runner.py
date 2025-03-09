@@ -598,7 +598,8 @@ class OpenCompassRunner:
                 universal_newlines=True
             )
         
-            while not self._stop_event.is_set() and self.process.poll() is None:  # 进程还在运行
+            # while not self._stop_event.is_set() and self.process.poll() is None:  # 进程还在运行
+            while self.process.poll() is None:  # 进程还在运行
                 # 读取输出
                 line = self.process.stdout.readline()
                 if not line:
