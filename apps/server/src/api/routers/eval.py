@@ -136,7 +136,6 @@ async def websocket_logs(websocket: WebSocket, eval_id: int):
         websocket: WebSocket连接
         eval_id: 评估任务ID
     """
-    await websocket.accept()
     await handle_websocket_logs(websocket, eval_id)
 
 @router.delete("/evaluations/{eval_id}", response_model=Dict[str, Any])
