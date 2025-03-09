@@ -200,26 +200,6 @@ class EvaluationService:
                 
             return status_response
 
-
-
-    # def get_opencompass_config(self, model_name: str, dataset_name: str, 
-    #                           model_configuration: Dict[str, Any], 
-    #                           dataset_configuration: Dict[str, Any]) -> Dict[str, Any]:
-    #     """
-    #     构建 OpenCompass 配置
-        
-    #     Args:
-    #         model_name: 模型名称
-    #         dataset_name: 数据集名称
-    #         model_configuration: 模型配置
-    #         dataset_configuration: 数据集配置
-        
-    #     Returns:
-    #         Dict[str, Any]: OpenCompass 配置
-    #     """
-    #     pass
-
-
     async def handle_websocket_logs(self, websocket: WebSocket, eval_id: int):
         """处理WebSocket日志连接
         

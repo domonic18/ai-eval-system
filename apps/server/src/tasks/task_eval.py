@@ -46,8 +46,5 @@ def run_evaluation(self, eval_id: int):
     Returns:
         dict: 任务状态信息
     """
-    # 创建任务执行器并执行任务
-    # evaluator = TaskEvaluator(self, eval_id)
-    # return evaluator.execute()
     evaluator = TaskEvaluator(self, eval_id)
     return evaluator.execute_sync()

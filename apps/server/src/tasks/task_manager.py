@@ -1,10 +1,10 @@
 import logging
 from sqlalchemy.orm import Session
-from sqlalchemy import text
-from typing import Dict, List, Optional, Any, Tuple, Deque, Set
+# from sqlalchemy import text
+from typing import Dict, Any
 from datetime import datetime
 from celery.result import AsyncResult
-from celery_app import celery_app
+# from celery_app import celery_app
 from core.database import SessionLocal
 from models.eval import Evaluation, EvaluationStatus
 from tasks.task_eval import run_evaluation
@@ -42,7 +42,6 @@ class TaskManager:
                 return {"success": False, "message": "Evaluation not found"}
 
             # 提交Celery任务
-            # from tasks.task_eval import run_evaluation  # 确保相对路径正确
             task = run_evaluation.apply_async(
                 args=(eval_id,),
                 queue='eval_tasks',  # 显式指定队列
