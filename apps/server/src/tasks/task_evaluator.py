@@ -249,10 +249,10 @@ class TaskEvaluator:
                 # 3. 创建配置
                 # eval_config = create_eval_config(eval_task)
                 
-                # 清空之前的日志记录
+                # 4. 清空之前的日志记录
                 # RedisManager.clear_logs(self.eval_id)
                 
-                # 4. 创建并配置Runner
+                # 5. 创建并配置Runner
                 runner = create_runner(
                     eval_id=self.eval_id, 
                     working_dir=str(BASE_DIR),
@@ -261,18 +261,15 @@ class TaskEvaluator:
                 self.runner = runner
                 
                 
-                # 5. 构建命令
+                # 6. 构建命令
                 command = self.runner.build_command(eval_task.model_name, 
                                                     eval_task.dataset_name, 
                                                     model_args='--debug')
                 
-                # 6. 创建日志文件
+                # 7. 创建日志文件
                 self.log_file = self._create_log_file()
-                # logs_dir = os.path.join(BASE_DIR, "logs", "opencompass")
-                # os.makedirs(logs_dir, exist_ok=True)
-                # self.log_file = os.path.join(logs_dir, f"eval_{self.eval_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
-                
-                # 同步执行命令
+
+                # 8. 同步执行命令
                 exit_code = self.runner.run_sync(command, self.log_file)
                 
                 # 处理执行结果
@@ -474,13 +471,3 @@ class TaskEvaluator:
         except Exception as e:
             logger.error(f"批量添加日志出错: {str(e)}")
             return 0
-
-    # def append_task_logs(self, eval_id: int, log_lines: list):
-    #     """增量添加任务日志到Redis，避免重复
-        
-    #     Args:
-    #         eval_id: 评估任务ID
-    #         log_lines: 新的日志行列表
-    #     """
-    #     # 调用批量处理函数
-    #     self.batch_append_logs(eval_id, log_lines)
