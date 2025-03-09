@@ -14,7 +14,7 @@ from typing import Dict, Any, Optional
 from core.database import SessionLocal
 from models.eval import Evaluation, EvaluationStatus
 from core.config import settings
-from tasks.runners.runner_opencompas import OpenCompassRunner, create_runner, get_runner, remove_runner
+from tasks.runners.runner import OpenCompassRunner, create_runner, get_runner, remove_runner
 from utils.redis_manager import RedisManager
 
 # 配置日志

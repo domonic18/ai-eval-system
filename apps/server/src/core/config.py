@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     mysql_db: str = os.getenv("MYSQL_DB")
     
     # 调试模式
-    mysql_debug: bool = True
+    mysql_debug: bool = False
     
     # 安全配置
     JWT_SECRET_KEY: str = "your-secret-key-here"
