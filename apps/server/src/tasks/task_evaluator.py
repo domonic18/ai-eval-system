@@ -56,6 +56,7 @@ class TaskEvaluator:
         self.runner = None
         self.monitor_thread = None
         self.log_file = None
+        self.runners = {}
         
     # def handle_task_revoked(self, *args, **kwargs):
     #     """处理任务取消的回调
@@ -253,11 +254,12 @@ class TaskEvaluator:
                 
                 # 4. 创建并配置Runner
                 runner = create_runner(
-                    task_id=self.eval_id, 
+                    eval_id=self.eval_id, 
                     working_dir=str(BASE_DIR),
                     opencompass_path=settings.opencompass_path
                 )
                 self.runner = runner
+                
                 
                 # 5. 构建命令
                 command = self.runner.build_command(eval_task.model_name, 

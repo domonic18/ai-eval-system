@@ -158,7 +158,7 @@ class EvaluationService:
             if eval_task.status == EvaluationStatus.RUNNING.value:
                 try:
                     # 从任务运行器获取进度
-                    runner = get_runner(f"eval_{eval_id}")
+                    runner = get_runner(eval_id)
                     if runner:
                         status_response.progress = runner.progress
                         
@@ -477,7 +477,7 @@ class EvaluationService:
             return logs
         
         # 如果Redis中没有日志，尝试从运行器获取
-        runner = get_runner(f"eval_{eval_id}")
+        runner = get_runner(eval_id)
         if runner:
             return runner.get_recent_logs(lines)
         
@@ -564,7 +564,7 @@ class EvaluationService:
         try:
             # 如果任务正在运行，先尝试终止它
             if eval_task.status in [EvaluationStatus.PENDING.value, EvaluationStatus.RUNNING.value]:
-                runner = get_runner(f"eval_{eval_id}")
+                runner = get_runner(eval_id)
                 if runner and runner.is_running:
                     runner.terminate()
             
