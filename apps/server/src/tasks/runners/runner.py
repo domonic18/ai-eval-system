@@ -402,6 +402,10 @@ class OpenCompassRunner:
                 # 打印工作日志
                 print(f"OpenCompass输出: {line_str}")
 
+                # 处理Redis日志（添加+发布）
+                self._handle_redis_log(line_str)
+
+
             # 处理剩余输出
             for line in self.process.stdout:
                 # 由于subprocess.Popen已经设置了text=True，line已经是字符串
@@ -409,6 +413,10 @@ class OpenCompassRunner:
                 self._update_log(line_str)
                 self._write_to_log_file(line_str + '\n')
                 
+                # 处理Redis日志（添加+发布）
+                self._handle_redis_log(line_str)
+
+
             # 获取返回码
             self.return_code = self.process.poll()
             print(f"进程已结束，返回码: {self.return_code}")
@@ -428,7 +436,6 @@ class OpenCompassRunner:
                     "timestamp": time.time()
                 }
                 RedisManager.update_task_status(self.eval_id, status_data)
-                # self._notify_status_change(status_data)
             return self.return_code
         except Exception as e:
             error_msg = f"监控进程输出时出错: {str(e)}"
@@ -450,6 +457,14 @@ class OpenCompassRunner:
             self._close_log_file()
             self.end_time = datetime.now()
             self._finalize_task()
+
+    def _handle_redis_log(self, line_str: str):
+        """处理Redis日志"""
+        try:
+            if self.eval_id is not None and line_str:
+                RedisManager.append_log(self.eval_id, line_str)
+        except Exception as redis_error:
+            print(f"添加日志到Redis失败: {str(redis_error)}")
 
     def _finalize_task(self):
         """任务结束后的最终处理"""
