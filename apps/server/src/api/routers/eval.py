@@ -2,11 +2,23 @@ from fastapi import APIRouter, HTTPException, status, Depends, Query, WebSocket,
 from sqlalchemy.orm import Session
 from api.deps import get_db
 from schemas.eval import EvaluationCreate, EvaluationResponse, EvaluationStatusResponse
-from services.eval_service import EvaluationService, handle_websocket_logs
+from services.eval_service import EvaluationService
+from services.rlog_service import WebSocketLogService
 from typing import Dict, Any, List, Optional
 
 router = APIRouter()
 eval_service = EvaluationService()
+websocket_log_service = WebSocketLogService()
+
+@router.websocket("/evaluations/{eval_id}/ws_logs")
+async def websocket_logs(websocket: WebSocket, eval_id: int):
+    """通过WebSocket提供实时日志
+    
+    Args:
+        websocket: WebSocket连接
+        eval_id: 评估任务ID
+    """
+    await websocket_log_service.handle_websocket_logs(websocket, eval_id)
 
 @router.post("/evaluations", 
              response_model=EvaluationResponse,
@@ -127,16 +139,6 @@ def terminate_eval(eval_id: int, db: Session = Depends(get_db)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"终止评估任务失败: {str(e)}"
         )
-
-@router.websocket("/evaluations/{eval_id}/ws_logs")
-async def websocket_logs(websocket: WebSocket, eval_id: int):
-    """通过WebSocket提供实时日志
-    
-    Args:
-        websocket: WebSocket连接
-        eval_id: 评估任务ID
-    """
-    await handle_websocket_logs(websocket, eval_id)
 
 @router.delete("/evaluations/{eval_id}", response_model=Dict[str, Any])
 async def delete_eval(eval_id: int, db: Session = Depends(get_db)):
