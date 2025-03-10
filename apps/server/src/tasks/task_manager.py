@@ -6,7 +6,7 @@ from celery.result import AsyncResult
 from core.database import SessionLocal
 from models.eval import Evaluation, EvaluationStatus
 from tasks.task_eval import run_evaluation
-from tasks.runners.runner import get_runner
+from tasks.runners.runner_base import get_runner
 from utils.redis_manager import RedisManager
 import psutil
 

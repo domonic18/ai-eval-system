@@ -9,9 +9,11 @@ from sqlalchemy.orm import Session
 from core.database import SessionLocal
 from models.eval import Evaluation, EvaluationStatus
 from core.config import settings
-from tasks.runners.runner import create_runner, get_runner, remove_runner
+from tasks.runners.runner_base import create_runner, get_runner, remove_runner
 from utils.redis_manager import RedisManager
 from core.config import BASE_DIR
+from pathlib import Path
+from services.evaluation.result_collector import ResultCollector
 
 
 # 配置日志
@@ -58,7 +60,6 @@ class TaskEvaluator:
             try:
                 # 1. 更新任务状态为运行中
                 self._update_task_status(db, self.eval_id, EvaluationStatus.RUNNING.value)
-                # update_task_status(db, self.eval_id, EvaluationStatus.RUNNING.value)
                 
                 # 2. 读取评估任务
                 eval_task = db.query(Evaluation).filter(Evaluation.id == self.eval_id).first()
@@ -91,10 +92,11 @@ class TaskEvaluator:
                 # 8. 同步执行命令
                 exit_code = self.runner.run_sync(command, self.log_file)
                 
-                # 处理执行结果
+                # 结果处理
                 if exit_code == 0:
                     final_status = EvaluationStatus.COMPLETED
                     results = self._collect_results()
+                    self._save_to_database(results)
                 else:
                     final_status = EvaluationStatus.FAILED
                     results = {"error": f"非零退出码: {exit_code}"}

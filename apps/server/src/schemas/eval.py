@@ -7,10 +7,24 @@ class EvaluationBase(BaseModel):
     model_configuration: dict
     dataset_config: dict
 
+# class EvaluationCreate(BaseModel):
+#     """评估创建请求模式"""
+#     model_name: str = Field(..., description="要评估的模型名称")
+#     dataset_name: str = Field(..., description="要使用的数据集名称")
+#     model_configuration: Union[Dict[str, Any], str] = Field(default={}, description="模型的配置信息")
+#     dataset_configuration: Union[Dict[str, Any], str] = Field(default={}, description="数据集的配置信息")
+#     eval_config: Optional[Dict[str, Any]] = Field(default={}, description="评估的配置信息")
+    
+#     model_config = ConfigDict(
+#         populate_by_name=True,
+#         extra='allow'
+#     )
+
+
 class EvaluationCreate(BaseModel):
     """评估创建请求模式"""
     model_name: str = Field(..., description="要评估的模型名称")
-    dataset_name: str = Field(..., description="要使用的数据集名称")
+    dataset_name: List[str] = Field(..., description="要使用的数据集名称")
     model_configuration: Union[Dict[str, Any], str] = Field(default={}, description="模型的配置信息")
     dataset_configuration: Union[Dict[str, Any], str] = Field(default={}, description="数据集的配置信息")
     eval_config: Optional[Dict[str, Any]] = Field(default={}, description="评估的配置信息")
@@ -19,6 +33,7 @@ class EvaluationCreate(BaseModel):
         populate_by_name=True,
         extra='allow'
     )
+
 
 class EvaluationResponse(BaseModel):
     """评估响应模式"""
