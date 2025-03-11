@@ -126,7 +126,7 @@ class EvaluationService:
                         status=redis_status.get("status"),
                         progress=float(redis_status.get("progress", 0)),
                         model_name=redis_status.get("model_name", ""),
-                        dataset_name=redis_status.get("dataset_name", ""),
+                        dataset_names=redis_status.get("dataset_names", ""),
                         results=redis_status.get("results", {}),
                         created_at=created_at or datetime.now(),
                         updated_at=updated_at

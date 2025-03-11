@@ -22,7 +22,7 @@ class EvaluationRepository:
     def create_evaluation(
         db: Session, 
         model_name: str, 
-        dataset_name: str, 
+        dataset_names: List[str], 
         model_configuration: Dict[str, Any], 
         dataset_configuration: Dict[str, Any], 
         eval_config: Dict[str, Any] = None
@@ -32,7 +32,7 @@ class EvaluationRepository:
         Args:
             db: 数据库会话
             model_name: 模型名称
-            dataset_name: 数据集名称
+            dataset_names: 数据集名称列表
             model_configuration: 模型配置
             dataset_configuration: 数据集配置
             eval_config: 评估配置
@@ -42,7 +42,7 @@ class EvaluationRepository:
         """
         db_eval = Evaluation(
             model_name=model_name,
-            dataset_name=dataset_name,
+            dataset_names=json.dumps(dataset_names),
             model_configuration=model_configuration,
             dataset_configuration=dataset_configuration,
             eval_config=eval_config or {},
@@ -181,7 +181,7 @@ class EvaluationRepository:
         Args:
             db: 数据库会话
             model_name: 模型名称
-            dataset_name: 数据集名称列表
+            dataset_names: 数据集名称列表
             model_configuration: 模型配置
             dataset_configuration: 数据集配置
             eval_config: 评估配置
@@ -331,7 +331,7 @@ class EvaluationRepository:
                 items.append({
                     "id": eval_task.id,
                     "model_name": eval_task.model_name,
-                    "dataset_name": eval_task.dataset_name,
+                    "dataset_names": eval_task.dataset_names,
                     "status": eval_task.status,
                     "log_dir": eval_task.log_dir,
                     "task_id": eval_task.task_id,

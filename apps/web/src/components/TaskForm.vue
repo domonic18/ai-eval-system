@@ -131,7 +131,7 @@ export default {
       try {
         const requestBody = {
           model_name: this.form.model,
-          dataset_name: this.selectedDatasets,
+          dataset_names: this.selectedDatasets,
           model_configuration: {
             model_path: this.form.modelPath,
             model_type: this.form.modelType,
