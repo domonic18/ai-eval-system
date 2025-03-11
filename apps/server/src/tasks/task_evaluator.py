@@ -87,7 +87,7 @@ class TaskEvaluator:
                 if exit_code == 0:
                     final_status = EvaluationStatus.COMPLETED
                     # 收集结果
-                    collector = ResultCollector(self.eval_id, runner.workspace_dir)
+                    collector = ResultCollector(self.eval_id, runner.output_dir)
                     results = collector.collect_results()
                 else:
                     final_status = EvaluationStatus.FAILED

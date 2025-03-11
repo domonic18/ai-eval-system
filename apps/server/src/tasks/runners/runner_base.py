@@ -35,7 +35,7 @@ class RunnerBase:
         # 设置工作目录
         self.working_dir = working_dir or os.getcwd()
         # 设置结果目录（专属工作目录，用来存放opencompass的输出结果）
-        self.workspace_dir = self._prepare_workspace_dir()
+        self.output_dir = self._prepare_output_dir()
         # 日志缓冲区
         self.log_buffer = []
         self.log_buffer_size = log_buffer_size
@@ -171,12 +171,11 @@ class RunnerBase:
             except Exception as e:
                 print(f"写入日志文件时出错: {str(e)}")
 
-    def _prepare_workspace_dir(self) -> Path:
+    def _prepare_output_dir(self) -> Path:
         """准备专属工作目录"""
         if not self.eval_id:
             return self.working_dir / "temp"
             
-        # work_dir = os.path.join(self.working_dir, f"eval_{self.eval_id}")
         work_dir = self.working_dir / "logs" / f"eval_{self.eval_id}"
         os.makedirs(work_dir, exist_ok=True)
         return work_dir
