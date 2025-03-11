@@ -1,12 +1,22 @@
 <template>
   <div class="register-page">
-    <div class="register-container">
-      <div class="register-logo">
-        <img src="../assets/logo.svg" alt="司南 OpenCompass" class="logo-img">
-        <h1 class="logo-text">OpenCompass</h1>
-      </div>
-      
+    <!-- 左侧图片区域 -->
+    <div class="register-banner">
+      <img 
+        src="@/assets/images/login-banner.png" 
+        alt="评测系统展示"
+        class="banner-image"
+      >
+    </div>
+
+    <!-- 右侧注册表单区域 -->
+    <div class="register-form-wrapper">
       <div class="register-card">
+        <div class="register-logo">
+          <h1 class="logo-text">OpenCompass</h1>
+          <p class="system-subtitle">大模型评测系统</p>
+        </div>
+        
         <h2 class="register-title">注册账号</h2>
         
         <div v-if="error" class="error-message">
@@ -151,70 +161,115 @@ export default defineComponent({
 
 <style scoped>
 .register-page {
-  min-height: 100vh;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #f7fafc;
-  padding: 20px;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
 }
 
-.register-container {
+/* 左侧图片区域 */
+.register-banner {
+  flex: 2;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+.banner-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+/* 右侧注册区域 */
+.register-form-wrapper {
+  flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
-  padding: 20px;
-  box-sizing: border-box;
+  background: #ffffff;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.register-card {
+  width: 85%;
+  max-width: 400px;
+  padding: 40px 30px;
 }
 
 .register-logo {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 30px;
 }
 
 .logo-img {
   height: 60px;
+  margin-bottom: 10px;
 }
 
 .logo-text {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 600;
-  margin-top: 12px;
+  margin: 0;
   color: #2d3748;
 }
 
-.register-card {
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  padding: 32px;
+.system-subtitle {
+  font-size: 16px;
+  color: #718096;
+  margin-top: 5px;
 }
 
 .register-title {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 30px;
   font-size: 24px;
   color: #2d3748;
 }
 
 .register-form {
   width: 100%;
-  max-width: 520px;
-  background: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  padding: 30px;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+  max-width: none;
 }
 
-@media (max-width: 768px) {
-  .register-form {
-    padding: 20px;
-  }
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #4a5568;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.form-input:focus {
+  border-color: #3182ce;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.2);
+  outline: none;
 }
 
 .form-actions {
-  margin-top: 24px;
+  margin-top: 30px;
 }
 
 .register-btn {
@@ -222,17 +277,37 @@ export default defineComponent({
   padding: 12px;
   font-size: 16px;
   background-color: #3182ce;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.register-btn:hover {
+  background-color: #2c5282;
+}
+
+.register-btn:disabled {
+  background-color: #90cdf4;
+  cursor: not-allowed;
 }
 
 .form-footer {
   text-align: center;
   font-size: 14px;
   color: #718096;
+  margin-top: 25px;
 }
 
 .form-footer a {
   color: #3182ce;
   text-decoration: none;
+  font-weight: 500;
+}
+
+.form-footer a:hover {
+  text-decoration: underline;
 }
 
 .error-message {
@@ -242,5 +317,38 @@ export default defineComponent({
   border-radius: 4px;
   margin-bottom: 16px;
   font-size: 14px;
+}
+
+/* 移动端适配 */
+@media (max-width: 1024px) {
+  .register-page {
+    flex-direction: column;
+  }
+  
+  .register-banner {
+    flex: none;
+    height: 30vh;
+  }
+  
+  .register-form-wrapper {
+    flex: none;
+    height: 70vh;
+  }
+}
+
+/* 更小屏幕适配 */
+@media (max-width: 640px) {
+  .register-banner {
+    display: none;
+  }
+  
+  .register-form-wrapper {
+    height: 100vh;
+  }
+  
+  .register-card {
+    width: 90%;
+    padding: 30px 20px;
+  }
 }
 </style> 
