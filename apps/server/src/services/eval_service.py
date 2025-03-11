@@ -41,10 +41,11 @@ class EvaluationService:
         db_eval = await EvaluationRepository.create_evaluation_async(
             db,
             eval_data.model_name,
-            eval_data.dataset_name,
+            eval_data.dataset_names,
             eval_data.model_configuration,
             eval_data.dataset_configuration,
-            eval_data.eval_config or {}
+            eval_data.eval_config or {},
+            eval_data.env_vars or {}
         )
                 
         # 使用TaskManager创建任务
@@ -59,7 +60,7 @@ class EvaluationService:
         return EvaluationResponse(
             id=db_eval.id,
             model_name=db_eval.model_name,
-            dataset_name=db_eval.dataset_name,
+            dataset_names=db_eval.dataset_names,
             status=db_eval.status,
             created_at=db_eval.created_at,
             updated_at=db_eval.updated_at,
@@ -91,7 +92,7 @@ class EvaluationService:
                     status=status_info.get("status_text", ""),
                     progress=float(status_info.get("progress", 0)),
                     model_name=status_info.get("model_name", ""),
-                    dataset_name=status_info.get("dataset_name", ""),
+                    dataset_names=status_info.get("dataset_names", ""),
                     results=status_info.get("results", {}),
                     created_at=status_info.get("created_at", datetime.now()),
                     updated_at=status_info.get("updated_at"),
@@ -144,7 +145,7 @@ class EvaluationService:
             status_response = EvaluationStatusResponse(
                 id=eval_task.id,
                 model_name=eval_task.model_name or "",
-                dataset_name=eval_task.dataset_name or "",
+                dataset_names=eval_task.dataset_names or "",
                 status=eval_task.status or EvaluationStatus.UNKNOWN.value,
                 progress=0,
                 results=eval_task.results or {},
@@ -162,7 +163,7 @@ class EvaluationService:
                     "status": status_response.status,
                     "progress": status_response.progress,
                     "model_name": status_response.model_name,
-                    "dataset_name": status_response.dataset_name,
+                    "dataset_names": status_response.dataset_names,
                     "updated_at": eval_task.updated_at.isoformat() if eval_task.updated_at else None
                 }
                 RedisManager.update_task_status(eval_id, status_data)

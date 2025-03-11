@@ -22,7 +22,7 @@ class Evaluation(Base, TimestampMixin):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=True, comment="任务名称")
     model_name = Column(String(255), nullable=False, comment="模型名称")
-    dataset_name = Column(JSON, nullable=False, comment="数据集名称列表")
+    dataset_names = Column(JSON, nullable=False, comment="数据集名称列表")
     model_configuration = Column(JSON, nullable=True, comment="模型配置")
     dataset_configuration = Column(JSON, nullable=True, comment="数据集配置")
     eval_config = Column(JSON, nullable=True, comment="评估配置")

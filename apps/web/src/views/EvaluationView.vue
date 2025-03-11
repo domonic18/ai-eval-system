@@ -65,115 +65,125 @@
               
               <!-- 评测配置表单 -->
               <div class="evaluation-form">
+                <!-- 模型选择部分 -->
                 <div class="model-selection" v-if="currentStep === 1">
                   <h3>选择模型</h3>
-                  <!-- 模型选择界面 - 改为可输入的下拉列表 -->
-                  <div class="form-group">
-                    <label for="modelSelect">选择或输入模型</label>
-                    <div class="select-with-input">
+                  
+                  <!-- 模型类型选择 -->
+                  <div class="model-type-select">
+                    <label>
                       <input 
-                        type="text" 
-                        id="modelSelect" 
-                        v-model="modelInput" 
-                        @input="filterModels"
-                        @focus="showModelDropdown = true"
-                        @blur="handleModelBlur"
-                        placeholder="选择已有模型或输入新模型"
-                        class="form-input"
-                      />
-                      <div class="dropdown-list" v-if="showModelDropdown && filteredModels.length > 0">
-                        <div 
-                          v-for="(model, index) in filteredModels" 
-                          :key="index"
-                          class="dropdown-item"
-                          @mousedown="selectModelFromDropdown(model)"
-                        >
-                          <div class="dropdown-item-name">{{ model.name }}</div>
-                          <div class="dropdown-item-desc">{{ model.description }}</div>
-                          <div class="model-type-tag">{{ model.type }}</div>
-                        </div>
-                      </div>
-                    </div>
+                        type="radio" 
+                        v-model="modelType" 
+                        value="preset" 
+                        checked
+                      /> 预置模型
+                    </label>
+                    <label>
+                      <input 
+                        type="radio" 
+                        v-model="modelType" 
+                        value="custom" 
+                      /> 自定义API
+                    </label>
                   </div>
-                  
-                  <!-- 选择的模型信息 -->
-                  <div class="selected-model-info" v-if="selectedModel">
-                    <h4>已选模型：{{ selectedModel.name }}</h4>
-                    <div class="model-details">
-                      <p v-if="selectedModel.description">{{ selectedModel.description }}</p>
-                      <div class="model-type">{{ selectedModel.type || '自定义' }}</div>
-                    </div>
+
+                  <!-- 多选模型下拉 -->
+                  <div class="form-group">
+                    <label v-if="modelType === 'preset'">选择预置模型</label>
+                    <label v-else>API配置</label>
+                    <Multiselect
+                      v-if="modelType === 'preset'"
+                      v-model="selectedModel"
+                      :options="modelOptions"
+                      mode="single"
+                      :searchable="true"
+                      placeholder="选择或搜索模型"
+                      :close-on-select="true"
+                    />
+                    <textarea
+                      v-else
+                      v-model="customApiConfig"
+                      class="api-config-input"
+                      placeholder="输入API配置"
+                      rows="4"
+                    ></textarea>
                   </div>
-                  
-                  <!-- 自定义模型配置 (当用户输入自定义模型时显示) -->
-                  <div class="custom-model-config" v-if="isCustomModel">
-                    <h4>自定义模型配置</h4>
-                    <div class="form-group">
-                      <label for="modelType">模型类型</label>
-                      <select id="modelType" v-model="customModelType" class="form-input">
-                        <option value="openai">OpenAI</option>
-                        <option value="api">API</option>
-                        <option value="local">本地模型</option>
-                        <option value="other">其他</option>
-                      </select>
-                    </div>
-                    
-                    <div class="form-group" v-if="customModelType === 'api'">
-                      <label for="apiBase">API地址</label>
-                      <input type="text" id="apiBase" v-model="customModelConfig.api_base" class="form-input" placeholder="例如: https://api.example.com/v1">
-                    </div>
-                  </div>
-                  
-                  <div class="form-actions">
-                    <button class="btn btn-primary" @click="goToStep(2)" :disabled="!selectedModel">下一步</button>
+
+                  <!-- 步骤导航按钮 -->
+                  <div class="step-buttons">
+                    <button 
+                      type="button" 
+                      class="btn-next"
+                      @click="currentStep = 2"
+                      :disabled="!canGoNext"
+                    >
+                      下一步
+                    </button>
                   </div>
                 </div>
                 
-                <div class="dataset-selection" v-if="currentStep === 2">
-                  <h3>选择数据集</h3>
-                  <!-- 数据集选择界面 -->
-                  <div class="datasets-grid">
-                    <!-- 这里将显示数据集选择卡片 -->
-                    <div class="dataset-card" v-for="(dataset, index) in availableDatasets" :key="index"
-                         @click="selectDataset(dataset)"
-                         :class="{'selected': selectedDataset && selectedDataset.name === dataset.name}">
-                      <div class="dataset-card-header">
-                        <h4>{{ dataset.name }}</h4>
-                      </div>
-                      <div class="dataset-card-body">
-                        <p>{{ dataset.description }}</p>
-                        <div class="dataset-category">{{ dataset.category }}</div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div class="form-actions">
-                    <button class="btn btn-secondary" @click="goToStep(1)">上一步</button>
-                    <button class="btn btn-primary" @click="goToStep(3)" :disabled="!selectedDataset">下一步</button>
+                <!-- 数据集选择部分 -->
+                <div class="dataset-selection" v-show="currentStep === 2">
+                  <h3>选择评测数据集</h3>
+                  <Multiselect
+                    v-model="selectedDatasets"
+                    :options="datasetOptions"
+                    mode="tags"
+                    :searchable="true"
+                    placeholder="选择或搜索数据集"
+                    :close-on-select="false"
+                  />
+
+                  <!-- 步骤导航按钮 -->
+                  <div class="step-buttons">
+                    <button 
+                      type="button" 
+                      class="btn-prev"
+                      @click="currentStep = 1"
+                    >
+                      上一步
+                    </button>
+                    <button 
+                      type="button" 
+                      class="btn-next"
+                      @click="currentStep = 3"
+                      :disabled="selectedDatasets.length === 0"
+                    >
+                      下一步
+                    </button>
                   </div>
                 </div>
                 
-                <div class="evaluation-confirmation" v-if="currentStep === 3">
-                  <h3>确认评测任务</h3>
-                  <!-- 确认界面 -->
-                  <div class="confirmation-details">
-                    <div class="detail-group">
-                      <h4>选择的模型</h4>
-                      <p>{{ selectedModel.name }}</p>
-                      <p class="text-sm">{{ selectedModel.description }}</p>
-                    </div>
-                    
-                    <div class="detail-group">
-                      <h4>选择的数据集</h4>
-                      <p>{{ selectedDataset.name }}</p>
-                      <p class="text-sm">{{ selectedDataset.description }}</p>
-                    </div>
-                  </div>
-                  
-                  <div class="form-actions">
-                    <button class="btn btn-secondary" @click="goToStep(2)">上一步</button>
-                    <button class="btn btn-primary" @click="submitEvaluationTask" :disabled="submitting">
-                      {{ submitting ? '提交中...' : '开始评测' }}
+                <div class="config-section" v-show="currentStep === 3">
+                  <!-- <h3>评测配置</h3>
+                  <div class="form-group">
+                    <label for="config_file">配置文件路径</label>
+                    <input
+                      type="text"
+                      id="config_file"
+                      v-model="configFile"
+                      placeholder="输入配置文件路径"
+                    />
+                  </div> -->
+                  <!-- 其他配置项... -->
+
+                  <!-- 步骤导航按钮 -->
+                  <div class="step-buttons">
+                    <button 
+                      type="button" 
+                      class="btn-prev"
+                      @click="currentStep = 2"
+                    >
+                      上一步
+                    </button>
+                    <button 
+                      type="button" 
+                      class="btn-submit"
+                      @click="submitForm"
+                      :disabled="isSubmitting"
+                    >
+                      {{ isSubmitting ? '提交中...' : '开始评测' }}
                     </button>
                   </div>
                 </div>
@@ -242,6 +252,13 @@
           />
         </div>
       </div>
+      
+      <!-- 通知组件 -->
+      <div v-if="notification.show" 
+           :class="['notification', notification.type]"
+           @click="notification.show = false">
+        {{ notification.message }}
+      </div>
     </div>
   </MainLayout>
 </template>
@@ -251,6 +268,8 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import TaskForm from '@/components/TaskForm.vue'
 import TaskList from '@/components/TaskList.vue'
 import LogViewer from '@/components/LogViewer.vue'
+import Multiselect from '@vueform/multiselect'
+import '@vueform/multiselect/themes/default.css'
 
 export default {
   name: 'EvaluationView',
@@ -258,34 +277,48 @@ export default {
     MainLayout,
     TaskForm,
     TaskList,
-    LogViewer
+    LogViewer,
+    Multiselect
   },
   data() {
     return {
       showTaskForm: false,
       currentStep: 1,
       currentLogTaskId: null,
+      modelType: 'preset',
       selectedModel: null,
-      selectedDataset: null,
-      evalConfig: {
-        // 删除parallelism配置
-      },
+      customApiConfig: `API_URL=http://api.xxx.com/v1
+API_KEY=sk-xxxx
+MODEL=modelname`,
+      modelOptions: [
+        { value: 'hk33smarter_api', label: 'HK33 Smarter API' },
+        { value: 'gpt-4', label: 'GPT-4' },
+        { value: 'claude-3', label: 'Claude 3' }
+      ],
+      selectedDatasets: [],
+      datasetOptions: [
+        { value: 'demo_cmmlu_chat_gen', label: '中文通用语言理解测试' },
+        { value: 'demo_math_chat_gen', label: '数学问题测试集' }
+      ],
       submitting: false,
       showSubmitSuccess: false,
-      modelInput: '',
-      showModelDropdown: false,
-      filteredModels: [],
-      isCustomModel: false,
-      customModelType: 'api',
-      customModelConfig: {
-        api_base: ''
-      },
-      availableModels: [
-        { name: 'hk33smarter_api', type: 'api', description: 'HK33 Smarter API模型' },
-      ],
-      availableDatasets: [
-        { name: 'demo_cmmlu_chat_gen', format: 'json', description: '中文通用语言理解测试', category: '中文理解' }
-      ]
+      configFile: '',
+      isSubmitting: false,
+      notification: {
+        show: false,
+        type: 'success',
+        message: ''
+      }
+    }
+  },
+  computed: {
+    canGoNext() {
+      if (this.currentStep === 1) {
+        return this.modelType === 'preset' 
+          ? this.selectedModel !== null
+          : this.customApiConfig.trim() !== ''
+      }
+      return true
     }
   },
   mounted() {
@@ -302,74 +335,8 @@ export default {
     fetchModels() {
       // 实际项目中应该从API获取
       console.log('获取模型列表');
-      // 初始化过滤后的模型列表
-      this.filteredModels = [...this.availableModels];
     },
     
-    // 新增方法 - 过滤模型列表
-    filterModels() {
-      if (!this.modelInput) {
-        this.filteredModels = [...this.availableModels];
-        return;
-      }
-      
-      const input = this.modelInput.toLowerCase();
-      this.filteredModels = this.availableModels.filter(model => 
-        model.name.toLowerCase().includes(input) || 
-        model.description.toLowerCase().includes(input)
-      );
-      
-      // 检查是否是自定义模型输入
-      this.checkCustomModel();
-    },
-    
-    // 新增方法 - 检查是否为自定义模型
-    checkCustomModel() {
-      // 如果输入的名称不在列表中，则视为自定义模型
-      const isCustom = !this.availableModels.some(model => 
-        model.name.toLowerCase() === this.modelInput.toLowerCase()
-      );
-      
-      this.isCustomModel = isCustom && this.modelInput.trim() !== '';
-      
-      // 如果是自定义模型，更新selectedModel
-      if (this.isCustomModel) {
-        this.selectedModel = {
-          name: this.modelInput,
-          type: this.customModelType,
-          description: '自定义模型',
-          isCustom: true
-        };
-      }
-    },
-    
-    // 新增方法 - 从下拉列表选择模型
-    selectModelFromDropdown(model) {
-      this.selectedModel = model;
-      this.modelInput = model.name;
-      this.showModelDropdown = false;
-      this.isCustomModel = false;
-    },
-    
-    // 新增方法 - 处理模型输入框失焦事件
-    handleModelBlur() {
-      // 使用setTimeout确保点击下拉项事件能先触发
-      setTimeout(() => {
-        this.showModelDropdown = false;
-        
-        // 如果输入为空，清除选中的模型
-        if (!this.modelInput.trim()) {
-          this.selectedModel = null;
-          this.isCustomModel = false;
-        } 
-        // 如果有输入但没有从下拉列表选择，则视为自定义模型
-        else if (!this.selectedModel || this.selectedModel.name !== this.modelInput) {
-          this.checkCustomModel();
-        }
-      }, 200);
-    },
-    
-    // 现有方法
     fetchDatasets() {
       // 实际项目中应该从API获取
       console.log('获取数据集列表');
@@ -379,71 +346,81 @@ export default {
       this.currentStep = step;
     },
     
-    // 更新selectModel方法
-    selectModel(model) {
-      this.selectedModel = model;
-      this.modelInput = model.name;
-      this.isCustomModel = false;
-    },
-    
-    // 保留其他现有方法
-    selectDataset(dataset) {
-      this.selectedDataset = dataset;
-    },
-    
-    submitEvaluationTask() {
-      this.submitting = true;
-      
-      // 创建评测任务数据
-      const taskData = {
-        model_name: this.selectedModel.name,
-        dataset_name: this.selectedDataset.name,
-        model_configuration: this.selectedModel.isCustom 
-          ? { type: this.customModelType, api_base: this.customModelConfig.api_base } 
-          : { type: this.selectedModel.type },
-        dataset_configuration: { format: this.selectedDataset.format }
-        // 删除parallelism参数
-      };
-      
-      // 发送请求创建任务
-      console.log('提交评测任务', taskData);
-      
-      // 实际发送HTTP请求到后端API
-      fetch('/api/v1/evaluations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(taskData)
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`创建任务失败: ${response.status} ${response.statusText}`);
+    async submitForm() {
+      this.isSubmitting = true;
+      try {
+        // 处理API配置转换
+        const envVars = {}
+        if (this.modelType === 'custom') {
+          this.customApiConfig.split('\n').forEach(line => {
+            const [key, value] = line.split('=')
+            if (key && value) {
+              envVars[key.trim()] = value.trim()
+            }
+          })
         }
-        return response.json();
-      })
-      .then(data => {
-        console.log('任务创建成功', data);
+
+        // 构建请求体
+        const requestBody = {
+          model_name: this.modelType === 'preset' ? this.selectedModel : 'custom_api',
+          dataset_names: this.selectedDatasets,
+          env_vars: envVars,
+          model_configuration: {
+            model_type: this.modelType,
+            ...(this.modelType === 'preset' && { preset_model: this.selectedModel })
+          },
+          eval_config: {
+            // 可以添加其他评估配置参数
+            timestamp: new Date().toISOString()
+          }
+        }
+
+        // 发送创建评测请求
+        const response = await fetch('/api/v1/evaluations', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify(requestBody)
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.detail || '创建评测任务失败')
+        }
+
+        const result = await response.json()
         
         // 显示成功提示
-        this.showSubmitSuccess = true;
+        this.showSubmitSuccess = true
         
-        // 重置任务创建状态
-        this.currentStep = 1;
-        this.selectedModel = null;
-        this.selectedDataset = null;
-        this.modelInput = '';
-      })
-      .catch(error => {
-        console.error('创建任务错误:', error);
-        alert(`创建任务失败: ${error.message}`);
-      })
-      .finally(() => {
-        this.submitting = false;
-      });
+        // 重置表单状态
+        this.currentStep = 1
+        this.selectedModel = null
+        this.selectedDatasets = []
+        this.customApiConfig = `API_URL=http://api.xxx.com/v1
+API_KEY=sk-xxxx
+MODEL=modelname`
+        
+        // 刷新任务列表
+        if (this.$refs.taskList) {
+          this.$refs.taskList.fetchTasks()
+        }
+
+      } catch (error) {
+        console.error('提交评测任务失败:', error)
+        this.$notify({
+          type: 'error',
+          title: '创建任务失败',
+          text: error.message || '请检查配置后重试',
+          duration: 5000
+        })
+      } finally {
+        this.isSubmitting = false
+      }
     },
     
-    // 新增方法 - 跳转到评测记录
     goToRecords() {
       this.showSubmitSuccess = false;
       this.$router.push('/evaluation/records');
@@ -869,91 +846,33 @@ export default {
   }
 }
 
-/* 下拉列表样式 */
-.select-with-input {
-  position: relative;
+/* 多选组件样式 */
+.multiselect {
+  @apply border-gray-300 rounded-lg;
+  
+  .multiselect-tag {
+    @apply bg-blue-100 text-blue-800 rounded-md;
+  }
+  
+  .multiselect-input {
+    @apply border-0 focus:ring-0;
+  }
 }
 
-.dropdown-list {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  max-height: 300px;
-  overflow-y: auto;
-  background-color: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  z-index: 10;
-}
-
-.dropdown-item {
-  padding: 12px 16px;
-  cursor: pointer;
-  border-bottom: 1px solid #f0f4f8;
-  transition: background-color 0.2s;
-}
-
-.dropdown-item:last-child {
-  border-bottom: none;
-}
-
-.dropdown-item:hover {
-  background-color: #f0f7ff;
-}
-
-.dropdown-item-name {
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.dropdown-item-desc {
-  font-size: 14px;
-  color: #718096;
-  margin-bottom: 6px;
-}
-
-.model-type-tag {
-  display: inline-block;
-  background-color: #ebf8ff;
-  color: #3182ce;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-.selected-model-info {
-  background-color: white;
-  border-radius: 8px;
-  padding: 16px;
-  margin: 16px 0;
-  border: 1px solid #e2e8f0;
-}
-
-.selected-model-info h4 {
-  margin-top: 0;
-  margin-bottom: 8px;
-  color: #2d3748;
-}
-
-.model-details {
-  font-size: 14px;
-  color: #718096;
-}
-
+/* 自定义模型配置布局 */
 .custom-model-config {
-  background-color: white;
-  border-radius: 8px;
-  padding: 16px;
-  margin: 16px 0;
-  border: 1px solid #e2e8f0;
+  @apply grid grid-cols-2 gap-4 mt-6 p-4 bg-gray-50 rounded-lg;
+  
+  h4 {
+    @apply col-span-2 text-lg font-semibold mb-4;
+  }
 }
 
-.custom-model-config h4 {
-  margin-top: 0;
-  margin-bottom: 16px;
-  color: #2d3748;
+/* 响应式布局 */
+@media (max-width: 768px) {
+  .custom-model-config {
+    @apply grid-cols-1;
+  }
 }
 
 /* 成功提示弹窗样式 */
@@ -1014,5 +933,88 @@ export default {
   color: #718096;
   font-style: italic;
   padding: 0 24px 8px;
+}
+
+.model-type-select {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 15px;
+}
+
+.model-type-select label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.api-config-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.step-buttons {
+  margin-top: 25px;
+  display: flex;
+  gap: 15px;
+  justify-content: flex-end;
+}
+
+.btn-prev, .btn-next, .btn-submit {
+  padding: 10px 25px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-prev {
+  background-color: #f0f0f0;
+  border: 1px solid #ddd;
+}
+
+.btn-next {
+  background-color: #3182ce;
+  color: white;
+  border: none;
+}
+
+.btn-submit {
+  background-color: #38a169;
+  color: white;
+  border: none;
+}
+
+.btn-next:disabled, .btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 15px 25px;
+  border-radius: 8px;
+  color: white;
+  z-index: 1000;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+  animation: slideIn 0.3s ease-out;
+}
+
+.notification.success {
+  background-color: #38a169;
+}
+
+.notification.error {
+  background-color: #e53e3e;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
 }
 </style> 

@@ -24,7 +24,7 @@ class EvaluationBase(BaseModel):
 class EvaluationCreate(BaseModel):
     """评估创建请求模式"""
     model_name: str = Field(..., description="要评估的模型名称")
-    dataset_name: List[str] = Field(..., description="要使用的数据集名称")
+    dataset_names: List[str] = Field(..., description="要使用的数据集名称")
     model_configuration: Union[Dict[str, Any], str] = Field(default={}, description="模型的配置信息")
     dataset_configuration: Union[Dict[str, Any], str] = Field(default={}, description="数据集的配置信息")
     eval_config: Optional[Dict[str, Any]] = Field(default={}, description="评估的配置信息")    
@@ -32,13 +32,14 @@ class EvaluationCreate(BaseModel):
         populate_by_name=True,
         extra='allow'
     )
+    env_vars: Optional[Dict[str, Any]] = Field(default={}, description="环境变量（API_URL/API_KEY等）")
 
 
 class EvaluationResponse(BaseModel):
     """评估响应模式"""
     id: int = Field(..., description="评估任务ID")
     model_name: str = Field(..., description="模型名称")
-    dataset_name: str = Field(..., description="数据集名称")
+    dataset_names: str = Field(..., description="数据集名称")
     status: str = Field(..., description="评估任务状态")
     task_id: Optional[str] = Field(None, description="Celery 任务ID")
     created_at: datetime = Field(..., description="创建时间")
@@ -48,7 +49,7 @@ class EvaluationStatusResponse(BaseModel):
     """评估状态响应"""
     id: int
     model_name: str
-    dataset_name: str
+    dataset_names: str
     status: str
     progress: float = 0.0
     created_at: datetime
@@ -63,7 +64,7 @@ class OpenCompassConfig(BaseModel):
     model_name: str = Field(..., description="模型名称")
     model_path: Optional[str] = Field(None, description="模型路径")
     model_type: str = Field("huggingface", description="模型类型")
-    dataset_name: str = Field(..., description="数据集名称")
+    dataset_names: str = Field(..., description="数据集名称")
     dataset_path: Optional[str] = Field(None, description="数据集路径")
     output_path: Optional[str] = Field("outputs/default", description="输出路径")
     api_key: Optional[str] = Field(None, description="API 密钥")
