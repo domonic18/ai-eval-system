@@ -287,9 +287,9 @@ export default {
       currentLogTaskId: null,
       modelType: 'preset',
       selectedModel: null,
-      customApiConfig: `API_URL=http://api.xxx.com/v1
+      customApiConfig: `API_URL=https://guanghua-api.hk33smarter.com/v1
 API_KEY=sk-xxxx
-MODEL=modelname`,
+MODEL=Qwen/qwen2-1.5b-instruct`,
       modelOptions: [
         { value: 'hk33smarter_api', label: 'HK33 Smarter API' },
         { value: 'gpt-4', label: 'GPT-4' },
