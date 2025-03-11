@@ -170,7 +170,7 @@ class EvaluationRepository:
     async def create_evaluation_async(
         db: Session, 
         model_name: str, 
-        dataset_name: str, 
+        dataset_name: List[str],
         model_configuration: Dict[str, Any], 
         dataset_configuration: Dict[str, Any], 
         eval_config: Dict[str, Any] = None
@@ -180,7 +180,7 @@ class EvaluationRepository:
         Args:
             db: 数据库会话
             model_name: 模型名称
-            dataset_name: 数据集名称
+            dataset_name: 数据集名称列表
             model_configuration: 模型配置
             dataset_configuration: 数据集配置
             eval_config: 评估配置
@@ -190,12 +190,14 @@ class EvaluationRepository:
         """
         db_eval = Evaluation(
             model_name=model_name,
-            dataset_name=dataset_name,
+            dataset_name=json.dumps(dataset_name),
             model_configuration=model_configuration,
             dataset_configuration=dataset_configuration,
             eval_config=eval_config or {},
             status=EvaluationStatus.PENDING.value,
-            log_dir="logs/default"  # 设置一个默认值，避免空字符串
+            log_dir="logs/default",
+            progress=0.0,
+            env_vars={}
         )
             
         # 添加并提交(异步执行)
