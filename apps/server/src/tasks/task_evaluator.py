@@ -12,6 +12,7 @@ from core.config import settings
 from tasks.runners.runner_base import create_runner, get_runner, remove_runner
 from utils.redis_manager import RedisManager
 from core.config import BASE_DIR
+from tasks.runners.runner_enhanced import EnhancedRunner
 from pathlib import Path
 from services.evaluation.result_collector import ResultCollector
 
@@ -66,40 +67,71 @@ class TaskEvaluator:
                 if not eval_task:
                     raise ValueError(f"找不到评估任务: {self.eval_id}")
                     
-                # 3. 创建配置
-                # eval_config = create_eval_config(eval_task)
-                
-                # 4. 清空之前的日志记录
-                # RedisManager.clear_logs(self.eval_id)
-                
-                # 5. 创建并配置Runner
-                runner = create_runner(
-                    eval_id=self.eval_id, 
-                    working_dir=str(BASE_DIR),
+                # 3. 初始化增强型执行器
+                runner = EnhancedRunner(
+                    eval_id=self.eval_id,
+                    working_dir=str(BASE_DIR),  # 从配置获取工作目录
                     opencompass_path=settings.opencompass_path
                 )
-                self.runner = runner
+                work_dir = Path(BASE_DIR) / "logs" / f"eval_{self.eval_id}"
                 
-                
-                # 6. 构建命令
-                command = self.runner.build_command(eval_task.model_name, 
-                                                    eval_task.dataset_name, 
-                                                    model_args='--debug')
+                # 2. 配置环境变量
+                # runner.env_manager.load_env_json(eval_task.eval_config)
                 
                 # 7. 创建日志文件
                 self.log_file = self._create_log_file()
 
-                # 8. 同步执行命令
-                exit_code = self.runner.run_sync(command, self.log_file)
+                # 3. 执行任务
+                exit_code = runner.execute(eval_task)
                 
-                # 结果处理
+                # 4. 收集结果
+                # collector = ResultCollector(self.eval_id, work_dir)
+                # collector.collect_results()
+                
+                # 5. 结果处理
                 if exit_code == 0:
                     final_status = EvaluationStatus.COMPLETED
-                    results = self._collect_results()
-                    self._save_to_database(results)
+                    # 收集结果
+                    collector = ResultCollector(self.eval_id, work_dir)
+                    results = collector.collect_results()
+                    # results = self._collect_results()
+                    # self._save_to_database(results)
                 else:
                     final_status = EvaluationStatus.FAILED
                     results = {"error": f"非零退出码: {exit_code}"}
+
+                
+                # 5. 清空之前的日志记录
+                # RedisManager.clear_logs(self.eval_id)
+                
+                # # 5. 创建并配置Runner
+                # runner = create_runner(
+                #     eval_id=self.eval_id, 
+                #     working_dir=str(BASE_DIR),
+                #     opencompass_path=settings.opencompass_path
+                # )
+                # self.runner = runner
+                
+                
+                # # 6. 构建命令
+                # command = self.runner.build_command(eval_task.model_name, 
+                #                                     eval_task.dataset_name, 
+                #                                     model_args='--debug')
+                
+                # # 7. 创建日志文件
+                # self.log_file = self._create_log_file()
+
+                # # 8. 同步执行命令
+                # exit_code = self.runner.run_sync(command, self.log_file)
+                
+                # # 结果处理
+                # if exit_code == 0:
+                #     final_status = EvaluationStatus.COMPLETED
+                #     results = self._collect_results()
+                #     self._save_to_database(results)
+                # else:
+                #     final_status = EvaluationStatus.FAILED
+                #     results = {"error": f"非零退出码: {exit_code}"}
                 
                 # 7. 更新最终状态
                 self._update_task_status(db, self.eval_id, final_status.value)

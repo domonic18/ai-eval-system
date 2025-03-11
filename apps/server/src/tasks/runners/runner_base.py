@@ -189,6 +189,7 @@ class RunnerBase:
         """同步执行命令并实时处理输出"""
         self.start_time = datetime.now()
         try:
+            print(f"执行命令: {command}")
             self.process = subprocess.Popen(
                 command.split(),
                 stdout=subprocess.PIPE,

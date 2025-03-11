@@ -83,3 +83,17 @@ class LogResponse(BaseModel):
     logs: List[str] = Field(..., description="日志行列表")
     total_lines: int = Field(..., description="总行数")
     has_more: bool = Field(..., description="是否有更多日志") 
+
+class DatasetResult(BaseModel):
+    dataset: str
+    accuracy: float
+    prediction_path: Optional[str]
+
+class ModelResult(BaseModel):
+    model_name: str
+    datasets: List[DatasetResult]
+
+class EvaluationResultResponse(BaseModel):
+    results: List[ModelResult]
+    summary: List[dict]
+    download_url: str
