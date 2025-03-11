@@ -32,7 +32,7 @@ export default {
 
 .main-content {
   flex: 1;
-  padding-top: 64px; /* 头部高度 */
+  /* 不在这里设置统一的padding-top，而是在TheHeader.vue中设置固定高度，并在各页面根元素设置margin-top */
   padding-bottom: 40px;
   width: 100%;
   overflow-x: auto; /* 允许内容横向滚动 */

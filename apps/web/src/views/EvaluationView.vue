@@ -1,6 +1,6 @@
 <template>
   <MainLayout>
-    <div class="evaluation-page">
+    <div class="evaluation-page page-content">
       <div class="evaluation-container">
         <h1 class="page-title">在线评测</h1>
         
@@ -449,6 +449,8 @@ MODEL=modelname`
 </script>
 
 <style scoped>
+
+
 .evaluation-page {
   padding: 0 0 40px;
   width: 100%;
@@ -466,6 +468,7 @@ MODEL=modelname`
   margin: 60px auto 20px;
   padding: 0 20px;
   box-sizing: border-box;
+  padding-top: calc(var(--header-height) + 10px);
 }
 
 .evaluation-content {

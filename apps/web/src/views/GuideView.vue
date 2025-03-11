@@ -1,8 +1,11 @@
 <template>
   <MainLayout>
-    <div class="guide-page">
-      <div class="container">
-        <h1 class="page-title">使用指南</h1>
+    <div class="guide-page page-content">
+      <div class="guide-container">
+        <div class="guide-header">
+          <h1>使用指南</h1>
+          <p>了解如何使用OpenCompass在线评测系统</p>
+        </div>
         
         <div class="guide-content">
           <div class="guide-toc">
@@ -87,85 +90,6 @@
               </div>
             </section>
             
-            <section id="datasets" class="guide-section">
-              <h2 class="section-title">数据集管理</h2>
-              <div class="section-content">
-                <p>平台提供了数据集管理功能，您可以：</p>
-                
-                <ul>
-                  <li>浏览系统内置的评测数据集</li>
-                  <li>上传自定义数据集</li>
-                  <li>管理您的数据集集合</li>
-                </ul>
-                
-                <h3>上传自定义数据集</h3>
-                <p>上传自定义数据集需要遵循特定的格式要求：</p>
-                <pre><code>{
-  "data": [
-    {
-      "question": "问题内容",
-      "answer": "标准答案",
-      "options": ["选项A", "选项B", "选项C", "选项D"] // 选择题才需要
-    },
-    ...
-  ],
-  "metadata": {
-    "name": "数据集名称",
-    "description": "数据集描述",
-    "version": "1.0",
-    "type": "multiple_choice" // 或 "open_ended"
-  }
-}</code></pre>
-              </div>
-            </section>
-            
-            <section id="models" class="guide-section">
-              <h2 class="section-title">模型管理</h2>
-              <div class="section-content">
-                <p>您可以在模型管理页面添加和管理要评测的模型：</p>
-                
-                <h3>添加模型的方式</h3>
-                <ul>
-                  <li>
-                    <strong>API模型</strong>：添加支持API调用的模型，如OpenAI的GPT系列。
-                  </li>
-                  <li>
-                    <strong>本地模型</strong>：添加本地部署的模型，需要提供模型访问地址和参数。
-                  </li>
-                  <li>
-                    <strong>HuggingFace模型</strong>：直接使用HuggingFace上的模型。
-                  </li>
-                </ul>
-                
-                <div class="note">
-                  <strong>说明</strong>：对于API模型，您需要提供有效的API密钥。系统不会存储您的密钥明文，仅保存加密后的信息用于模型调用。
-                </div>
-              </div>
-            </section>
-            
-            <section id="arena" class="guide-section">
-              <h2 class="section-title">竞技场</h2>
-              <div class="section-content">
-                <p>竞技场是一个多模型对比评测的专用功能区，让您可以：</p>
-                
-                <ul>
-                  <li>创建模型对战任务，同时评测多个模型</li>
-                  <li>查看排行榜，了解不同模型的表现</li>
-                  <li>分析模型优劣势，查看详细对比报告</li>
-                </ul>
-                
-                <h3>创建竞技场</h3>
-                <p>创建竞技场需要选择：</p>
-                <ol>
-                  <li>参与对比的模型（至少两个）</li>
-                  <li>评测使用的数据集</li>
-                  <li>评测的维度和指标</li>
-                </ol>
-                
-                <p>系统会自动执行评测并生成对比报告和排行榜。</p>
-              </div>
-            </section>
-            
             <section id="faq" class="guide-section">
               <h2 class="section-title">常见问题</h2>
               <div class="section-content">
@@ -224,13 +148,32 @@ export default defineComponent({
 
 <style scoped>
 .guide-page {
-  padding: 20px 0 40px;
+  width: 100%;
 }
 
-.page-title {
-  font-size: 32px;
-  margin-bottom: 32px;
-  color: #2d3748;
+.guide-container {
+  width: 100%;
+  max-width: 1800px;
+  margin: 0 auto;
+  padding: 20px;
+  box-sizing: border-box;
+  margin-top: var(--header-height);
+}
+
+.guide-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.guide-header h1 {
+  font-size: 2.5rem;
+  color: #2c5282;
+  margin-bottom: 10px;
+}
+
+.guide-header p {
+  font-size: 1.2rem;
+  color: #718096;
 }
 
 .guide-content {
@@ -389,5 +332,15 @@ pre {
     position: static;
     margin-bottom: 24px;
   }
+}
+
+.page-content {
+  min-height: calc(100vh - var(--header-height));
+  box-sizing: border-box;
+}
+
+.main-content {
+  padding-top: 0;
+  margin-top: var(--header-height);
 }
 </style> 

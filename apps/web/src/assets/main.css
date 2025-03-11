@@ -7,6 +7,10 @@
   font-weight: normal;
 }
 
+.page-content {
+  padding-top: 70px; /* 确保内容不被固定导航栏遮挡 */
+}
+
 a,
 .green {
   text-decoration: none;
