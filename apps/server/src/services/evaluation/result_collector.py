@@ -15,7 +15,7 @@ class ResultCollector:
             work_dir: OpenCompass输出目录（eval_{eval_id}）
         """
         self.eval_id = eval_id
-        self.base_dir = work_dir / f"eval_{eval_id}"  # 使用Path运算符
+        self.base_dir = work_dir / "logs" / f"eval_{eval_id}"  # 使用Path运算符
         self.timestamp_dir = self._find_latest_timestamp_dir()
         self.results_dir = self.timestamp_dir / "results"
         self.summary_dir = self.timestamp_dir / "summary"

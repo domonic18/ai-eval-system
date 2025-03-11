@@ -176,8 +176,8 @@ class RunnerBase:
         if not self.eval_id:
             return self.working_dir / "temp"
             
-        work_dir = os.path.join(self.working_dir, f"eval_{self.eval_id}")
-        # work_dir = self.working_dir / f"eval_{self.eval_id}"
+        # work_dir = os.path.join(self.working_dir, f"eval_{self.eval_id}")
+        work_dir = self.working_dir / "logs" / f"eval_{self.eval_id}"
         os.makedirs(work_dir, exist_ok=True)
         return work_dir
 
