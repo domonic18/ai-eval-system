@@ -48,7 +48,7 @@ class EnhancedRunner(RunnerBase):
             "opencompass",
             f"--models {eval_data.model_name}",
             f"--datasets {datasets_str}",
-            f"--work-dir {self.workspace_dir}",
+            f"--work-dir {self.output_dir}",
             f"--debug"
         ]
 

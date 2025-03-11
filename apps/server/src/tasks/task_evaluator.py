@@ -78,7 +78,7 @@ class TaskEvaluator:
                 self.log_file = self._create_log_file()
 
                 # 5. 清空之前的日志记录
-                # RedisManager.clear_logs(self.eval_id)
+                RedisManager.clear_logs(self.eval_id)
 
                 # 6. 执行任务
                 exit_code = runner.execute(eval_task)
@@ -87,7 +87,7 @@ class TaskEvaluator:
                 if exit_code == 0:
                     final_status = EvaluationStatus.COMPLETED
                     # 收集结果
-                    collector = ResultCollector(self.eval_id, runner.output_dir)
+                    collector = ResultCollector(self.eval_id, runner.working_dir)
                     results = collector.collect_results()
                 else:
                     final_status = EvaluationStatus.FAILED
