@@ -3,7 +3,7 @@
     <div class="login-container">
       <div class="login-logo">
         <img src="../assets/logo.png" alt="司南 OpenCompass" class="logo-img">
-        <h1 class="logo-text">司南 OpenCompass</h1>
+        <h1 class="logo-text">OpenCompass</h1>
       </div>
       
       <div class="login-card">
