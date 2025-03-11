@@ -4,6 +4,7 @@ from tasks.runners.env_manager import EnvManager
 from core.config import BASE_DIR
 from core.config import settings
 from schemas.eval import EvaluationCreate
+from services.evaluation.result_collector import ResultCollector
 from pathlib import Path
 import os
 
@@ -43,12 +44,14 @@ def test_multiple_datasets():
 def test_runner_script():
     env_vars = {
        "API_KEY": "sk-8B8KptRvxQnPTVsH7665380d95A748F7BcAdA3E4279c6bAe",
-       "API_BASE": "https://guanghua-api.hk33smarter.com/v1",
+       "API_URL": "https://guanghua-api.hk33smarter.com/v1",
        "MODEL": "Qwen/qwen2-1.5b-instruct"
     }
     eval_data = EvaluationCreate(
         model_name="hk33smarter_api",
-        dataset_name=["demo_math_chat_gen", "demo_gsm8k_chat_gen"],
+        dataset_name=["demo_math_chat_gen"],
+
+        # dataset_name=["demo_math_chat_gen", "demo_gsm8k_chat_gen"],
         eval_config={"debug": True}
     )
 
@@ -69,6 +72,10 @@ def test_runner_script():
     # 3. 执行任务
     exit_code = runner.execute(eval_data)
     
+    # 4. 收集结果
+    collector = ResultCollector(eval_id, work_dir)
+    collector.collect_results()
+
     # 5. 结果处理
     if exit_code == 0:
         return {"status": "success", "exit_code": exit_code}
@@ -76,6 +83,16 @@ def test_runner_script():
         return {"status": "failed", "exit_code": exit_code}
 
 
+def test_result_collector():
+
+    # work_dir = os.path.join(BASE_DIR, "logs", "test_runner_script")
+    work_dir = Path(BASE_DIR) / "logs" / "test_runner_script"
+    collector = ResultCollector(109, work_dir)
+    collector.collect_results()
+
+
 if __name__ == "__main__":
-    #test_runner()
-    test_runner_script()
+    # test_command_injection()
+    # test_multiple_datasets()
+    # test_runner_script()
+    # test_result_collector()
