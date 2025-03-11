@@ -49,7 +49,7 @@ class ResultCollector:
         prediction_files = self._collect_predictions()
         
         # 数据库存储
-        self._save_to_db(summary_data)
+        self._save_to_db(metrics, summary_data, prediction_files)
         
         # 打包所有结果
         archive_path = self._create_full_archive()
@@ -147,17 +147,18 @@ class ResultCollector:
                         arcname=file_path.relative_to(self.base_dir.parent)
                     )
         return archive_path
-    def _save_to_db(self, summary_data: List[Dict]):
+    def _save_to_db(self, metrics: Dict[str, dict], summary_data: List[Dict], prediction_files: Dict[str, list]):
         """使用上下文管理器自动处理session"""
+
         with SessionLocal() as session:
             try:
                 eval_record = session.get(Evaluation, self.eval_id)
                 if eval_record:
                     # 合并所有结果数据
                     full_results = {
-                        'metrics': self._process_results(),
+                        'metrics': metrics,
                         'summary': summary_data,
-                        'prediction_files': self._collect_predictions(),
+                        'prediction_files': prediction_files,
                         'archive_path': str(self._create_full_archive())
                     }
                     
