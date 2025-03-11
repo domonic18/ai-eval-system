@@ -46,7 +46,7 @@ class EvaluationService:
             eval_data.dataset_configuration,
             eval_data.eval_config or {}
         )
-        
+                
         # 使用TaskManager创建任务
         task_result = self.task_manager.create_task(db_eval.id, db)
         
@@ -298,7 +298,7 @@ class EvaluationService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"删除任务失败: {str(e)}"
             )
-
+    
     def update_evaluation_name(self, eval_id: int, name: str, db: Session):
         """更新评估任务名称
         
@@ -356,7 +356,6 @@ class EvaluationService:
 
     def terminate_evaluation(self, eval_id: int, db: Session) -> Dict[str, Any]:
         """终止评估任务
-        
         Args:
             eval_id: 评估任务ID
             db: 数据库会话
