@@ -21,7 +21,7 @@
             <section id="introduction" class="guide-section">
               <h2 class="section-title">平台介绍</h2>
               <div class="section-content">
-                <p>司南 OpenCompass 是一个专业、全面的AI大模型评测平台，旨在为研究人员和开发者提供便捷、可靠的模型评测工具。平台基于OpenCompass框架构建，支持多维度、多场景的模型评测，帮助用户全面了解模型性能。</p>
+                <p>OpenCompass 是一个专业、全面的AI大模型评测平台，旨在为研究人员和开发者提供便捷、可靠的模型评测工具。平台基于OpenCompass框架构建，支持多维度、多场景的模型评测，帮助用户全面了解模型性能。</p>
                 
                 <div class="feature-list">
                   <div class="feature-item">
