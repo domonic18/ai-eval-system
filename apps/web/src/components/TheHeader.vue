@@ -13,17 +13,17 @@
       <nav class="nav">
         <ul class="nav-list">
           <li class="nav-item">
+            <router-link to="/evaluation" class="nav-link">在线评测</router-link>
+          </li>
+          <li class="nav-item">
             <router-link to="/evaluation-results" class="nav-link">评测结果</router-link>
           </li>
           <li class="nav-item">
             <router-link to="/guide" class="nav-link">使用指南</router-link>
           </li>
-          <li class="nav-item">
-            <router-link to="/evaluation" class="nav-link">在线评测</router-link>
-          </li>
-          <li class="nav-item">
+          <!-- <li class="nav-item">
             <router-link to="/arena" class="nav-link">竞技场</router-link>
-          </li>
+          </li> -->
         </ul>
       </nav>
       
@@ -94,14 +94,15 @@ export default {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 100;
+  z-index: var(--header-z-index, 100);
+  height: var(--header-height, 64px);
 }
 
 .header-container {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 64px;
+  height: var(--header-height, 64px);
 }
 
 .logo {
