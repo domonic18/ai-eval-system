@@ -11,7 +11,8 @@ const state = {
 // getter
 const getters = {
   isLoggedIn: state => !!state.token,
-  username: state => state.user?.username || '',
+  username: state => state.user?.username || '未知用户',
+  user: state => state.user,
   isAdmin: state => state.user?.is_admin || false
 }
 
