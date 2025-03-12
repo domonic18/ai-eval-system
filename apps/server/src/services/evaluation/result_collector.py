@@ -137,11 +137,7 @@ class ResultCollector:
 
     def _create_full_archive(self) -> Path:
         """创建保留完整目录结构的ZIP包"""
-        archive_dir = self.base_dir / "full_results"
-        if not archive_dir.exists():
-            # 创建full_results目录
-            archive_dir.mkdir(parents=True, exist_ok=True)
-        archive_path = archive_dir / f"full_results_{self.eval_id}.zip"
+        archive_path = self.base_dir / f"full_results_{self.eval_id}.zip"
         with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
             # 添加整个时间戳目录
             for file_path in self.timestamp_dir.rglob('*'):
