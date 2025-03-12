@@ -402,15 +402,30 @@ MODEL=Qwen/qwen2-1.5b-instruct`,
           })
         }
 
+        // 处理数据集选择的格式转换
+        // 如果selectedDatasets是对象数组，提取value属性作为字符串数组
+        const datasetNames = this.selectedDatasets.map(dataset => {
+          return typeof dataset === 'object' && dataset.value ? dataset.value : dataset
+        });
+        
+        // 获取选中模型的名称
+        let modelName = 'custom_api'
+        if (this.modelType === 'preset' && this.selectedModel) {
+          // 根据选中的模型ID查找对应的模型名称
+          const selectedModelOption = this.modelOptions.find(model => model.value === this.selectedModel)
+          modelName = selectedModelOption ? selectedModelOption.label : this.selectedModel
+        }
+
         // 构建请求体
         const requestBody = {
-          model_name: this.modelType === 'preset' ? this.selectedModel : 'custom_api',
-          dataset_names: this.selectedDatasets,
+          model_name: modelName,
+          dataset_names: datasetNames,
           env_vars: envVars,
           model_configuration: {
             model_type: this.modelType,
             ...(this.modelType === 'preset' && { preset_model: this.selectedModel })
           },
+          dataset_configuration: {},
           eval_config: {
             // 可以添加其他评估配置参数
             timestamp: new Date().toISOString()
