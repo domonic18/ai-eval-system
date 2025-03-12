@@ -98,7 +98,7 @@ export default {
 </script>
 
 <style scoped>
-.home-page {
+ .home-page {
   width: 100%;
 }
 
@@ -244,5 +244,5 @@ export default {
   .feature-grid {
     grid-template-columns: 1fr;
   }
-}
+} 
 </style> 

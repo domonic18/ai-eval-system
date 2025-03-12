@@ -2,8 +2,6 @@
   <MainLayout>
     <div class="evaluation-page page-content">
       <div class="evaluation-container">
-        <h1 class="page-title">在线评测</h1>
-        
         <div class="evaluation-content">
           <!-- 左侧边栏 -->
           <div class="sidebar">
@@ -530,7 +528,7 @@ MODEL=modelname`
 .main-content {
   flex: 1;
   padding: 25px;
-  min-height: 600px;
+  min-height: 700px;
   min-width: 0;
   overflow-x: auto;
 }
