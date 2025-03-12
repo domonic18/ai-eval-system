@@ -15,7 +15,8 @@ class WebSocketLogService:
     """WebSocket日志服务"""
 
     def __init__(self):
-        pass
+        # 存储活动连接的后台任务，用于清理
+        self.active_tasks = {}
     
     async def handle_websocket_logs(self, websocket: WebSocket, eval_id: int):
         """处理WebSocket日志连接
@@ -36,6 +37,7 @@ class WebSocketLogService:
         # 资源初始化为None
         redis_client = None
         pubsub = None
+        background_task = None
         heartbeat_task = None
         
         try:
@@ -54,8 +56,22 @@ class WebSocketLogService:
             # 4. 启动心跳任务
             heartbeat_task = asyncio.create_task(self._websocket_heartbeat(websocket))
             
-            # 5. 开始监听并转发日志消息
-            await self._listen_for_log_messages(websocket, pubsub)
+            # 5. 创建后台任务来处理日志消息，而不是直接调用
+            background_task = asyncio.create_task(
+                self._listen_for_log_messages(websocket, pubsub, client_id, eval_id)
+            )
+            
+            # 存储后台任务引用以便清理
+            self.active_tasks[client_id] = {
+                "task": background_task,
+                "heartbeat": heartbeat_task,
+                "eval_id": eval_id,
+                "pubsub": pubsub,
+                "redis_client": redis_client
+            }
+            
+            # 等待连接关闭
+            await self._wait_for_disconnect(websocket, client_id)
             
         except WebSocketDisconnect:
             logger.info(f"客户端断开WebSocket连接 [eval_id={eval_id}, client_id={client_id}]")
@@ -67,18 +83,71 @@ class WebSocketLogService:
             except:
                 pass
         finally:
-            # 取消心跳任务
-            if heartbeat_task:
-                heartbeat_task.cancel()
-                
             # 清理资源
-            await self._cleanup_websocket_resources(pubsub, redis_client)
+            await self._cleanup_connection(client_id, pubsub, redis_client, websocket)
+
+    async def _wait_for_disconnect(self, websocket: WebSocket, client_id: str):
+        """等待WebSocket连接断开
+        
+        Args:
+            websocket: WebSocket连接
+            client_id: 客户端ID
+        """
+        try:
+            # 等待从客户端接收消息，如果客户端断开连接，这里会引发WebSocketDisconnect异常
+            while True:
+                message = await websocket.receive_text()
+                logger.debug(f"收到来自客户端的消息: {message[:100]}...")
+        except WebSocketDisconnect:
+            logger.info(f"客户端断开连接 [client_id={client_id}]")
+            raise
+
+    async def _cleanup_connection(self, client_id: str, pubsub=None, redis_client=None, websocket=None):
+        """清理连接资源
+        
+        Args:
+            client_id: 客户端ID
+            pubsub: Redis PubSub对象
+            redis_client: Redis客户端
+            websocket: WebSocket连接
+        """
+        # 获取并取消后台任务
+        task_info = self.active_tasks.pop(client_id, None)
+        if task_info:
+            background_task = task_info.get("task")
+            heartbeat_task = task_info.get("heartbeat")
             
-            # 尝试关闭WebSocket
-            if websocket.client_state == WebSocketState.CONNECTED:
+            # 取消后台日志监听任务
+            if background_task and not background_task.done():
+                background_task.cancel()
+                try:
+                    await background_task
+                except asyncio.CancelledError:
+                    logger.debug(f"后台日志任务已取消 [client_id={client_id}]")
+                except Exception as e:
+                    logger.warning(f"取消后台任务时出错: {str(e)}")
+            
+            # 取消心跳任务
+            if heartbeat_task and not heartbeat_task.done():
+                heartbeat_task.cancel()
+                try:
+                    await heartbeat_task
+                except asyncio.CancelledError:
+                    logger.debug(f"心跳任务已取消 [client_id={client_id}]")
+                except Exception as e:
+                    logger.warning(f"取消心跳任务时出错: {str(e)}")
+        
+        # 清理Redis资源
+        await self._cleanup_websocket_resources(pubsub, redis_client)
+        
+        # 关闭WebSocket连接
+        if websocket and websocket.client_state == WebSocketState.CONNECTED:
+            try:
                 await websocket.close()
-                
-            logger.info(f"WebSocket连接已关闭 [eval_id={eval_id}, client_id={client_id}]")
+            except Exception as e:
+                logger.warning(f"关闭WebSocket连接失败: {str(e)}")
+        
+        logger.info(f"WebSocket连接资源已清理 [client_id={client_id}]")
 
     async def _send_task_status(self, websocket: WebSocket, eval_id: int):
         """发送任务当前状态信息
@@ -131,6 +200,7 @@ class WebSocketLogService:
                 "type": "warning", 
                 "data": f"获取历史日志失败: {str(e)}"
             })
+    
     async def _subscribe_to_log_channel(self, websocket: WebSocket, eval_id: int):
         """订阅Redis日志通道
         
@@ -174,50 +244,79 @@ class WebSocketLogService:
         except Exception as e:
             logger.debug(f"心跳发送失败: {str(e)}")
 
-    async def _listen_for_log_messages(self, websocket: WebSocket, pubsub):
+    async def _listen_for_log_messages(self, websocket: WebSocket, pubsub, client_id: str, eval_id: int):
         """监听Redis日志消息并转发到WebSocket
         
         Args:
             websocket: WebSocket连接
             pubsub: Redis PubSub对象
+            client_id: 客户端唯一标识
+            eval_id: 评估任务ID
         """
-        logger.debug("开始监听Redis日志消息")
+        logger.debug(f"开始监听Redis日志消息 [client_id={client_id}, eval_id={eval_id}]")
         
-        while True:
-            # 1. 检查WebSocket连接状态
-            if websocket.client_state != WebSocketState.CONNECTED:
-                logger.debug("WebSocket连接已断开，停止监听")
-                break
-                
-            try:
-                # 2. 非阻塞方式获取消息
-                message = pubsub.get_message(timeout=0.1)
-                
-                # 3. 处理消息
-                if message and message["type"] == "message":
-                    # 解析消息内容
-                    data = message["data"]
-                    if isinstance(data, bytes):
-                        data = data.decode("utf-8")
-                    
-                    # 新增：提取log字段内容
-                    try:
-                        import json
-                        log_data = json.loads(data)
-                        log_content = log_data.get("log", data)  # 如果解析失败则回退到原始数据
-                    except json.JSONDecodeError:
-                        log_content = data  # 非JSON格式则直接使用原始数据
-                    
-                    # 发送到WebSocket
-                    await websocket.send_text(log_content)
-                    
-                # 4. 短暂休眠，避免CPU占用过高
-                await asyncio.sleep(0.01)
-                
-            except Exception as e:
-                logger.warning(f"处理Redis消息失败: {str(e)}")
-                if "connection closed" in str(e).lower() or "close message has been sent" in str(e).lower():
+        # 添加超时控制，防止任务无限运行
+        max_idle_time = 3600  # 最大空闲时间（秒）
+        last_message_time = asyncio.get_event_loop().time()
+        
+        try:
+            while True:
+                # 1. 检查WebSocket连接状态
+                if websocket.client_state != WebSocketState.CONNECTED:
+                    logger.debug(f"WebSocket连接已断开，停止监听 [client_id={client_id}]")
                     break
+                
+                # 2. 检查超时 - 长时间没有消息时自动断开
+                current_time = asyncio.get_event_loop().time()
+                if current_time - last_message_time > max_idle_time:
+                    logger.warning(f"日志监听超时，停止监听 [client_id={client_id}]")
+                    break
+                
+                try:
+                    # 3. 非阻塞方式获取消息
+                    message = pubsub.get_message(timeout=0.1)
+                    
+                    # 4. 处理消息
+                    if message and message["type"] == "message":
+                        # 更新最后收到消息的时间
+                        last_message_time = asyncio.get_event_loop().time()
+                        
+                        # 解析消息内容
+                        data = message["data"]
+                        if isinstance(data, bytes):
+                            data = data.decode("utf-8")
+                        
+                        # 提取log字段内容
+                        try:
+                            import json
+                            log_data = json.loads(data)
+                            log_content = log_data.get("log", data)  # 如果解析失败则回退到原始数据
+                        except json.JSONDecodeError:
+                            log_content = data  # 非JSON格式则直接使用原始数据
+                        
+                        # 发送到WebSocket
+                        await websocket.send_text(log_content)
+                    
+                    # 5. 短暂休眠，避免CPU占用过高，同时也使任务可被取消
+                    await asyncio.sleep(0.01)
+                    
+                except asyncio.CancelledError:
+                    logger.info(f"日志监听任务被取消 [client_id={client_id}]")
+                    raise
+                except Exception as e:
+                    logger.warning(f"处理Redis消息失败: {str(e)}")
+                    if "connection closed" in str(e).lower() or "close message has been sent" in str(e).lower():
+                        break
+                    # 短暂停顿后继续尝试
+                    await asyncio.sleep(1)
+                    
+        except asyncio.CancelledError:
+            logger.info(f"日志监听任务被取消 [client_id={client_id}]")
+            raise
+        except Exception as e:
+            logger.error(f"日志监听异常 [client_id={client_id}]: {str(e)}")
+        finally:
+            logger.info(f"日志监听任务结束 [client_id={client_id}]")
 
     async def _cleanup_websocket_resources(self, pubsub=None, redis_client=None):
         """清理WebSocket相关资源
