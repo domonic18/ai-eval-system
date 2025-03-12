@@ -372,8 +372,8 @@ MODEL=Qwen/qwen2-1.5b-instruct`,
         if (response.ok) {
           const data = await response.json();
           this.datasetOptions = data.map(dataset => ({
-            value: dataset.id,
-            label: dataset.name
+            value: dataset.name,
+            label: dataset.description
           }));
         } else {
           this.datasetOptions = [...this.defaultDatasets];

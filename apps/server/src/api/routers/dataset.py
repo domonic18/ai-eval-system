@@ -6,16 +6,16 @@ from schemas.auth import UserResponse
 from schemas.dataset import DatasetOut, DatasetCreate, DatasetUpdate
 from services.auth_service import auth_service
 
-router = APIRouter(prefix="/datasets", tags=["数据集"])
+router = APIRouter()
 
-@router.get("", response_model=list[DatasetOut])
+@router.get("/datasets", response_model=list[DatasetOut])
 def get_datasets(
     db: Session = Depends(get_db),
     current_user: UserResponse = Depends(auth_service.get_current_user)
 ):
     return dataset_service.get_datasets(db)
 
-@router.post("", response_model=DatasetOut, status_code=status.HTTP_201_CREATED)
+@router.post("/datasets", response_model=DatasetOut, status_code=status.HTTP_201_CREATED)
 def create_dataset(
     dataset_data: DatasetCreate,
     db: Session = Depends(get_db),
@@ -23,7 +23,7 @@ def create_dataset(
 ):
     return dataset_service.create_dataset(db, dataset_data, current_user.id)
 
-@router.patch("/{dataset_id}", response_model=DatasetOut)
+@router.patch("/datasets/{dataset_id}", response_model=DatasetOut)
 def update_dataset(
     dataset_id: int,
     dataset_data: DatasetUpdate,
@@ -32,7 +32,7 @@ def update_dataset(
 ):
     return dataset_service.update_dataset(db, dataset_id, dataset_data, current_user.id)
 
-@router.delete("/{dataset_id}")
+@router.delete("/datasets/{dataset_id}")
 def delete_dataset(
     dataset_id: int,
     db: Session = Depends(get_db),

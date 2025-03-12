@@ -119,16 +119,16 @@ MODIFY model_id INT NOT NULL COMMENT '模型ID',
 ADD FOREIGN KEY (model_id) REFERENCES ai_models(id) ON DELETE CASCADE;
 
 -- 初始化一些默认数据
-INSERT INTO models (name, type, provider, description)
+INSERT INTO ai_models (name, provider, description, model_type, version, configuration, is_public, user_id, is_active)
 VALUES 
-('gpt-3.5-turbo', 'openai', 'OpenAI', 'OpenAI的GPT-3.5 Turbo模型'),
-('hk33smarter_api', 'api', 'HK33', 'HK33 Smarter API模型');
+('hk33smarter_api', 'HK33', 'HK33 Smarter API模型', 'api', '1.0', '{"api_url": "https://api.hk33.com/v1"}', 1, 1, 1);
 
-INSERT INTO datasets (name, format, description, category)
+INSERT INTO datasets (name, description, type, file_path, configuration, user_id, is_active)
 VALUES 
-('mmlu', 'json', 'Massive Multitask Language Understanding', '通用能力'),
-('demo_cmmlu_chat', 'json', '中文通用语言理解测试', '中文理解'); 
-
+('mmlu', 'Massive Multitask Language Understanding', 'benchmark', '/data/mmlu/', '{"subset": "all"}', 1, 1),
+('demo_cmmlu_chat', '中文通用语言理解测试', 'benchmark', '/data/cmmlu/', '{"format": "chat"}', 1, 1),
+('gsm8k', 'Grade School Math 8K数学问题集', 'benchmark', '/data/gsm8k/', '{"version": "1.0"}', 1, 1),
+('hellaswag', 'HellaSwag常识推理测试', 'benchmark', '/data/hellaswag/', '{"split": "test"}', 1, 1);
 -- 初始化管理员用户
 INSERT INTO users (username, email, password_hash)
 VALUES 
