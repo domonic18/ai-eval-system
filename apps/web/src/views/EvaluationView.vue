@@ -130,7 +130,16 @@
                     :searchable="true"
                     placeholder="选择或搜索数据集"
                     :close-on-select="false"
-                  />
+                    label="value"
+                    value-prop="value"
+                  >
+                    <template #option="{ option }">
+                      <div class="dataset-option">
+                        <div class="option-value">{{ option.value }}</div>
+                        <div class="option-label">{{ option.label }}</div>
+                      </div>
+                    </template>
+                  </Multiselect>
 
                   <!-- 步骤导航按钮 -->
                   <div class="step-buttons">
@@ -446,8 +455,6 @@ MODEL=modelname`
 </script>
 
 <style scoped>
-
-
 .evaluation-page {
   padding: 0 0 40px;
   width: 100%;
@@ -1016,5 +1023,17 @@ MODEL=modelname`
 @keyframes slideIn {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
+}
+
+.dataset-option {
+  .option-value {
+    font-weight: 500;
+    color: #2d3748;
+  }
+  .option-label {
+    font-size: 12px;
+    color: #718096;
+    margin-top: 4px;
+  }
 }
 </style> 
