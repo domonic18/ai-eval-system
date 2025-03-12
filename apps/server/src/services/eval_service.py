@@ -12,6 +12,8 @@ from tasks.task_manager import TaskManager
 from core.repositories.evaluation_repository import EvaluationRepository
 from utils.redis_manager import RedisManager
 from tasks.runners.runner_base import get_runner
+import os
+from pathlib import Path
 
 
 
@@ -383,3 +385,81 @@ class EvaluationService:
                 "success": False,
                 "message": f"终止评估任务失败: {str(e)}"
             }
+
+    def get_evaluation_results(self, eval_id: int, db: Session) -> Dict[str, Any]:
+        """获取评测任务的详细结果
+        
+        Args:
+            eval_id: 评估任务ID
+            db: 数据库会话
+            
+        Returns:
+            Dict[str, Any]: 评测结果详情，如果没有结果则返回None
+        """
+        with db_operation(db) as db_session:
+            # 获取评测记录
+            evaluation = db_session.get(Evaluation, eval_id)
+            if not evaluation:
+                return None
+                
+            # 检查是否有结果
+            if not evaluation.results or not isinstance(evaluation.results, dict):
+                return {
+                    "id": eval_id,
+                    "status": evaluation.status,
+                    "model_name": evaluation.model_name,
+                    "dataset_names": evaluation.dataset_names,
+                    "created_at": evaluation.created_at,
+                    "updated_at": evaluation.updated_at,
+                    "has_results": False,
+                    "message": "评测结果尚未生成或正在处理中"
+                }
+                
+            # 构建结果响应
+            result_data = {
+                "id": eval_id,
+                "status": evaluation.status,
+                "model_name": evaluation.model_name,
+                "dataset_names": evaluation.dataset_names,
+                "created_at": evaluation.created_at,
+                "updated_at": evaluation.updated_at,
+                "has_results": True,
+                "results": evaluation.results
+            }
+            
+            return result_data
+            
+    def get_evaluation_zip_path(self, eval_id: int, db: Session) -> str:
+        """获取评测任务的结果ZIP文件路径
+        
+        Args:
+            eval_id: 评估任务ID
+            db: 数据库会话
+            
+        Returns:
+            str: ZIP文件的完整路径，如果不存在则返回None
+        """
+        with db_operation(db) as db_session:
+            # 获取评测记录
+            evaluation = db_session.get(Evaluation, eval_id)
+            if not evaluation or not evaluation.results:
+                return None
+                
+            # 尝试从结果中获取归档路径
+            archive_path = evaluation.results.get("archive_path")
+            if not archive_path:
+                # 尝试通过约定的路径查找
+                logs_dir = Path(f"logs/eval_{eval_id}")
+                if logs_dir.exists():
+                    zip_files = list(logs_dir.glob("full_results_*.zip"))
+                    if zip_files:
+                        # 返回最新的ZIP文件
+                        return str(sorted(zip_files, key=lambda x: x.stat().st_mtime, reverse=True)[0])
+                return None
+                
+            # 验证文件是否存在
+            if not os.path.exists(archive_path):
+                logger.warning(f"数据库中记录的ZIP文件路径不存在: {archive_path}")
+                return None
+                
+            return archive_path

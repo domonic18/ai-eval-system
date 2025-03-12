@@ -1,10 +1,13 @@
-from fastapi import APIRouter, HTTPException, status, Depends, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, status, Depends, Query, WebSocket, WebSocketDisconnect, Response
 from sqlalchemy.orm import Session
 from api.deps import get_db
 from schemas.eval import EvaluationCreate, EvaluationResponse, EvaluationStatusResponse
 from services.eval_service import EvaluationService
 from services.rlog_service import WebSocketLogService
 from typing import Dict, Any, List, Optional
+from fastapi.responses import FileResponse
+import os
+from pathlib import Path
 
 router = APIRouter()
 eval_service = EvaluationService()
@@ -188,4 +191,69 @@ def update_eval_name(eval_id: int, name_data: Dict[str, str], db: Session = Depe
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"更新任务名称失败: {str(e)}"
+        )
+
+@router.get("/evaluations/{eval_id}/results", response_model=Dict[str, Any])
+def get_evaluation_results(eval_id: int, db: Session = Depends(get_db)):
+    """获取评测任务的详细结果
+    
+    Args:
+        eval_id: 评估任务ID
+        db: 数据库会话
+        
+    Returns:
+        Dict[str, Any]: 评测结果详情
+    """
+    try:
+        results = eval_service.get_evaluation_results(eval_id, db)
+        if not results:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"评测任务 {eval_id} 不存在或尚未生成结果"
+            )
+        return results
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取评测结果失败: {str(e)}"
+        )
+
+@router.get("/evaluations/{eval_id}/download")
+def download_evaluation_results(eval_id: int, db: Session = Depends(get_db)):
+    """下载评测任务的完整结果压缩包
+    
+    Args:
+        eval_id: 评估任务ID
+        db: 数据库会话
+        
+    Returns:
+        FileResponse: ZIP文件响应
+    """
+    try:
+        # 获取ZIP文件路径
+        zip_path = eval_service.get_evaluation_zip_path(eval_id, db)
+        
+        if not zip_path or not os.path.exists(zip_path):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"评测任务 {eval_id} 的结果文件不存在"
+            )
+            
+        # 文件名处理
+        filename = f"evaluation_{eval_id}_results.zip"
+        
+        # 返回文件响应
+        return FileResponse(
+            path=zip_path, 
+            filename=filename,
+            media_type="application/zip"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"下载评测结果失败: {str(e)}"
         ) 

@@ -96,6 +96,12 @@
               <div class="action-buttons">
                 <button class="action-btn log-btn" @click="viewLogs(task.id)">日志</button>
                 
+                <button v-if="getTaskStatusType(task.status) === 'completed'" 
+                      class="action-btn result-btn" 
+                      @click="viewResults(task.id)">
+                  结果
+                </button>
+                
                 <button v-if="getTaskStatusType(task.status) === 'running'" 
                       class="action-btn stop-btn" 
                       @click="terminateTask(task.id)">
@@ -221,6 +227,11 @@ export default {
     viewLogs(taskId) {
       // 发出事件，通知父组件显示日志
       this.$emit('view-logs', taskId);
+    },
+    
+    viewResults(taskId) {
+      // 发出事件，通知父组件显示结果
+      this.$emit('view-results', taskId);
     },
     
     async terminateTask(taskId) {
@@ -642,6 +653,14 @@ button:hover {
 
 .log-btn:hover {
   background-color: #2c5282;
+}
+
+.result-btn {
+  background-color: #38a169;
+}
+
+.result-btn:hover {
+  background-color: #2f855a;
 }
 
 .stop-btn {

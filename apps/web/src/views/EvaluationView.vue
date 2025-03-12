@@ -206,6 +206,7 @@
               <!-- 直接显示任务表格，移除额外的标题和按钮 -->
               <TaskList 
                 @view-logs="viewTaskLogs" 
+                @view-results="viewTaskResults"
                 ref="taskList"
                 :hideHeader="true"
               />
@@ -259,6 +260,16 @@
         </div>
       </div>
       
+      <!-- 结果查看器弹窗 -->
+      <div v-if="currentResultTaskId" class="modal result-modal">
+        <div class="modal-content result-modal-content">
+          <ResultViewer 
+            :taskId="currentResultTaskId" 
+            @close="currentResultTaskId = null" 
+          />
+        </div>
+      </div>
+      
       <!-- 通知组件 -->
       <div v-if="notification.show" 
            :class="['notification', notification.type]"
@@ -274,6 +285,7 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import TaskForm from '@/components/TaskForm.vue'
 import TaskList from '@/components/TaskList.vue'
 import LogViewer from '@/components/LogViewer.vue'
+import ResultViewer from '@/components/ResultViewer.vue'
 import Multiselect from '@vueform/multiselect'
 import '@vueform/multiselect/themes/default.css'
 
@@ -284,6 +296,7 @@ export default {
     TaskForm,
     TaskList,
     LogViewer,
+    ResultViewer,
     Multiselect
   },
   data() {
@@ -291,6 +304,7 @@ export default {
       showTaskForm: false,
       currentStep: 1,
       currentLogTaskId: null,
+      currentResultTaskId: null,
       modelType: 'preset',
       selectedModel: null,
       customApiConfig: '',
@@ -516,6 +530,9 @@ MODEL=Qwen/qwen2-1.5b-instruct`
     },
     viewTaskLogs(taskId) {
       this.currentLogTaskId = taskId;
+    },
+    viewTaskResults(taskId) {
+      this.currentResultTaskId = taskId;
     }
   },
   watch: {
@@ -870,7 +887,7 @@ MODEL=Qwen/qwen2-1.5b-instruct`
   color: #718096;
 }
 
-.log-modal-content {
+.log-modal-content, .result-modal-content {
   max-width: 90%;
   height: 80vh;
 }
