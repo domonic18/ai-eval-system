@@ -1,8 +1,8 @@
 from opencompass.models import OpenAISDK
 
 
-internlm_url = 'https://guanghua-api.hk33smarter.com/v1'                    # 前面获得的 api 服务地址
-internlm_api_key = "sk-8B8KptRvxQnPTVsH7665380d95A748F7BcAdA3E4279c6bAe"    # 前面获得的 API Key
+internlm_url = 'https://guanghua-api.hk33smarter.com/v1'
+internlm_api_key = "sk-8B8Kp"   
 
 models = [
     dict(
