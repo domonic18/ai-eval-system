@@ -57,7 +57,7 @@ def init_database(drop_existing=False, sql_file=None):
         if sql_file is None:
             # 修复路径问题：使用正确的路径
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            sql_file = os.path.join(current_dir, 'database_init.sql')
+            sql_file = os.path.join(current_dir, 'database', 'database_init.sql')
         
         if not os.path.exists(sql_file):
             print(f"错误: SQL文件不存在: {sql_file}")
