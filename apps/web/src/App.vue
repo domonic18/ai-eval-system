@@ -44,17 +44,13 @@ export default defineComponent({
 </template>
 
 <style>
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-:root {
-  /* 全局CSS变量 */
-  --header-height: 64px;
-  --header-z-index: 100;
-}
 
 body {
   font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
@@ -69,7 +65,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-}
+} 
 
 .container {
   width: 100%;
@@ -78,14 +74,6 @@ body {
   padding: 0 20px;
 }
 
-/* 页面顶部间距辅助类 */
-.page-header-spacing {
-  margin-top: var(--header-height);
-}
-
-.page-content {
-  padding-top: var(--header-height);
-}
 
 /* 按钮样式 */
 .btn {
