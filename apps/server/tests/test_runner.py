@@ -94,5 +94,5 @@ def test_result_collector():
 if __name__ == "__main__":
     # test_command_injection()
     # test_multiple_datasets()
-    # test_runner_script()
+    test_runner_script()
     # test_result_collector()
