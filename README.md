@@ -98,6 +98,10 @@ cp .env.example .env
 cd requirements
 pip install -r base.txt
 
+# 安装ai-eval-system
+cd 根目录
+pip install -e .
+
 # 安装OpenCompass
 cd libs/OpenCompass
 pip install -e .
@@ -146,6 +150,18 @@ npm install
 npm run dev
 ```
 前端服务将在 http://localhost:8080 启动，可以通过访问 http://localhost:8080 查看评测系统UI。
+
+
+## TODO
+前端页面
+- [ ] 支持数据集的基础后台管理功能，包括增、删、改、查
+- [ ] 支持模型基础后台管理功能，包括增、删、改、查
+- [ ] 支持评测榜单功能，实现评测结果的可视化
+- [ ] 支持评测结果的导出
+- [ ] 支持数据集在线化编辑功能
+
+基础建设
+- [ ] 支持Docker化部署
 
 
 
