@@ -116,7 +116,7 @@ docker run -d -p 6379:6379 --name redis-server redis:alpine
 
 2. **启动Mysql服务器**
 ```bash
-docker run -d -p 3306:3306 --name mysql-server mysql:latest
+docker run -d -p 3306:3306 --name mysql-server mysql:8.0
 ```
 
 3. **初始化数据库**
@@ -127,14 +127,14 @@ python init_database.py
 
 4. **启动FastAPI服务器**
 ```bash
-cd scripts
+cd apps/server
 python start_fastapi_server.py
 ```
 服务器将在 http://localhost:8000 启动，可以通过访问 http://localhost:8000/docs 查看API文档。
 
 5. **启动Celery Worker**
 ```bash
-cd scripts
+cd apps/server
 python start_celery_worker.py
 ```
 这将启动Celery Worker处理异步评测任务。
