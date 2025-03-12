@@ -73,8 +73,7 @@
                       <input 
                         type="radio" 
                         v-model="modelType" 
-                        value="preset" 
-                        checked
+                        value="preset"
                       /> 预置模型
                     </label>
                     <label>
