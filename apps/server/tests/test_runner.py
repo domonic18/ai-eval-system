@@ -43,7 +43,7 @@ def test_multiple_datasets():
 
 def test_runner_script():
     env_vars = {
-       "API_KEY": "sk-8B8KptRvxQnPTVsH7665380d95A748F7BcAdA3E4279c6bAe",
+       "API_KEY": "sk-8",
        "API_URL": "https://guanghua-api.hk33smarter.com/v1",
        "MODEL": "Qwen/qwen2-1.5b-instruct"
     }

@@ -54,6 +54,7 @@ class ResultCollector:
         # 打包所有结果
         archive_path = self._create_full_archive()
         
+        
         return {
             "metrics": metrics,
             "summary": summary_data,
