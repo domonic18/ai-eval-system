@@ -119,6 +119,10 @@ MODIFY model_id INT NOT NULL COMMENT '模型ID',
 ADD FOREIGN KEY (model_id) REFERENCES ai_models(id) ON DELETE CASCADE;
 
 -- 初始化一些默认数据
+INSERT INTO users (username, email, password)
+VALUES 
+('admin', 'admin@example.com', 'admin');
+
 INSERT INTO ai_models (name, provider, description, model_type, version, configuration, is_public, user_id, is_active)
 VALUES 
 ('hk33smarter_api', 'HK33', 'HK33 Smarter API模型', 'api', '1.0', '{"api_url": "https://api.hk33.com/v1"}', 1, 1, 1);
@@ -132,6 +136,3 @@ VALUES
 ('humaneval', '代码生成能力评估（164道编程题）', 'benchmark', '/code/humaneval/', '{"task": "code_generation"}', 1, 1),
 ('hellaswag', 'HellaSwag常识推理测试', 'benchmark', '/data/hellaswag/', '{"split": "test"}', 1, 1);
 -- 初始化管理员用户
-INSERT INTO users (username, email, password_hash)
-VALUES 
-('admin', 'admin@example.com', 'admin');
