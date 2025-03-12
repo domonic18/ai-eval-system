@@ -1,42 +1,37 @@
 #!/usr/bin/env python3
-"""
-启动Celery Worker服务
-
-处理后台任务的异步执行，包括模型评估任务
-"""
-
 import os
 import sys
-import importlib
+import subprocess
+from pathlib import Path
 
-# 获取当前文件所在目录
-current_dir = os.path.dirname(os.path.abspath(__file__))
-# 添加项目根目录到Python路径
-project_root = os.path.abspath(os.path.join(current_dir, '../..'))
-sys.path.insert(0, project_root)
+def main():
+    # 设置项目根目录
+    project_root = Path(__file__).parent.parent.parent
+    os.chdir(project_root)
 
-# 导入工具函数和日志模块
-import logging
-from datetime import datetime
+    # 设置环境变量
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(project_root) + (f":{env['PYTHONPATH']}" if "PYTHONPATH" in env else "")
 
-# 显式导入任务模块以确保任务被注册
-from tasks import task_eval
+    # 启动命令参数
+    command = [
+        "celery",
+        "-A", "celery_app:celery_app",
+        "worker",
+        "--loglevel=DEBUG",
+        "--concurrency=1",
+        "--pool=prefork",
+        "-Q", "eval_tasks"
+    ]
 
-# 从apps.server导入celery应用
-from apps.server.src.celery_app import celery_app
-
-print("启动Celery Worker服务...")
-print("加载的任务:", celery_app.tasks.keys())
-print("eval_tasks模块中的任务:", task_eval.run_evaluation.name)
+    try:
+        print(f"🔧 正在启动 Celery 工作进程...")
+        subprocess.run(command, check=True, env=env)
+    except subprocess.CalledProcessError as e:
+        print(f"❌ 工作进程启动失败: {e}")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print("\n🛑 工作进程已停止")
 
 if __name__ == "__main__":
-    # 尝试重新导入一次任务模块
-    importlib.reload(task_eval)
-    
-    print("重新加载后的任务:", celery_app.tasks.keys())
-    
-    argv = [
-        'worker',
-        '--loglevel=INFO',
-    ]
-    celery_app.worker_main(argv) 
+    main()

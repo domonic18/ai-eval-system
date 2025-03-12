@@ -1,14 +1,12 @@
 import logging
 from sqlalchemy.orm import Session
-# from sqlalchemy import text
 from typing import Dict, Any
 from datetime import datetime
 from celery.result import AsyncResult
-# from celery_app import celery_app
 from core.database import SessionLocal
 from models.eval import Evaluation, EvaluationStatus
 from tasks.task_eval import run_evaluation
-from tasks.runners.runner import get_runner
+from tasks.runners.runner_base import get_runner
 from utils.redis_manager import RedisManager
 import psutil
 
@@ -98,7 +96,9 @@ class TaskManager:
             return {
                 "status": status_mapping.get(celery_status, EvaluationStatus.UNKNOWN).value,
                 "task_id": evaluation.task_id,
-                "eval_status": evaluation.status  # 数据库状态
+                "eval_status": evaluation.status,  # 数据库状态
+                "success": "true",
+                "return_code": 0
             }
         except Exception as e:
             return {"error": str(e)}

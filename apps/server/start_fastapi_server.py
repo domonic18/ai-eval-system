@@ -1,22 +1,35 @@
-# 启动FastAPI服务器
+#!/usr/bin/env python3
 import os
 import sys
+import subprocess
+from pathlib import Path
 
-# 获取当前文件所在目录
-current_dir = os.path.dirname(os.path.abspath(__file__))
-# 添加项目根目录到Python路径
-project_root = os.path.abspath(os.path.join(current_dir, '../..'))
-sys.path.insert(0, project_root)
+def main():
+    # 设置项目根目录
+    project_root = Path(__file__).parent.parent.parent
+    os.chdir(project_root)
 
-# 导入并运行服务
-import uvicorn
+    # 设置环境变量
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(project_root) + (f":{env['PYTHONPATH']}" if "PYTHONPATH" in env else "")
+
+    # 启动命令参数
+    command = [
+        "uvicorn",
+        "apps.server.src.main:app",
+        "--host", "0.0.0.0",
+        "--port", "8000",
+        "--reload"
+    ]
+
+    try:
+        print(f"🚀 正在启动 FastAPI 服务（开发模式）...")
+        subprocess.run(command, check=True, env=env)
+    except subprocess.CalledProcessError as e:
+        print(f"❌ 服务启动失败: {e}")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print("\n🛑 服务已停止")
 
 if __name__ == "__main__":
-    print("启动FastAPI服务器...")
-    # 使用模块路径启动，支持热重载
-    uvicorn.run(
-        "apps.server.src.main:app", 
-        host="0.0.0.0", 
-        port=8000, 
-        reload=True  # 添加热重载，便于开发调试
-    ) 
+    main()

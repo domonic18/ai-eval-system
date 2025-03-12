@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, JSON, DateTime, Enum, Text, Float, ForeignKey, text
+from sqlalchemy.ext.hybrid import hybrid_property 
 from sqlalchemy.sql import func
 from enum import Enum as PyEnum
 from core.database import Base, TimestampMixin
@@ -21,10 +22,11 @@ class Evaluation(Base, TimestampMixin):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=True, comment="任务名称")
     model_name = Column(String(255), nullable=False, comment="模型名称")
-    dataset_name = Column(String(255), nullable=False, comment="数据集名称")
+    dataset_names = Column(JSON, nullable=False, comment="数据集名称列表")
     model_configuration = Column(JSON, nullable=True, comment="模型配置")
     dataset_configuration = Column(JSON, nullable=True, comment="数据集配置")
     eval_config = Column(JSON, nullable=True, comment="评估配置")
+    env_vars = Column(JSON, default={}, comment="环境变量（API_URL/API_KEY等）") 
     status = Column(String(50), nullable=False, index=True, default=EvaluationStatus.PENDING.value, comment="任务状态")
     task_id = Column(String(255), nullable=True, index=True, comment="Celery 任务 ID")
     error_message = Column(Text, nullable=True, comment="错误信息")
@@ -38,4 +40,28 @@ class Evaluation(Base, TimestampMixin):
                    server_default=func.now(),
                    onupdate=func.now(),
                    comment="更新时间")
-     
+    
+    @hybrid_property
+    def formatted_results(self) -> dict:
+        """格式化后的结果展示结构"""
+        return {
+            'scores': self._parse_scores(),
+            'prediction_files': self._list_prediction_files()
+        }
+    
+    def _parse_scores(self):
+        """从summary解析得分"""
+        return {item['dataset']: item['accuracy'] 
+                for item in self.results.get('summary', [])}
+    
+    def _list_prediction_files(self):
+        """列出预测文件"""
+        return [f"predictions/{f}" 
+                for f in self.results.get('prediction_files', [])]
+
+    @hybrid_property
+    def result_details(self) -> dict:
+        return {
+            "model_metrics": self.results.get('metrics', {}),
+            "prediction_paths": self.results.get('prediction_files', {})
+        }

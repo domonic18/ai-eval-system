@@ -22,7 +22,7 @@ class EvaluationRepository:
     def create_evaluation(
         db: Session, 
         model_name: str, 
-        dataset_name: str, 
+        dataset_names: List[str], 
         model_configuration: Dict[str, Any], 
         dataset_configuration: Dict[str, Any], 
         eval_config: Dict[str, Any] = None
@@ -32,7 +32,7 @@ class EvaluationRepository:
         Args:
             db: 数据库会话
             model_name: 模型名称
-            dataset_name: 数据集名称
+            dataset_names: 数据集名称列表
             model_configuration: 模型配置
             dataset_configuration: 数据集配置
             eval_config: 评估配置
@@ -42,7 +42,7 @@ class EvaluationRepository:
         """
         db_eval = Evaluation(
             model_name=model_name,
-            dataset_name=dataset_name,
+            dataset_names=json.dumps(dataset_names),
             model_configuration=model_configuration,
             dataset_configuration=dataset_configuration,
             eval_config=eval_config or {},
@@ -170,38 +170,45 @@ class EvaluationRepository:
     async def create_evaluation_async(
         db: Session, 
         model_name: str, 
-        dataset_name: str, 
+        dataset_names: List[str],
         model_configuration: Dict[str, Any], 
         dataset_configuration: Dict[str, Any], 
-        eval_config: Dict[str, Any] = None
+        eval_config: Dict[str, Any] = None,
+        env_vars: Dict[str, Any] = {}
     ) -> Evaluation:
         """异步创建新的评估记录
         
         Args:
             db: 数据库会话
             model_name: 模型名称
-            dataset_name: 数据集名称
+            dataset_names: 数据集名称列表
             model_configuration: 模型配置
             dataset_configuration: 数据集配置
             eval_config: 评估配置
-            
+            env_vars: 环境变量
         Returns:
             Evaluation: 创建的评估记录
         """
-        db_eval = Evaluation(
-            model_name=model_name,
-            dataset_name=dataset_name,
-            model_configuration=model_configuration,
-            dataset_configuration=dataset_configuration,
-            eval_config=eval_config or {},
-            status=EvaluationStatus.PENDING.value,
-            log_dir="logs/default"  # 设置一个默认值，避免空字符串
-        )
-            
-        # 添加并提交(异步执行)
-        db.add(db_eval)
-        await asyncio.to_thread(db.commit)
-        await asyncio.to_thread(db.refresh, db_eval)
+        try:
+            db_eval = Evaluation(
+                model_name=model_name,
+                dataset_names=json.dumps(dataset_names),
+                model_configuration=model_configuration,
+                dataset_configuration=dataset_configuration,
+                eval_config=eval_config or {},
+                status=EvaluationStatus.PENDING.value,
+                log_dir="logs/default",
+                progress=0.0,
+                env_vars=env_vars
+            )
+        
+            # 添加并提交(异步执行)
+            db.add(db_eval)
+            await asyncio.to_thread(db.commit)
+            await asyncio.to_thread(db.refresh, db_eval)
+        except Exception as e:
+            logger.error(f"异步创建评估记录失败: {str(e)}")
+            raise e
         
         return db_eval
     
@@ -324,7 +331,7 @@ class EvaluationRepository:
                 items.append({
                     "id": eval_task.id,
                     "model_name": eval_task.model_name,
-                    "dataset_name": eval_task.dataset_name,
+                    "dataset_names": eval_task.dataset_names,
                     "status": eval_task.status,
                     "log_dir": eval_task.log_dir,
                     "task_id": eval_task.task_id,

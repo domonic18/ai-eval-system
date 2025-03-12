@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from api.deps import get_db
 from schemas.auth import UserCreate, UserLogin, Token, UserResponse
 from services.auth_service import auth_service
+from models.user import User
 import logging
 
 # 配置日志
@@ -11,8 +12,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# OAuth2密码流程
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+# OAuth2密码流程 - 现在移到 auth_service.py 中
+# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
@@ -84,28 +85,19 @@ async def login(
         )
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+async def get_user_info(current_user: User = Depends(auth_service.get_current_user)):
     """获取当前用户信息
     
     Args:
-        token: 访问令牌
-        db: 数据库会话
+        current_user: 当前登录用户
         
     Returns:
         UserResponse: 用户信息
     """
-    user = auth_service.get_current_user(db, token)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="无效的凭证",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
     return UserResponse(
-        id=user.id,
-        username=user.username,
-        email=user.email,
-        avatar=user.avatar,
-        is_admin=user.is_admin
+        id=current_user.id,
+        username=current_user.username,
+        email=current_user.email,
+        avatar=current_user.avatar,
+        is_admin=current_user.is_admin
     ) 

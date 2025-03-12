@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, ForeignKey, text
+from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, ForeignKey, text, Boolean
 from sqlalchemy.orm import relationship
 from core.database import Base, TimestampMixin
+from datetime import datetime
 
 
 class Dataset(Base, TimestampMixin):
@@ -10,6 +11,7 @@ class Dataset(Base, TimestampMixin):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False, comment="数据集名称")
     description = Column(Text, nullable=True, comment="数据集描述")
+    is_active = Column(Boolean, default=True, comment="是否激活(软删除控制)")
     type = Column(String(50), nullable=False, comment="数据集类型")
     file_path = Column(String(255), nullable=True, comment="数据集文件路径")
     configuration = Column(JSON, nullable=True, comment="数据集配置")

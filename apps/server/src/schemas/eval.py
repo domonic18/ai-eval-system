@@ -7,24 +7,26 @@ class EvaluationBase(BaseModel):
     model_configuration: dict
     dataset_config: dict
 
+
 class EvaluationCreate(BaseModel):
     """评估创建请求模式"""
     model_name: str = Field(..., description="要评估的模型名称")
-    dataset_name: str = Field(..., description="要使用的数据集名称")
+    dataset_names: List[str] = Field(..., description="要使用的数据集名称")
     model_configuration: Union[Dict[str, Any], str] = Field(default={}, description="模型的配置信息")
     dataset_configuration: Union[Dict[str, Any], str] = Field(default={}, description="数据集的配置信息")
-    eval_config: Optional[Dict[str, Any]] = Field(default={}, description="评估的配置信息")
-    
+    eval_config: Optional[Dict[str, Any]] = Field(default={}, description="评估的配置信息")    
     model_config = ConfigDict(
         populate_by_name=True,
         extra='allow'
     )
+    env_vars: Optional[Dict[str, Any]] = Field(default={}, description="环境变量（API_URL/API_KEY等）")
+
 
 class EvaluationResponse(BaseModel):
     """评估响应模式"""
     id: int = Field(..., description="评估任务ID")
     model_name: str = Field(..., description="模型名称")
-    dataset_name: str = Field(..., description="数据集名称")
+    dataset_names: str = Field(..., description="数据集名称")
     status: str = Field(..., description="评估任务状态")
     task_id: Optional[str] = Field(None, description="Celery 任务ID")
     created_at: datetime = Field(..., description="创建时间")
@@ -34,7 +36,7 @@ class EvaluationStatusResponse(BaseModel):
     """评估状态响应"""
     id: int
     model_name: str
-    dataset_name: str
+    dataset_names: str
     status: str
     progress: float = 0.0
     created_at: datetime
@@ -49,7 +51,7 @@ class OpenCompassConfig(BaseModel):
     model_name: str = Field(..., description="模型名称")
     model_path: Optional[str] = Field(None, description="模型路径")
     model_type: str = Field("huggingface", description="模型类型")
-    dataset_name: str = Field(..., description="数据集名称")
+    dataset_names: str = Field(..., description="数据集名称")
     dataset_path: Optional[str] = Field(None, description="数据集路径")
     output_path: Optional[str] = Field("outputs/default", description="输出路径")
     api_key: Optional[str] = Field(None, description="API 密钥")
@@ -68,3 +70,17 @@ class LogResponse(BaseModel):
     logs: List[str] = Field(..., description="日志行列表")
     total_lines: int = Field(..., description="总行数")
     has_more: bool = Field(..., description="是否有更多日志") 
+
+class DatasetResult(BaseModel):
+    dataset: str
+    accuracy: float
+    prediction_path: Optional[str]
+
+class ModelResult(BaseModel):
+    model_name: str
+    datasets: List[DatasetResult]
+
+class EvaluationResultResponse(BaseModel):
+    results: List[ModelResult]
+    summary: List[dict]
+    download_url: str

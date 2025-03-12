@@ -44,11 +44,13 @@ export default defineComponent({
 </template>
 
 <style>
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
+
 
 body {
   font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
@@ -62,8 +64,9 @@ body {
 #app {
   display: flex;
   flex-direction: column;
+  width: 100%;
   min-height: 100vh;
-}
+} 
 
 .container {
   width: 100%;
@@ -71,6 +74,7 @@ body {
   margin: 0 auto;
   padding: 0 20px;
 }
+
 
 /* 按钮样式 */
 .btn {

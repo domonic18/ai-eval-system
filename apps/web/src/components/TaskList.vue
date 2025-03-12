@@ -82,7 +82,7 @@
               </div>
             </td>
             <td>{{ task.model_name }}</td>
-            <td>{{ task.dataset_name }}</td>
+            <td>{{ task.dataset_names }}</td>
             <td>
               <span :class="['status', getTaskStatusType(task.status)]">{{ formatStatus(task.status) }}</span>
             </td>

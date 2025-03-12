@@ -1,85 +1,87 @@
 <template>
   <MainLayout>
-    <div class="home">
-      <section class="hero">
-        <div class="container">
-          <div class="hero-content">
-            <h1 class="hero-title">OpenCompass在线评测系统</h1>
-            <p class="hero-description">专业、全面的AI大模型评测平台</p>
-            <div class="hero-actions">
+    <div class="home-page page-content">
+      <div class="home-container">
+        <section class="hero">
+          <div class="container">
+            <div class="hero-content">
+              <h1 class="hero-title">OpenCompass在线评测系统</h1>
+              <p class="hero-description">专业、全面的AI大模型评测平台</p>
+              <div class="hero-actions">
+                <router-link to="/evaluation" class="btn">开始评测</router-link>
+                <router-link to="/guide" class="btn btn-secondary">了解更多</router-link>
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        <section class="features">
+          <div class="container">
+            <h2 class="section-title">平台特点</h2>
+            
+            <div class="feature-grid">
+              <div class="feature-card">
+                <div class="feature-icon">
+                  <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                  </svg>
+                </div>
+                <h3 class="feature-title">全面的评测指标</h3>
+                <p class="feature-description">涵盖准确性、流畅性、创造力等多维度评测指标，全方位评估模型性能。</p>
+              </div>
+              
+              <div class="feature-card">
+                <div class="feature-icon">
+                  <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M12 8v4l3 3"></path>
+                  </svg>
+                </div>
+                <h3 class="feature-title">高效快速</h3>
+                <p class="feature-description">采用高性能分布式计算架构，显著提升评测速度，快速获取评测结果。</p>
+              </div>
+              
+              <div class="feature-card">
+                <div class="feature-icon">
+                  <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    <polyline points="7.5 4.21 12 6.81 16.5 4.21"></polyline>
+                    <polyline points="7.5 19.79 7.5 14.6 3 12"></polyline>
+                    <polyline points="21 12 16.5 14.6 16.5 19.79"></polyline>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                  </svg>
+                </div>
+                <h3 class="feature-title">丰富的数据集</h3>
+                <p class="feature-description">提供多语言、多任务、多场景的评测数据集，满足不同评测需求。</p>
+              </div>
+              
+              <div class="feature-card">
+                <div class="feature-icon">
+                  <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 7h-9"></path>
+                    <path d="M14 17H5"></path>
+                    <circle cx="17" cy="17" r="3"></circle>
+                    <circle cx="7" cy="7" r="3"></circle>
+                  </svg>
+                </div>
+                <h3 class="feature-title">模型对比</h3>
+                <p class="feature-description">支持多模型同时评测对比，直观展示各模型的优劣势。</p>
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        <section class="cta">
+          <div class="container">
+            <div class="cta-content">
+              <h2 class="cta-title">立即开始您的模型评测</h2>
+              <p class="cta-description">使用专业的评测工具，全面了解您的模型性能</p>
               <router-link to="/evaluation" class="btn">开始评测</router-link>
-              <router-link to="/guide" class="btn btn-secondary">了解更多</router-link>
             </div>
           </div>
-        </div>
-      </section>
-      
-      <section class="features">
-        <div class="container">
-          <h2 class="section-title">平台特点</h2>
-          
-          <div class="feature-grid">
-            <div class="feature-card">
-              <div class="feature-icon">
-                <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                </svg>
-              </div>
-              <h3 class="feature-title">全面的评测指标</h3>
-              <p class="feature-description">涵盖准确性、流畅性、创造力等多维度评测指标，全方位评估模型性能。</p>
-            </div>
-            
-            <div class="feature-card">
-              <div class="feature-icon">
-                <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <path d="M12 8v4l3 3"></path>
-                </svg>
-              </div>
-              <h3 class="feature-title">高效快速</h3>
-              <p class="feature-description">采用高性能分布式计算架构，显著提升评测速度，快速获取评测结果。</p>
-            </div>
-            
-            <div class="feature-card">
-              <div class="feature-icon">
-                <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                  <polyline points="7.5 4.21 12 6.81 16.5 4.21"></polyline>
-                  <polyline points="7.5 19.79 7.5 14.6 3 12"></polyline>
-                  <polyline points="21 12 16.5 14.6 16.5 19.79"></polyline>
-                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                  <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                </svg>
-              </div>
-              <h3 class="feature-title">丰富的数据集</h3>
-              <p class="feature-description">提供多语言、多任务、多场景的评测数据集，满足不同评测需求。</p>
-            </div>
-            
-            <div class="feature-card">
-              <div class="feature-icon">
-                <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M20 7h-9"></path>
-                  <path d="M14 17H5"></path>
-                  <circle cx="17" cy="17" r="3"></circle>
-                  <circle cx="7" cy="7" r="3"></circle>
-                </svg>
-              </div>
-              <h3 class="feature-title">模型对比</h3>
-              <p class="feature-description">支持多模型同时评测对比，直观展示各模型的优劣势。</p>
-            </div>
-          </div>
-        </div>
-      </section>
-      
-      <section class="cta">
-        <div class="container">
-          <div class="cta-content">
-            <h2 class="cta-title">立即开始您的模型评测</h2>
-            <p class="cta-description">使用专业的评测工具，全面了解您的模型性能</p>
-            <router-link to="/evaluation" class="btn">开始评测</router-link>
-          </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
   </MainLayout>
 </template>
@@ -96,11 +98,29 @@ export default {
 </script>
 
 <style scoped>
+ .home-page {
+  width: 100%;
+}
+
+.home-container {
+  width: 100%;
+  max-width: 1800px;
+  margin: 0 auto;
+  padding: 20px;
+  box-sizing: border-box;
+  margin-top: var(--header-height);
+}
+
 .hero {
   padding: 80px 0;
   background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%);
   color: white;
   text-align: center;
+  margin-top: 0;
+}
+
+.hero-content {
+  padding-top: 20px;
 }
 
 .hero-title {
@@ -209,6 +229,10 @@ export default {
 }
 
 @media (max-width: 768px) {
+  .hero {
+    padding: 60px 0;
+  }
+  
   .hero-title {
     font-size: 36px;
   }
@@ -220,5 +244,5 @@ export default {
   .feature-grid {
     grid-template-columns: 1fr;
   }
-}
+} 
 </style> 

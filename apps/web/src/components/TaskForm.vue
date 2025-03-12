@@ -4,27 +4,34 @@
     
     <form @submit.prevent="submitForm">
       <div class="form-group">
-        <label for="model">模型</label>
-        <input 
-          type="text" 
-          id="model" 
-          v-model="form.model" 
-          placeholder="输入模型名称" 
-          required
-        />
-        <div class="helper-text">例如: gpt-4, llama2-7b, qwen-14b</div>
+        <label>模型选择</label>
+        <select v-model="form.model" class="form-select">
+          <option 
+            v-for="model in modelOptions" 
+            :value="model.value"
+            :key="model.value"
+          >
+            {{ model.label }}
+          </option>
+        </select>
       </div>
       
       <div class="form-group">
-        <label for="dataset">数据集</label>
-        <input 
-          type="text" 
-          id="dataset" 
-          v-model="form.dataset" 
-          placeholder="输入数据集名称" 
-          required
-        />
-        <div class="helper-text">例如: mmlu, ceval, gsm8k</div>
+        <label>评测数据集（多选）</label>
+        <select 
+          v-model="selectedDatasets" 
+          multiple
+          class="form-select multi-select"
+          size="4"
+        >
+          <option 
+            v-for="dataset in datasetOptions" 
+            :value="dataset.value"
+            :key="dataset.value"
+          >
+            {{ dataset.label }}
+          </option>
+        </select>
       </div>
       
       <div class="form-group">
@@ -88,16 +95,31 @@ export default {
   data() {
     return {
       form: {
-        model: '',
-        dataset: '',
+        model: 'hk33smarter_api',
         config_file: '',
         num_gpus: 1,
-        extra_args: ''
+        extra_args: '',
+        modelPath: '/models/llama2-7b',
+        modelType: 'huggingface',
+        batchSize: 4,
+        workers: 2,
+        debugMode: false,
+        datasetSplit: 'validation',
+        sampleSize: 100
       },
       isSubmitting: false,
       error: null,
       taskCreated: false,
-      createdTaskId: null
+      createdTaskId: null,
+      selectedDatasets: [],
+      modelOptions: [
+        { value: 'hk33smarter_api', label: 'hk33smarter_api' },
+        { value: 'qwen-14b', label: 'Qwen-14B' }
+      ],
+      datasetOptions: [
+        { value: 'demo_math_chat_gen', label: 'Math 演示数据集' },
+        { value: 'demo_gsm8k_chat_gen', label: 'gsm8k 演示数据集' }
+      ]
     }
   },
   methods: {
@@ -107,19 +129,26 @@ export default {
       this.taskCreated = false;
       
       try {
-        // 构造与后端期望格式一致的请求体
         const requestBody = {
           model_name: this.form.model,
-          dataset_name: this.form.dataset,
+          dataset_names: this.selectedDatasets,
           model_configuration: {
-            parameters: {}
+            model_path: this.form.modelPath,
+            model_type: this.form.modelType,
+            parameters: this.form.modelParams
           },
           dataset_configuration: {
-            split: "test"
+            datasets: this.selectedDatasets,
+            split: this.form.datasetSplit,
+            sample_size: this.form.sampleSize
+          },
+          eval_config: {
+            workers: this.form.workers,
+            batch_size: this.form.batchSize,
+            debug_mode: this.form.debugMode
           }
         };
         
-        // 如果有额外参数，添加到配置中
         if (this.form.config_file) {
           requestBody.config_file = this.form.config_file;
         }
@@ -168,12 +197,19 @@ export default {
     
     resetForm() {
       this.form = {
-        model: '',
-        dataset: '',
+        model: 'hk33smarter_api',
         config_file: '',
         num_gpus: 1,
-        extra_args: ''
+        extra_args: '',
+        modelPath: '/models/llama2-7b',
+        modelType: 'huggingface',
+        batchSize: 4,
+        workers: 2,
+        debugMode: false,
+        datasetSplit: 'validation',
+        sampleSize: 100
       };
+      this.selectedDatasets = [];
     }
   }
 }
@@ -287,5 +323,31 @@ button:disabled {
   border-left: 4px solid #f44336;
   border-radius: 4px;
   color: #d32f2f;
+}
+
+.form-select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.multi-select {
+  height: 120px;
+  padding: 8px;
+}
+
+.config-section {
+  margin: 20px 0;
+  padding: 15px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-top: 10px;
 }
 </style> 

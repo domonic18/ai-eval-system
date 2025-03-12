@@ -3,8 +3,11 @@ from typing import Optional, Union, Dict, Any
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
 from models.user import User
 from schemas.auth import UserCreate, Token
+from api.deps import get_db
 import os
 import logging
 
@@ -18,6 +21,9 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-for-local-development")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24小时过期
+
+# OAuth2密码流程
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 class AuthService:
     @staticmethod
@@ -119,8 +125,8 @@ class AuthService:
         return user
 
     @staticmethod
-    def get_current_user(db: Session, token: str) -> Optional[User]:
-        """获取当前用户
+    def _extract_user_from_token(db: Session, token: str) -> Optional[User]:
+        """从令牌中提取用户信息（内部方法）
 
         Args:
             db: 数据库会话
@@ -138,6 +144,25 @@ class AuthService:
             return None
 
         user = db.query(User).filter(User.username == username).first()
+        return user
+
+    def get_current_user(self, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+        """获取当前用户（可用作FastAPI依赖项）
+
+        Args:
+            token: JWT令牌
+            db: 数据库会话
+
+        Returns:
+            User: 当前用户，如果无效则抛出异常
+        """
+        user = self._extract_user_from_token(db, token)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, 
+                detail="无效的凭证或凭证已过期",
+                headers={"WWW-Authenticate": "Bearer"}
+            )
         return user
 
     @staticmethod

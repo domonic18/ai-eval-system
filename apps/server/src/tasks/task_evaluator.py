@@ -9,9 +9,12 @@ from sqlalchemy.orm import Session
 from core.database import SessionLocal
 from models.eval import Evaluation, EvaluationStatus
 from core.config import settings
-from tasks.runners.runner import create_runner, get_runner, remove_runner
+from tasks.runners.runner_base import create_runner, get_runner, remove_runner
 from utils.redis_manager import RedisManager
 from core.config import BASE_DIR
+from tasks.runners.runner_enhanced import EnhancedRunner
+from pathlib import Path
+from services.evaluation.result_collector import ResultCollector
 
 
 # 配置日志
@@ -58,48 +61,39 @@ class TaskEvaluator:
             try:
                 # 1. 更新任务状态为运行中
                 self._update_task_status(db, self.eval_id, EvaluationStatus.RUNNING.value)
-                # update_task_status(db, self.eval_id, EvaluationStatus.RUNNING.value)
                 
                 # 2. 读取评估任务
                 eval_task = db.query(Evaluation).filter(Evaluation.id == self.eval_id).first()
                 if not eval_task:
                     raise ValueError(f"找不到评估任务: {self.eval_id}")
                     
-                # 3. 创建配置
-                # eval_config = create_eval_config(eval_task)
-                
-                # 4. 清空之前的日志记录
-                # RedisManager.clear_logs(self.eval_id)
-                
-                # 5. 创建并配置Runner
-                runner = create_runner(
-                    eval_id=self.eval_id, 
-                    working_dir=str(BASE_DIR),
+                # 3. 初始化增强型执行器
+                runner = EnhancedRunner(
+                    eval_id=self.eval_id,
+                    working_dir=Path(BASE_DIR),
                     opencompass_path=settings.opencompass_path
                 )
-                self.runner = runner
                 
-                
-                # 6. 构建命令
-                command = self.runner.build_command(eval_task.model_name, 
-                                                    eval_task.dataset_name, 
-                                                    model_args='--debug')
-                
-                # 7. 创建日志文件
+                # 4. 创建日志文件
                 self.log_file = self._create_log_file()
 
-                # 8. 同步执行命令
-                exit_code = self.runner.run_sync(command, self.log_file)
+                # 5. 清空之前的日志记录
+                RedisManager.clear_logs(self.eval_id)
+
+                # 6. 执行任务
+                exit_code = runner.execute(eval_task)
                 
-                # 处理执行结果
+                # 7. 结果处理
                 if exit_code == 0:
                     final_status = EvaluationStatus.COMPLETED
-                    results = self._collect_results()
+                    # 收集结果
+                    collector = ResultCollector(self.eval_id, runner.working_dir)
+                    results = collector.collect_results()
                 else:
                     final_status = EvaluationStatus.FAILED
                     results = {"error": f"非零退出码: {exit_code}"}
                 
-                # 7. 更新最终状态
+                # 8. 更新最终状态
                 self._update_task_status(db, self.eval_id, final_status.value)
                 self._update_task_results(db, self.eval_id, results)
                 
@@ -233,34 +227,6 @@ class TaskEvaluator:
             
             # 同时将错误信息添加到日志中
             self._batch_append_logs(eval_id, [f"错误: {error_message}"])
-
-    def _create_eval_config(self, eval_task):
-        """创建评估配置
-        
-        Args:
-            eval_task: 评估任务对象
-            
-        Returns:
-            dict: 评估配置
-        """
-        config = {
-            "model_name": eval_task.model_name,
-            "dataset_name": eval_task.dataset_name,
-            "model_params": eval_task.model_configuration,
-            "dataset_params": eval_task.dataset_configuration
-        }
-        
-        # 添加额外配置
-        if hasattr(eval_task, "config_file") and eval_task.config_file:
-            config["config_file"] = eval_task.config_file
-        
-        if hasattr(eval_task, "num_gpus") and eval_task.num_gpus:
-            config["num_gpus"] = eval_task.num_gpus
-        
-        if hasattr(eval_task, "extra_args") and eval_task.extra_args:
-            config["extra_args"] = eval_task.extra_args
-        
-        return config
 
     def _batch_append_logs(self, eval_id: int, log_lines: list):
         """批量添加任务日志到Redis，避免重复
