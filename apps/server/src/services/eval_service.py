@@ -367,6 +367,13 @@ class EvaluationService:
         try:
             # 调用TaskManager的terminate_task方法
             result = self.task_manager.terminate_task(eval_id)
+            if result.get("success"):
+                # 正常发送指令后，更新数据库中的任务状态为TERMINATED
+                with db_operation(db) as db_session:
+                    eval_task = EvaluationRepository.get_evaluation_by_id(db_session, eval_id)
+                if eval_task:
+                    eval_task.status = EvaluationStatus.TERMINATED.value
+                    db_session.commit()
             return result
         except Exception as e:
             logger.error(f"终止评估任务失败 [eval_id={eval_id}]: {str(e)}")
