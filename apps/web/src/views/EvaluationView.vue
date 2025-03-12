@@ -296,13 +296,15 @@ export default {
       customApiConfig: `API_URL=https://guanghua-api.hk33smarter.com/v1
 API_KEY=sk-xxxx
 MODEL=Qwen/qwen2-1.5b-instruct`,
-      modelOptions: [
+      modelOptions: [],
+      selectedDatasets: [],
+      datasetOptions: [],
+      defaultModels: [
         { value: 'hk33smarter_api', label: 'HK33 Smarter API' },
         { value: 'gpt-4', label: 'GPT-4' },
         { value: 'claude-3', label: 'Claude 3' }
       ],
-      selectedDatasets: [],
-      datasetOptions: [
+      defaultDatasets: [
         { value: 'demo_cmmlu_chat_gen', label: '中文通用语言理解测试' },
         { value: 'demo_math_chat_gen', label: '数学问题测试集' }
       ],
@@ -328,24 +330,58 @@ MODEL=Qwen/qwen2-1.5b-instruct`,
     }
   },
   mounted() {
-    // 初始加载数据
     this.fetchModels();
     this.fetchDatasets();
     
-    // 如果是历史记录页面，加载任务列表
     if (this.$route.path === '/evaluation/records' && this.$refs.taskList) {
       this.$refs.taskList.fetchTasks();
     }
   },
   methods: {
-    fetchModels() {
-      // 实际项目中应该从API获取
-      console.log('获取模型列表');
+    async fetchModels() {
+      try {
+        const response = await fetch('/api/v1/models', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          this.modelOptions = data.map(model => ({
+            value: model.id,
+            label: model.name
+          }));
+        } else {
+          this.modelOptions = [...this.defaultModels];
+        }
+      } catch (error) {
+        console.error('获取模型列表失败:', error);
+        this.modelOptions = [...this.defaultModels];
+      }
     },
     
-    fetchDatasets() {
-      // 实际项目中应该从API获取
-      console.log('获取数据集列表');
+    async fetchDatasets() {
+      try {
+        const response = await fetch('/api/v1/datasets', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          this.datasetOptions = data.map(dataset => ({
+            value: dataset.id,
+            label: dataset.name
+          }));
+        } else {
+          this.datasetOptions = [...this.defaultDatasets];
+        }
+      } catch (error) {
+        console.error('获取数据集列表失败:', error);
+        this.datasetOptions = [...this.defaultDatasets];
+      }
     },
     
     goToStep(step) {
