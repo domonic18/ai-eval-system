@@ -293,9 +293,8 @@ export default {
       currentLogTaskId: null,
       modelType: 'preset',
       selectedModel: null,
-      customApiConfig: `API_URL=https://guanghua-api.hk33smarter.com/v1
-API_KEY=sk-xxxx
-MODEL=Qwen/qwen2-1.5b-instruct`,
+      customApiConfig: '',
+      lastCustomApiConfig: null,
       modelOptions: [],
       selectedDatasets: [],
       datasetOptions: [],
@@ -320,6 +319,11 @@ MODEL=Qwen/qwen2-1.5b-instruct`,
     }
   },
   computed: {
+    defaultApiConfig() {
+      return `API_URL=https://guanghua-api.hk33smarter.com/v1
+API_KEY=sk-xxxx
+MODEL=Qwen/qwen2-1.5b-instruct`
+    },
     canGoNext() {
       if (this.currentStep === 1) {
         return this.modelType === 'preset' 
@@ -333,11 +337,34 @@ MODEL=Qwen/qwen2-1.5b-instruct`,
     this.fetchModels();
     this.fetchDatasets();
     
+    this.loadApiConfigFromStorage();
+    
     if (this.$route.path === '/evaluation/records' && this.$refs.taskList) {
       this.$refs.taskList.fetchTasks();
     }
   },
   methods: {
+    loadApiConfigFromStorage() {
+      try {
+        const savedConfig = localStorage.getItem('evaluation_custom_api_config');
+        if (savedConfig) {
+          this.lastCustomApiConfig = savedConfig;
+        }
+        this.customApiConfig = this.lastCustomApiConfig || this.defaultApiConfig;
+      } catch (error) {
+        console.error('从本地存储加载配置失败:', error);
+        this.customApiConfig = this.defaultApiConfig;
+      }
+    },
+    
+    saveApiConfigToStorage(config) {
+      try {
+        localStorage.setItem('evaluation_custom_api_config', config);
+      } catch (error) {
+        console.error('保存配置到本地存储失败:', error);
+      }
+    },
+    
     async fetchModels() {
       try {
         const response = await fetch('/api/v1/models', {
@@ -456,9 +483,6 @@ MODEL=Qwen/qwen2-1.5b-instruct`,
         this.currentStep = 1
         this.selectedModel = null
         this.selectedDatasets = []
-        this.customApiConfig = `API_URL=http://api.xxx.com/v1
-API_KEY=sk-xxxx
-MODEL=modelname`
         
         // 刷新任务列表
         if (this.$refs.taskList) {
@@ -499,6 +523,17 @@ MODEL=modelname`
     '$route.path'(newPath) {
       if (newPath === '/evaluation/records' && this.$refs.taskList) {
         this.$refs.taskList.fetchTasks();
+      }
+    },
+    modelType(newType) {
+      if (newType === 'custom') {
+        this.customApiConfig = this.lastCustomApiConfig || this.defaultApiConfig;
+      }
+    },
+    customApiConfig(newConfig) {
+      if (this.modelType === 'custom' && newConfig !== this.defaultApiConfig) {
+        this.lastCustomApiConfig = newConfig;
+        this.saveApiConfigToStorage(newConfig);
       }
     }
   }
