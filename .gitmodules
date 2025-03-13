@@ -1,3 +1,6 @@
 [submodule "libs/OpenCompass"]
 	path = libs/OpenCompass
 	url = https://github.com/open-compass/opencompass
+[submodule "libs/dify2openai"]
+	path = libs/dify2openai
+	url = https://github.com/onenov/Dify2OpenAI.git
