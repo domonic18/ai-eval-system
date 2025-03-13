@@ -4,7 +4,7 @@
       <!-- 网站Logo -->
       <div class="logo">
         <router-link to="/">
-          <img src="../assets/images/logo.png" alt="OpenCompass在线评测系统" class="logo-img">
+          <img src="../assets/images/logo.jpg" alt="OpenCompass在线评测系统" class="logo-img">
           <span class="logo-text">OpenCompass在线评测系统</span>
         </router-link>
       </div>
