@@ -10,6 +10,39 @@ v0.1：
 - 支持评测结果的导出
 
 
+## 使用方法
+### 1. 创建评测任务
+1. 注册并登录系统
+2. 顶部菜单→在线评测→创建评测
+3. 选择自定义API类型
+4. 在编辑框内输入要测评的API_URL、API_KEY、MODEL_NAME
+![创建测评任务](docs/assets/创建测评任务.png)
+5. 点击下一步，选择预置的数据集，例如：demo_math_chat_gen
+6. 点击下一步，开始评测即可。
+
+> 备注说明：
+> 1. 预置模型：是指在服务器上直接部署推理服务进行测试，因为性能原因暂不支持，主要使用API方式进行模型能力的测试。
+> 2. 自定义API：是通过OpenAI标准协议进行测试，Dify平台由于接口不是标准接口，暂时还不支持。
+
+### 2. 查看评测进程
+1. 创建评测任务之后
+2. 在评测记录列表中，点击日志按钮，可以实时查看任务执行的日志情况
+![查看实时日志](docs/assets/查看实时日志.png)
+![实时日志截图](docs/assets/实时日志截图.png)
+
+### 3. 查看评测结果
+1. 当评测任务执行完毕之后
+2. 在评测记录列表中，点击结果按钮，可以查看评测执行结果
+![查看评测结果](docs/assets/查看评测结果.png)
+3. 点击"下载完整结果"，可以将执行任务的完整记录下载分析
+![结果内容解读](docs/assets/结果内容解读.png)
+
+> 说明：
+> - `predictions` 目录中的日志为对应评测数据集的详细记录，其中：
+> - `origin_prompt` 是测试的问题描述。
+> - `prediction` 是模型预测的答案。
+> - `gold` 是该问题的标准答案。
+
 
 ## 项目架构
 
@@ -18,7 +51,7 @@ v0.1：
 ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐    ┌───────────────┐
 │             │    │             │    │                     │    │               │
 │  前端应用    │───▶│  FastAPI    │───▶│  Celery 任务队列      │───▶│ OpenCompass   │
-│  (Vue/React)│    │  服务       │     │  (Redis)            │    │ 评测引擎       │
+│  (Vue3)     │    │  服务       │     │  (Redis)            │    │ 评测引擎       │
 │             │◀───│             │◀───│                     │◀───│               │
 └─────────────┘    └─────────────┘    └─────────────────────┘    └───────────────┘
       │                  │                       │                       │
@@ -32,13 +65,13 @@ v0.1：
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 ### 1. 分层架构设计
-- 前端层：Vue3/React + TypeScript + WebSocket（实时状态）
+- 前端层：Vue3 + WebSocket（实时状态）
 - 服务层：
-- API服务：FastAPI/DRF（RESTful API）
+  - API服务：FastAPI（RESTful API）
   - 异步任务引擎：Celery + Redis（分布式任务队列）
   - 核心评测引擎：OpenCompass封装层（Python API调用）
 - 持久层：
-  - PostgreSQL（关系型数据）
+  - MySQL（关系型数据）
   - Redis（缓存/消息中间件）
 
 
@@ -58,14 +91,15 @@ ai-eval-system/
 │   │   └── package.json
 │   ├── server/                  # 后端服务（独立的git仓库）
 │   │   ├── src/
+│   │   └── start_celery_worker.py   # 启动Celery Worker
+│   │   └── start_fastapi_server.py  # 启动FastAPI服务器
 ├── libs/                        # 第三方依赖库
 │   └── OpenCompass/             # 通过git子模块引入（保持独立更新）
 ├── docs/                        # 项目文档
 │   └── 架构设计文档.md            # 开发规范
 ├── scripts/                     # 运维脚本
 │   ├── init_database.py         # 初始化数据库
-│   └── start_celery_worker.py   # 启动Celery Worker
-│   └── start_fastapi_server.py  # 启动FastAPI服务器
+│   ├── init_environment.sh      # 初始化环境
 ├── docker/                      # 容器化配置
 ```
 
@@ -94,6 +128,10 @@ cp .env.example .env
 
 ### 4. 安装依赖
 ```bash
+# 源码方式安装OpenCompass
+cd libs/OpenCompass
+pip install -e .
+
 # 安装基础依赖
 cd requirements
 pip install -r base.txt
@@ -102,9 +140,7 @@ pip install -r base.txt
 cd 根目录
 pip install -e .
 
-# 安装OpenCompass
-cd libs/OpenCompass
-pip install -e .
+
 ```
 > 清华源：https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
 
@@ -120,7 +156,14 @@ docker run -d -p 6379:6379 --name redis-server redis:alpine
 
 2. **启动Mysql服务器**
 ```bash
-docker run -d -p 3306:3306 --name mysql-server mysql:8.0
+docker run -d \
+  --name mysql-server \
+  -p 3306:3306 \
+  -e MYSQL_ROOT_PASSWORD=abc123456 \
+  -e MYSQL_DATABASE=ai_eval \
+  -e MYSQL_USER=ai_eval_user \
+  -e MYSQL_PASSWORD=ai_eval_password \
+  mysql:8.0
 ```
 
 3. **初始化数据库**
@@ -153,6 +196,10 @@ npm run dev
 
 
 ## TODO
+基础建设
+- [ ] 搭建dify2openai的API接口服务
+- [ ] 支持Docker化部署
+  
 前端页面
 - [ ] 支持数据集的基础后台管理功能，包括增、删、改、查
 - [ ] 支持模型基础后台管理功能，包括增、删、改、查
@@ -160,8 +207,7 @@ npm run dev
 - [ ] 支持评测结果的导出
 - [ ] 支持数据集在线化编辑功能
 
-基础建设
-- [ ] 支持Docker化部署
+
 
 
 
