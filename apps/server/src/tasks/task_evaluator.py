@@ -11,7 +11,7 @@ from models.eval import Evaluation, EvaluationStatus
 from core.config import settings
 from tasks.runners.runner_base import create_runner, get_runner, remove_runner
 from utils.redis_manager import RedisManager
-from core.config import BASE_DIR
+# from core.config import BASE_DIR
 from tasks.runners.runner_enhanced import EnhancedRunner
 from pathlib import Path
 from services.evaluation.result_collector import ResultCollector
@@ -59,31 +59,40 @@ class TaskEvaluator:
         # 使用数据库会话上下文管理器处理任务启动
         with db_session() as db:
             try:
-                # 1. 更新任务状态为运行中
+                # 1. 检查当前任务是否已经完成或者失败，如果完成或者失败，则直接返回
+                # 注明：由于celery启动任务时，有可能启动了我们已经完成的任务，导致重复执行，所以需要加入校验
+                eval_task = db.query(Evaluation).filter(Evaluation.id == self.eval_id).first()
+                if eval_task and eval_task.status == EvaluationStatus.COMPLETED.value:
+                    raise ValueError(f"评估任务[{self.eval_id}]已经完成")
+                elif eval_task and eval_task.status == EvaluationStatus.FAILED.value:
+                    raise ValueError(f"评估任务[{self.eval_id}]已经失败")
+                
+                # 2. 更新任务状态为运行中
                 self._update_task_status(db, self.eval_id, EvaluationStatus.RUNNING.value)
                 
-                # 2. 读取评估任务
+                # 3. 读取评估任务
                 eval_task = db.query(Evaluation).filter(Evaluation.id == self.eval_id).first()
                 if not eval_task:
                     raise ValueError(f"找不到评估任务: {self.eval_id}")
                     
-                # 3. 初始化增强型执行器
+                # 4. 初始化增强型执行器
                 runner = EnhancedRunner(
                     eval_id=self.eval_id,
-                    working_dir=Path(BASE_DIR),
+                    # working_dir=Path(BASE_DIR),
+                    working_dir=settings.workspace,
                     opencompass_path=settings.opencompass_path
                 )
                 
-                # 4. 创建日志文件
+                # 5. 创建日志文件
                 self.log_file = self._create_log_file()
 
-                # 5. 清空之前的日志记录
+                # 6. 清空之前的日志记录
                 RedisManager.clear_logs(self.eval_id)
 
-                # 6. 执行任务
+                # 7. 执行任务
                 exit_code = runner.execute(eval_task)
                 
-                # 7. 结果处理
+                # 8. 结果处理
                 if exit_code == 0:
                     final_status = EvaluationStatus.COMPLETED
                     # 收集结果
@@ -93,7 +102,7 @@ class TaskEvaluator:
                     final_status = EvaluationStatus.FAILED
                     results = {"error": f"非零退出码: {exit_code}"}
                 
-                # 8. 更新最终状态
+                # 9. 更新最终状态(使用同步方式)
                 self._update_task_status(db, self.eval_id, final_status.value)
                 self._update_task_results(db, self.eval_id, results)
                 
@@ -116,7 +125,8 @@ class TaskEvaluator:
 
     def _create_log_file(self):
         """创建日志文件"""
-        logs_dir = os.path.join(BASE_DIR, "logs", "opencompass")
+        # logs_dir = os.path.join(BASE_DIR, "logs", "opencompass")
+        logs_dir = settings.logs_dir
         os.makedirs(logs_dir, exist_ok=True)
         return os.path.join(logs_dir, f"eval_{self.eval_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
 
