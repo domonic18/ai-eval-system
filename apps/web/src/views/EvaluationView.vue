@@ -131,12 +131,20 @@
                     placeholder="选择或搜索数据集"
                     :close-on-select="false"
                     label="value"
-                    value-prop="value"
+                    track-by="value"
+                    ref="datasetMultiselect"
+                    class="dataset-multiselect"
                   >
                     <template #option="{ option }">
                       <div class="dataset-option">
                         <div class="option-value">{{ option.value }}</div>
                         <div class="option-label">{{ option.label }}</div>
+                      </div>
+                    </template>
+                    <template #tag="{ option, handleTagRemove }">
+                      <div class="multiselect-tag">
+                        <span class="tag-value">{{ option.value }}</span>
+                        <span class="tag-remove" @click="handleTagRemove(option)">×</span>
                       </div>
                     </template>
                   </Multiselect>
@@ -356,8 +364,30 @@ MODEL=Qwen/qwen2-1.5b-instruct`
     if (this.$route.path === '/evaluation/records' && this.$refs.taskList) {
       this.$refs.taskList.fetchTasks();
     }
+    
+    // 添加窗口调整事件监听
+    window.addEventListener('resize', this.adjustDropdownHeight);
+    // 初始调整高度
+    this.$nextTick(() => {
+      this.adjustDropdownHeight();
+    });
+  },
+  beforeDestroy() {
+    // 移除事件监听
+    window.removeEventListener('resize', this.adjustDropdownHeight);
   },
   methods: {
+    // 调整下拉列表高度
+    adjustDropdownHeight() {
+      if (this.$refs.datasetMultiselect) {
+        const viewportHeight = window.innerHeight;
+        // 计算合适的最大高度，保留上下边距和额外空间
+        const maxHeight = viewportHeight - 320; // 保留顶部导航栏和底部按钮的空间
+        // 设置CSS变量
+        this.$refs.datasetMultiselect.$el.style.setProperty('--ms-max-height', `${maxHeight}px`);
+      }
+    },
+    
     loadApiConfigFromStorage() {
       try {
         const savedConfig = localStorage.getItem('evaluation_custom_api_config');
@@ -551,6 +581,15 @@ MODEL=Qwen/qwen2-1.5b-instruct`
       if (this.modelType === 'custom' && newConfig !== this.defaultApiConfig) {
         this.lastCustomApiConfig = newConfig;
         this.saveApiConfigToStorage(newConfig);
+      }
+    },
+    // 当切换到数据集选择步骤时调整下拉高度
+    currentStep(newStep) {
+      if (newStep === 2) {
+        // 在DOM更新后调整高度
+        this.$nextTick(() => {
+          this.adjustDropdownHeight();
+        });
       }
     }
   }
@@ -958,31 +997,106 @@ MODEL=Qwen/qwen2-1.5b-instruct`
 
 /* 多选组件样式 */
 .multiselect {
-  @apply border-gray-300 rounded-lg;
-  
-  .multiselect-tag {
-    @apply bg-blue-100 text-blue-800 rounded-md;
-  }
-  
-  .multiselect-input {
-    @apply border-0 focus:ring-0;
-  }
+  border-color: #e2e8f0;
+  border-radius: 0.5rem;
+}
+
+.multiselect .multiselect-tag {
+  background-color: #ebf8ff;
+  color: #2c5282;
+  border-radius: 0.375rem;
+}
+
+.multiselect .multiselect-input {
+  border: 0;
+}
+.multiselect .multiselect-input:focus {
+  box-shadow: none;
+  outline: none;
 }
 
 /* 自定义模型配置布局 */
 .custom-model-config {
-  @apply grid grid-cols-2 gap-4 mt-6 p-4 bg-gray-50 rounded-lg;
-  
-  h4 {
-    @apply col-span-2 text-lg font-semibold mb-4;
-  }
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background-color: #f9fafb;
+  border-radius: 0.5rem;
+}
+
+.custom-model-config h4 {
+  grid-column: span 2 / span 2;
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
 }
 
 /* 响应式布局 */
 @media (max-width: 768px) {
   .custom-model-config {
-    @apply grid-cols-1;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
   }
+}
+
+/* 数据集下拉列表样式优化 */
+.dataset-multiselect {
+  --ms-max-height: calc(100vh - 320px);
+  --ms-option-padding: 8px 16px;
+  --ms-py: 6px;
+}
+
+/* 修正数据集选项样式 */
+.dataset-option {
+  padding: 6px 0;
+}
+
+.dataset-option .option-value {
+  font-weight: 500;
+  color: #2d3748;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.dataset-option .option-label {
+  font-size: 12px;
+  color: #718096;
+  margin-top: 2px;
+  line-height: 1.2;
+}
+
+/* 修正标签样式 */
+.multiselect-tag {
+  display: flex;
+  align-items: center;
+  background-color: #ebf8ff;
+  color: #2b6cb0;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin: 2px;
+}
+
+.multiselect-tag .tag-value {
+  font-size: 14px;
+}
+
+.multiselect-tag .tag-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background-color: #4299e1;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.multiselect-tag .tag-remove:hover {
+  background-color: #3182ce;
 }
 
 /* 成功提示弹窗样式 */
@@ -1126,17 +1240,5 @@ MODEL=Qwen/qwen2-1.5b-instruct`
 @keyframes slideIn {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
-}
-
-.dataset-option {
-  .option-value {
-    font-weight: 500;
-    color: #2d3748;
-  }
-  .option-label {
-    font-size: 12px;
-    color: #718096;
-    margin-top: 4px;
-  }
 }
 </style> 
