@@ -30,8 +30,10 @@ class Database:
         
         # 创建引擎
         self.engine = create_engine(
-            self.DATABASE_URL, 
-            # MySQL连接参数
+            self.DATABASE_URL,
+            connect_args={
+                "init_command": "SET SESSION time_zone='+08:00'"  # 使用标准参数
+            },
             pool_size=5,  # 连接池大小
             max_overflow=10,  # 超出连接池大小后可以创建的连接数
             pool_timeout=30,  # 等待连接的超时时间（秒）

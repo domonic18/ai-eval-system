@@ -16,9 +16,13 @@ class Dataset(Base, TimestampMixin):
     file_path = Column(String(255), nullable=True, comment="数据集文件路径")
     configuration = Column(JSON, nullable=True, comment="数据集配置")
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="创建者ID")
-    created_at = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"), comment="创建时间")
-    updated_at = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"), 
-                        onupdate=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"), comment="更新时间")
+    created_at = Column(DateTime(timezone=True), 
+                        server_default=text('CURRENT_TIMESTAMP(6)'),
+                        comment="创建时间（北京时间）")
+    updated_at = Column(DateTime(timezone=True), 
+                        server_default=text('CURRENT_TIMESTAMP(6)'),
+                        onupdate=text('CURRENT_TIMESTAMP(6)'),
+                        comment="更新时间（北京时间）")
     
     # 关系
     user = relationship("User", back_populates="datasets")

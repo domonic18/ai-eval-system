@@ -19,9 +19,13 @@ class AIModel(Base, TimestampMixin):
     user_id = Column(Integer, ForeignKey("users.id"), index=True, comment="所属用户ID")
     is_active = Column(Boolean, default=True, comment="是否激活(软删除控制)")
 
-    created_at = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"), comment="创建时间")
-    updated_at = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"), 
-                        onupdate=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"), comment="更新时间")
+    created_at = Column(DateTime(timezone=True),
+                        server_default=text('CURRENT_TIMESTAMP(6)'),
+                        comment="创建时间（北京时间）")
+    updated_at = Column(DateTime(timezone=True),
+                        server_default=text('CURRENT_TIMESTAMP(6)'),
+                        onupdate=text('CURRENT_TIMESTAMP(6)'),
+                        comment="更新时间（北京时间）")
     
     # 关系
     user = relationship("User", back_populates="models")

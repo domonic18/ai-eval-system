@@ -1,7 +1,7 @@
 from tasks.runners.runner_base import create_runner
 from tasks.runners.runner_enhanced import EnhancedRunner
 from tasks.runners.env_manager import EnvManager
-from core.config import BASE_DIR
+# from core.config import BASE_DIR
 from core.config import settings
 from schemas.eval import EvaluationCreate
 from services.evaluation.result_collector import ResultCollector
@@ -56,13 +56,12 @@ def test_runner_script():
     )
 
     eval_id = 109
-    work_dir = os.path.join(BASE_DIR, "logs", "test_runner_script")
 
 
     # 1. 初始化增强型执行器
     runner = EnhancedRunner(
         eval_id=eval_id,
-        working_dir=work_dir,  # 从配置获取工作目录
+        working_dir=settings.workspace,  # 从配置获取工作目录
         opencompass_path=settings.opencompass_path
     )
     
@@ -73,7 +72,7 @@ def test_runner_script():
     exit_code = runner.execute(eval_data)
     
     # 4. 收集结果
-    collector = ResultCollector(eval_id, work_dir)
+    collector = ResultCollector(eval_id, settings.workspace)
     collector.collect_results()
 
     # 5. 结果处理
@@ -86,7 +85,8 @@ def test_runner_script():
 def test_result_collector():
 
     # work_dir = os.path.join(BASE_DIR, "logs", "test_runner_script")
-    work_dir = Path(BASE_DIR) / "logs" / "test_runner_script"
+    # work_dir = Path(BASE_DIR) / "logs" / "test_runner_script"
+    work_dir = settings.workspace
     collector = ResultCollector(109, work_dir)
     collector.collect_results()
 

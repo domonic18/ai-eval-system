@@ -33,7 +33,7 @@ class RunnerBase:
         # 设置任务ID
         self.eval_id = eval_id
         # 设置工作目录
-        self.working_dir = working_dir or os.getcwd()
+        self.working_dir = working_dir
         # 设置结果目录（专属工作目录，用来存放opencompass的输出结果）
         self.output_dir = self._prepare_output_dir()
         # 日志缓冲区
@@ -195,7 +195,8 @@ class RunnerBase:
                 stderr=subprocess.STDOUT,
                 text=True,
                 bufsize=1,
-                universal_newlines=True
+                universal_newlines=True,
+                cwd=self.working_dir
             )
 
             # 1. 更新为运行中
