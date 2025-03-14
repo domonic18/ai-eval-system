@@ -1,0 +1,34 @@
+# 核心依赖
+fastapi>=0.103.1
+uvicorn>=0.23.2
+celery
+torch
+torchvision
+torchaudio
+
+# 数据库相关
+sqlalchemy[asyncio]>=2.0.30
+asyncmy>=0.2.7
+alembic>=1.12.0
+redis>=5.0.0
+aioredis
+
+# 其他依赖
+python-dotenv>=1.0.0
+pydantic>=2.3.0
+pydantic-settings>=2.0.3
+pydantic[email]
+python-jose[cryptography]>=3.3.0
+python-multipart>=0.0.6
+pymysql
+
+# 密码相关
+passlib
+cryptography>=42.0.0
+bcrypt
+httpx>=0.24.1
+
+# 测试相关
+pytest>=7.4.2 
+
+
