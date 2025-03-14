@@ -1,16 +1,50 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:14
+  web:
+    build: 
+      context: .
+      dockerfile: apps/web/Dockerfile
     ports:
-      - "5432:5432"
+      - "80:80"
+    depends_on:
+      - api
+    networks:
+      - eval-net
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: ai_eval
+      - VITE_API_BASE_URL=http://api:8000/api
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - ./libs/OpenCompass:/app/libs/OpenCompass
+      - ./workspace:/app/workspace
+    command: uvicorn apps.server.src.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+      - mysql
+    networks:
+      - eval-net
+    env_file:
+      - .env
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    volumes:
+      - ./libs/OpenCompass:/app/libs/OpenCompass
+      - ./workspace:/app/workspace
+    command: celery -A celery_app:celery_app worker --loglevel=INFO --concurrency=1 -Q eval_tasks
+    depends_on:
+      - redis
+      - mysql
+    networks:
+      - eval-net
 
   redis:
     image: redis:alpine
@@ -18,7 +52,32 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - eval-net
+
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DB}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - ./workspace/mysql_data:/var/lib/mysql
+      - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+    networks:
+      - eval-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
 
 volumes:
-  pg_data:
-  redis_data: 
+  redis_data:
+  
+networks:
+  eval-net:
+    driver: bridge 
