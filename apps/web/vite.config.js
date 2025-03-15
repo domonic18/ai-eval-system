@@ -20,12 +20,26 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  build: {
+    // 添加构建配置
+    outDir: 'dist',
+    emptyOutDir: true,
+    sourcemap: false,
+    // 禁用本地依赖优化
+    commonjsOptions: {
+      include: []
+    }
+  },
   server: {
     host: '0.0.0.0', 
     port: 5173,
+    watch: {
+      usePolling: true,  // Docker中监听文件变化
+      interval: 1000,    // 检查间隔
+    },
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://api:8000',
         changeOrigin: true,
         rewrite: (path) => path,
         ws: true

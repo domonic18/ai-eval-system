@@ -1,10 +1,25 @@
-# 直接使用nginx镜像，跳过构建阶段
-FROM nginx:alpine
+# 使用Node.js镜像
+FROM node:18-alpine
 
-# 复制预构建的dist目录（路径调整为相对于项目根目录）
-COPY apps/web/dist/ /usr/share/nginx/html/
+# 设置工作目录
+WORKDIR /app
 
-# 复制nginx配置（路径调整为相对于项目根目录）
-COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+# 设置环境变量
+ENV NODE_ENV=development
+ENV CHOKIDAR_USEPOLLING=true
+ENV HOST=0.0.0.0
 
-EXPOSE 80 
+# 复制package.json和package-lock.json
+COPY package*.json ./
+
+# 安装依赖
+RUN npm install
+
+# 复制源代码
+COPY . ./
+
+# 暴露开发服务器端口
+EXPOSE 5173
+
+# 启动开发服务器
+CMD ["npm", "run", "dev"]
