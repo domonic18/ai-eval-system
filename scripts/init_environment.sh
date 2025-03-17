@@ -4,7 +4,7 @@
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 
 # 1. 拷贝custom_api.py文件
-SOURCE_FILE="${SCRIPT_DIR}/../workspace/eval_script/custom_api.py"
+SOURCE_FILE="${SCRIPT_DIR}/../scripts/eval_script/custom_api.py"
 TARGET_DIR="${SCRIPT_DIR}/../libs/OpenCompass/opencompass/configs/models/openai"
 
 echo "正在拷贝配置文件..."

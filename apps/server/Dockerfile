@@ -29,7 +29,7 @@ COPY apps/server /app/apps/server
 COPY libs/OpenCompass /app/libs/OpenCompass
 
 # 2.3 复制custom_api.py文件到/app/libs/OpenCompass/opencompass/configs/models/openai下面
-COPY workspace/eval_script/custom_api.py /app/libs/OpenCompass/opencompass/configs/models/openai/custom_api.py
+COPY scripts/eval_script/custom_api.py /app/libs/OpenCompass/opencompass/configs/models/openai/custom_api.py
 
 # 2.4 复制项目根目录的setup.py文件到/app/setup.py
 COPY setup.py /app/setup.py
