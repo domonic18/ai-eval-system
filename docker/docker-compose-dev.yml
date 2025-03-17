@@ -33,7 +33,7 @@ services:
     image: node:18.20.2-bullseye
     working_dir: /app
     volumes:
-      - ./libs/dify2openai:/app
+      - ../libs/dify2openai:/app
       - /app/node_modules
     ports:
       - "3099:3099"
