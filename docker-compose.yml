@@ -41,15 +41,15 @@ services:
       context: .
       dockerfile: apps/server/Dockerfile
     volumes:
-      # - ./libs/OpenCompass:/app/libs/OpenCompass
       - ./workspace:/app/workspace
     command: celery -A celery_app:celery_app worker --loglevel=INFO --concurrency=1 -Q eval_tasks
     depends_on:
       - redis
       - mysql
-      # - db_init
     networks:
       - eval-net
+    env_file:
+      - .env
 
   redis:
     image: redis:alpine

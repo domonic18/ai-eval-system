@@ -10,13 +10,13 @@ ENV CHOKIDAR_USEPOLLING=true
 ENV HOST=0.0.0.0
 
 # 复制package.json和package-lock.json
-COPY package*.json ./
+COPY apps/web/package*.json ./
 
 # 安装依赖
 RUN npm install
 
 # 复制源代码
-COPY . ./
+COPY apps/web/ ./
 
 # 暴露开发服务器端口
 EXPOSE 5173

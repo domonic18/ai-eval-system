@@ -11,6 +11,8 @@ import sys
 import pymysql
 import argparse
 from dotenv import load_dotenv
+import time
+from datetime import datetime
 
 def read_sql_file(file_path):
     """读取SQL文件内容"""
@@ -30,65 +32,67 @@ def init_database(drop_existing=False, sql_file=None):
     db_password = os.getenv('MYSQL_PASSWORD', 'abc123456')
     db_name = os.getenv('MYSQL_DB', 'ai_eval')
     
-    # 连接到MySQL服务器（不指定数据库）
-    try:
-        conn = pymysql.connect(
-            host=db_host,
-            port=db_port,
-            user=db_user,
-            password=db_password
-        )
-        cursor = conn.cursor()
-        print(f"成功连接到MySQL服务器: {db_host}:{db_port}")
+    # 在连接数据库处添加重试逻辑
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            conn = pymysql.connect(
+                host=db_host,
+                port=db_port,
+                user=db_user,
+                password=db_password
+            )
+            cursor = conn.cursor()
+            print(f"成功连接到MySQL服务器: {db_host}:{db_port}")
+            
+            # 如果需要删除现有数据库
+            if drop_existing:
+                cursor.execute(f"DROP DATABASE IF EXISTS {db_name}")
+                print(f"已删除现有数据库: {db_name}")
+            
+            # 创建数据库（如果不存在）
+            cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_name} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+            print(f"已创建数据库: {db_name}")
+            
+            # 选择数据库
+            cursor.execute(f"USE {db_name}")
+            
+            # 根据SQL文件初始化数据库结构
+            if sql_file is None:
+                # 修复路径问题：使用正确的路径
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                sql_file = os.path.join(current_dir, 'database', 'database_init.sql')
+            
+            if not os.path.exists(sql_file):
+                print(f"错误: SQL文件不存在: {sql_file}")
+                return False
+            
+            # 读取SQL文件内容
+            sql_content = read_sql_file(sql_file)
+            
+            # 分割SQL语句并执行
+            statements = sql_content.split(';')
+            for statement in statements:
+                statement = statement.strip()
+                if statement:
+                    try:
+                        cursor.execute(statement)
+                    except Exception as e:
+                        print(f"执行SQL语句时出错: {e}")
+                        print(f"问题语句: {statement}")
+            
+            conn.commit()
+            print("数据库初始化完成！")
+            
+            return True
         
-        # 如果需要删除现有数据库
-        if drop_existing:
-            cursor.execute(f"DROP DATABASE IF EXISTS {db_name}")
-            print(f"已删除现有数据库: {db_name}")
-        
-        # 创建数据库（如果不存在）
-        cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_name} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
-        print(f"已创建数据库: {db_name}")
-        
-        # 选择数据库
-        cursor.execute(f"USE {db_name}")
-        
-        # 根据SQL文件初始化数据库结构
-        if sql_file is None:
-            # 修复路径问题：使用正确的路径
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            sql_file = os.path.join(current_dir, 'database', 'database_init.sql')
-        
-        if not os.path.exists(sql_file):
-            print(f"错误: SQL文件不存在: {sql_file}")
-            return False
-        
-        # 读取SQL文件内容
-        sql_content = read_sql_file(sql_file)
-        
-        # 分割SQL语句并执行
-        statements = sql_content.split(';')
-        for statement in statements:
-            statement = statement.strip()
-            if statement:
-                try:
-                    cursor.execute(statement)
-                except Exception as e:
-                    print(f"执行SQL语句时出错: {e}")
-                    print(f"问题语句: {statement}")
-        
-        conn.commit()
-        print("数据库初始化完成！")
-        
-        return True
-    
-    except Exception as e:
-        print(f"数据库初始化过程中出错: {e}")
-        return False
-    
-    finally:
-        if 'conn' in locals() and conn:
-            conn.close()
+        except pymysql.OperationalError as e:
+            if attempt < max_retries - 1:
+                print(f"数据库连接失败，重试中 ({attempt+1}/{max_retries})...")
+                time.sleep(5)
+                continue
+            else:
+                raise
 
 def main():
     """主函数"""
@@ -105,10 +109,19 @@ def main():
             print("操作已取消")
             return
     
+    # 在main函数中添加初始化标记检查
+    INIT_MARKER = "/app/.db_initialized"
+    
+    if os.path.exists(INIT_MARKER):
+        print("数据库已初始化，跳过...")
+        sys.exit(0)
+    
     success = init_database(drop_existing=args.drop, sql_file=args.sql)
     
     if success:
         print("数据库初始化成功！现在可以运行应用程序。")
+        with open(INIT_MARKER, "w") as f:
+            f.write(datetime.now().isoformat())
     else:
         print("数据库初始化失败！请检查错误信息并重试。")
         sys.exit(1)
