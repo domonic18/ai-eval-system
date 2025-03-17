@@ -20,9 +20,6 @@ v0.1：
 5. 点击下一步，选择预置的数据集，例如：demo_math_chat_gen
 6. 点击下一步，开始评测即可。
 
-> 备注说明：
-> 1. 预置模型：是指在服务器上直接部署推理服务进行测试，因为性能原因暂不支持，主要使用API方式进行模型能力的测试。
-> 2. 自定义API：是通过OpenAI标准协议进行测试，Dify平台由于接口不是标准接口，暂时还不支持。
 
 ### 2. 查看评测进程
 1. 创建评测任务之后
@@ -104,7 +101,10 @@ ai-eval-system/
 ```
 
 ## 快速部署
-### 1. 拉取代码
+你可以通过Docker方式快速部署，也可以通过开发者模式进行部署运行。
+
+### Docker方式部署（推荐）
+#### 1. 拉取代码
 ```bash
 git clone https://github.com/domonic18/ai-eval-system.git
 cd ai-eval-system
@@ -113,80 +113,75 @@ cd ai-eval-system
 git submodule update --init --recursive
 ```
 
-### 2. 创建虚拟环境
+#### 2. 配置环境变量
+```bash
+cd docker
+cp .env.example .env
+```
+编辑.env文件，配置数据库连接信息
+
+#### 3. 启动服务
+```bash
+# 前提：在docker目录下
+docker-compose up -d
+```
+
+#### 4. 访问系统
+待docker容器启动完毕后，访问系统
+```bash
+http://localhost
+```
+
+### 开发模式运行
+这种模式下，适用于开发者本地调试场景下。
+
+#### 1. 创建虚拟环境
 ```bash
 conda create -n eval python=3.10
 conda activate eval
 ```
 
-### 3. 配置环境变量
-```bash
-cp .env.example .env
-```
-编辑.env文件，配置数据库连接信息
-
-
-### 4. 安装依赖
+#### 2. 安装依赖
 ```bash
 # 源码方式安装OpenCompass
 cd libs/OpenCompass
 pip install -e .
 
-# 安装基础依赖
-cd requirements
-pip install -r base.txt
+# 安装基础依赖(切换至根目录下)
+pip install -r requirements.txt
 
-# 安装ai-eval-system
-cd 根目录
+# 安装ai-eval-system(切换至根目录下)
 pip install -e .
 
-
 ```
-> 清华源：https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
+> 备注：
+> 1. 安装过程如果比较慢，可以在在pip命令后添加-i {镜像地址}
+> 2. 清华源地址：https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
 
-## 3. 启动服务
-
-### 正常启动流程
-
-1. **启动Redis服务** (用于Celery任务队列)
+#### 3. 启动mysql和redis
 ```bash
-# 如果使用Docker方式
-docker run -d -p 6379:6379 --name redis-server redis:alpine
+# 切换至docker目录
+cd docker
+
+# 启动mysql和redis
+docker-compose -f docker-compose-dev.yml up -d
 ```
 
-2. **启动Mysql服务器**
-```bash
-docker run -d \
-  --name mysql-server \
-  -p 3306:3306 \
-  -e MYSQL_ROOT_PASSWORD=abc123456 \
-  -e MYSQL_DATABASE=ai_eval \
-  -e MYSQL_USER=ai_eval_user \
-  -e MYSQL_PASSWORD=ai_eval_password \
-  mysql:8.0
-```
-
-3. **初始化数据库**
-```bash
-cd scripts
-python init_database.py
-```
-
-4. **启动FastAPI服务器**
+#### 4. 启动FastAPI服务器
 ```bash
 cd apps/server
 python start_fastapi_server.py
 ```
 服务器将在 http://localhost:8000 启动，可以通过访问 http://localhost:8000/docs 查看API文档。
 
-5. **启动Celery Worker**
+#### 5. 启动Celery Worker
 ```bash
 cd apps/server
 python start_celery_worker.py
 ```
 这将启动Celery Worker处理异步评测任务。
 
-6. **启动前端服务**
+#### 6. 启动前端服务
 ```bash
 cd apps/web
 npm install
@@ -196,9 +191,6 @@ npm run dev
 
 
 ## TODO
-基础建设
-- [ ] 搭建dify2openai的API接口服务
-- [ ] 支持Docker化部署
   
 前端页面
 - [ ] 支持数据集的基础后台管理功能，包括增、删、改、查
