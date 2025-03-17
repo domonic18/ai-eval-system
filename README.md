@@ -82,22 +82,26 @@ v0.1：
 ### 3. 目录结构
 ```
 ai-eval-system/
-├── apps/                        # 主应用目录
-│   ├── web/                     # 前端工程（独立的git仓库）
+├── apps/                             # 主应用目录
+│   ├── web/                          # 前端工程（独立的git仓库）
 │   │   ├── src/
 │   │   └── package.json
-│   ├── server/                  # 后端服务（独立的git仓库）
+│   ├── server/                       # 后端服务（独立的git仓库）
 │   │   ├── src/
-│   │   └── start_celery_worker.py   # 启动Celery Worker
-│   │   └── start_fastapi_server.py  # 启动FastAPI服务器
-├── libs/                        # 第三方依赖库
-│   └── OpenCompass/             # 通过git子模块引入（保持独立更新）
-├── docs/                        # 项目文档
-│   └── 架构设计文档.md            # 开发规范
-├── scripts/                     # 运维脚本
-│   ├── init_database.py         # 初始化数据库
-│   ├── init_environment.sh      # 初始化环境
-├── docker/                      # 容器化配置
+│   │   └── start_celery_worker.py    # 启动Celery Worker
+│   │   └── start_fastapi_server.py   # 启动FastAPI服务器
+├── libs/                             # 第三方依赖库
+│   └── OpenCompass/                  # 通过git子模块引入（保持独立更新）
+│   └── Dify2OpenAI/                  # 通过git子模块引入（保持独立更新）
+├── docker/                           # 容器化配置
+│   ├── docker-compose-dev.yml        # 开发环境配置
+│   └── docker-compose.yml            # 生产环境配置
+├── docs/                             # 项目文档
+│   └── 架构设计文档.md                 # 架构设计文档
+├── scripts/                          # 运维脚本
+│   ├── init_database.py              # 初始化数据库
+│   ├── init_environment.sh           # 初始化环境
+├── README.md                         # 项目说明
 ```
 
 ## 快速部署
