@@ -1,7 +1,7 @@
 services:
   web:
     build:
-      context: .
+      context: ..
       dockerfile: apps/web/Dockerfile
       args:
         - DOCKER_ENV=true
@@ -15,17 +15,17 @@ services:
       - VITE_API_BASE_URL=/api
       - REDIS_URL=redis://redis:6379/0
     volumes:
-      - ./apps/web/src:/app/src
-      - ./apps/web/public:/app/public
-      - ./apps/web/index.html:/app/index.html
-      - ./apps/web/vite.config.js:/app/vite.config.js
+      - ../apps/web/src:/app/src
+      - ../apps/web/public:/app/public
+      - ../apps/web/index.html:/app/index.html
+      - ../apps/web/vite.config.js:/app/vite.config.js
 
   api:
     build:
-      context: .
+      context: ..
       dockerfile: apps/server/Dockerfile
     volumes:
-      - ./workspace:/app/workspace
+      - ../workspace:/app/workspace
     command: uvicorn apps.server.src.main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
@@ -44,10 +44,10 @@ services:
 
   celery_worker:
     build:
-      context: .
+      context: ..
       dockerfile: apps/server/Dockerfile
     volumes:
-      - ./workspace:/app/workspace
+      - ../workspace:/app/workspace
     command: celery -A celery_app:celery_app worker --loglevel=INFO --concurrency=1 -Q eval_tasks
     environment:
       - REDIS_URL=redis://redis:6379/0
@@ -82,9 +82,9 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
-      - ./workspace/mysql_data:/var/lib/mysql
-      - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
-      - ./initdb:/docker-entrypoint-initdb.d
+      - ../workspace/mysql_data:/var/lib/mysql
+      - ../docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+      - ../initdb:/docker-entrypoint-initdb.d
     networks:
       - eval-net
     healthcheck:
@@ -97,7 +97,7 @@ services:
     image: node:18.20.2-bullseye
     working_dir: /app
     volumes:
-      - ./libs/dify2openai:/app
+      - ../libs/dify2openai:/app
       - /app/node_modules
     ports:
       - "3099:3099"
@@ -116,7 +116,7 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./docker/nginx/dev.conf:/etc/nginx/conf.d/default.conf
+      - ../docker/nginx/dev.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - web
       - api
@@ -125,7 +125,12 @@ services:
 
 volumes:
   redis_data:
-  
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ${PWD}/../workspace/redis_data
+
 networks:
   eval-net:
     driver: bridge 
