@@ -1,0 +1,52 @@
+services:
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - eval-net
+
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DB}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - ./workspace/mysql_data:/var/lib/mysql
+      - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+      - ./initdb:/docker-entrypoint-initdb.d
+    networks:
+      - eval-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+
+  dify2openai:
+    image: node:18.20.2-bullseye
+    working_dir: /app
+    volumes:
+      - ./libs/dify2openai:/app
+      - /app/node_modules
+    ports:
+      - "3099:3099"
+    networks:
+      - eval-net
+    environment:
+      NODE_ENV: production
+    command: >
+      sh -c "npm install &&
+             npm run start"
+volumes:
+  redis_data:
+  
+networks:
+  eval-net:
+    driver: bridge 
