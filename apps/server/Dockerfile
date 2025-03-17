@@ -37,7 +37,7 @@ COPY setup.py /app/setup.py
 
 # 3. 安装依赖
 # 3.1 安装OpenCompass
-# RUN pip install --no-cache-dir -e /app/libs/OpenCompass -i https://pypi.tuna.tsinghua.edu.cn/simple
+RUN pip install --no-cache-dir -e /app/libs/OpenCompass -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 3.2 安装项目依赖
 RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple

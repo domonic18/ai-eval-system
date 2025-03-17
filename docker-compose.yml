@@ -11,6 +11,7 @@ services:
       - eval-net
     environment:
       - VITE_API_BASE_URL=/api
+      - REDIS_URL=redis://redis:6379/0
     volumes:
       - ./apps/web/src:/app/src
       - ./apps/web/public:/app/public
@@ -22,15 +23,18 @@ services:
       context: .
       dockerfile: apps/server/Dockerfile
     volumes:
-      # - ./libs/OpenCompass:/app/libs/OpenCompass
       - ./workspace:/app/workspace
     command: uvicorn apps.server.src.main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - MYSQL_HOST=mysql
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
     depends_on:
       - redis
       - mysql
-      # - db_init
     networks:
       - eval-net
     env_file:
@@ -43,6 +47,11 @@ services:
     volumes:
       - ./workspace:/app/workspace
     command: celery -A celery_app:celery_app worker --loglevel=INFO --concurrency=1 -Q eval_tasks
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - MYSQL_HOST=mysql
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
     depends_on:
       - redis
       - mysql
@@ -50,6 +59,7 @@ services:
       - eval-net
     env_file:
       - .env
+
 
   redis:
     image: redis:alpine
@@ -80,35 +90,36 @@ services:
       interval: 5s
       timeout: 10s
       retries: 10
-  nginx:
-      image: nginx:alpine
-      ports:
-        - "80:80"
-      volumes:
-        - ./docker/nginx/dev.conf:/etc/nginx/conf.d/default.conf
-      depends_on:
-        - web
-        - api
-      networks:
-        - eval-net
 
-  # db_init:
-  #   build:
-  #     context: .
-  #     dockerfile: apps/server/Dockerfile
-  #   depends_on:
-  #     mysql:
-  #       condition: service_healthy
-  #   networks:
-  #     - eval-net
-  #   env_file:
-  #     - .env
-  #   command: >
-  #     sh -c "echo '等待MySQL准备就绪...';
-  #            until python3 /app/scripts/init_database.py; do
-  #              echo '数据库初始化失败，重试中...';
-  #              sleep 5;
-  #            done"
+  dify2openai:
+    image: node:18.20.2-bullseye
+    working_dir: /app
+    volumes:
+      - ./libs/dify2openai:/app
+      - /app/node_modules
+    ports:
+      - "3099:3099"
+    networks:
+      - eval-net
+    depends_on:
+      - api
+    environment:
+      NODE_ENV: production
+    command: >
+      sh -c "npm install &&
+             npm run start"
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/dev.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - web
+      - api
+    networks:
+      - eval-net
 
 volumes:
   redis_data:
