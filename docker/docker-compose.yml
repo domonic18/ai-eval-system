@@ -125,11 +125,6 @@ services:
 
 volumes:
   redis_data:
-    driver: local
-    driver_opts:
-      o: bind
-      type: none
-      device: ${PWD}/../workspace/redis_data
 
 networks:
   eval-net:
