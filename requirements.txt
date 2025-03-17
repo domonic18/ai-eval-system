@@ -21,6 +21,7 @@ pydantic[email]
 python-jose[cryptography]>=3.3.0
 python-multipart>=0.0.6
 pymysql
+psutil
 
 # 密码相关
 passlib
