@@ -39,10 +39,16 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'http://api:8000',
+        target: 'http://localhost:8000',
         changeOrigin: true,
-        rewrite: (path) => path,
-        ws: true
+        ws: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      },
+      '/ws': {
+        target: 'ws://localhost:8000',
+        ws: true,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/ws/, '')
       }
     }
   }

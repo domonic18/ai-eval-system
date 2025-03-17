@@ -109,6 +109,7 @@ export default {
       try {
         // 根据部署环境调整WebSocket URL
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        // 始终使用当前页面的主机名和端口
         const wsUrl = `${wsProtocol}//${window.location.host}/api/v1/evaluations/${this.taskId}/ws_logs`;
         
         this.socket = new WebSocket(wsUrl);
