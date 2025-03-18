@@ -64,7 +64,7 @@
               </div>
               <div class="info-item">
                 <span class="item-label">DIFY类型</span>
-                <span class="item-value">{{ customConfig.dify_type === 'chat' ? 'Chat类型' : 'WorkFlow类型' }}</span>
+                <span class="item-value">{{ customConfig.dify_type === 'Chat' ? 'Chat类型' : 'WorkFlow类型' }}</span>
               </div>
             </template>
           </template>
@@ -222,7 +222,7 @@ export default {
         url: '',
         key: '',
         model: '',
-        dify_type: 'chat'
+        dify_type: 'Chat'
       }
     }
   },
@@ -267,7 +267,7 @@ export default {
         this.customConfig.key = configObj.api_key || '';
         this.customConfig.model = configObj.model || '';
       } else {
-        this.customConfig.dify_type = configObj.dify_type || 'chat';
+        this.customConfig.dify_type = configObj.dify_type || 'Chat';
         this.customConfig.url = configObj.dify_url || '';
         this.customConfig.key = configObj.dify_api_key || '';
       }

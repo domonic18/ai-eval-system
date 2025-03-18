@@ -126,8 +126,8 @@
           <label>Dify应用类型</label>
           <div class="input-with-hint">
             <select v-model="difyConfig.type" class="form-select">
-              <option value="chat">Chat类型</option>
-              <option value="workflow">WorkFlow类型</option>
+              <option value="Chat">Chat类型</option>
+              <option value="Workflow">WorkFlow类型</option>
             </select>
             <button type="button" class="hint-btn" @click="showHint('difyType')">?</button>
           </div>
@@ -218,7 +218,7 @@ export default {
         model: ''
       },
       difyConfig: {
-        type: 'chat', // 默认为Chat类型
+        type: 'Chat', // 默认为Chat类型
         url: '',
         key: ''
       },
@@ -249,7 +249,7 @@ export default {
       } else {
         return {
           type: 'dify',
-          dify_type: this.difyConfig.type || 'chat',
+          dify_type: this.difyConfig.type || 'Chat',
           dify_url: this.difyConfig.url || '',
           dify_api_key: this.difyConfig.key || ''
         };
@@ -301,7 +301,7 @@ export default {
           // 判断配置类型
           if (configObj.type === 'dify') {
             this.apiType = 'dify';
-            this.difyConfig.type = configObj.dify_type || 'chat';
+            this.difyConfig.type = configObj.dify_type || 'Chat';
             this.difyConfig.url = configObj.dify_url || '';
             this.difyConfig.key = configObj.dify_api_key || '';
           } else {
