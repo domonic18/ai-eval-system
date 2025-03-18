@@ -18,9 +18,9 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
-      - ./workspace/mysql_data:/var/lib/mysql
-      - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
-      - ./initdb:/docker-entrypoint-initdb.d
+      - ../workspace/mysql_data:/var/lib/mysql
+      - ../docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+      - ../initdb:/docker-entrypoint-initdb.d
     networks:
       - eval-net
     healthcheck:
