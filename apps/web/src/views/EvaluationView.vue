@@ -183,9 +183,9 @@ import TaskForm from '@/components/TaskForm.vue'
 import TaskList from '@/components/TaskList.vue'
 import LogViewer from '@/components/LogViewer.vue'
 import ResultViewer from '@/components/ResultViewer.vue'
-import ModelSelectionStep from '@/components/ModelSelectionStep.vue'
-import DatasetSelectionStep from '@/components/DatasetSelectionStep.vue'
-import SubmitEvaluationStep from '@/components/SubmitEvaluationStep.vue'
+import ModelSelectionStep from '@/components/evaluations/ModelSelectionStep.vue'
+import DatasetSelectionStep from '@/components/evaluations/DatasetSelectionStep.vue'
+import SubmitEvaluationStep from '@/components/evaluations/SubmitEvaluationStep.vue'
 
 export default {
   name: 'EvaluationView',
