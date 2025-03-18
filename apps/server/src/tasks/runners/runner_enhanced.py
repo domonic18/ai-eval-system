@@ -4,6 +4,7 @@ from tasks.runners.env_manager import EnvManager
 from services.evaluation.result_collector import ResultCollector
 from schemas.eval import EvaluationCreate
 
+
 class EnhancedRunner(RunnerBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -52,11 +53,15 @@ class EnhancedRunner(RunnerBase):
             f"--debug"
         ]
 
-        # 添加可选参数
-        # if eval_data.eval_config:
-        #     for key, value in eval_data.eval_config.items():
-        #         if value:
-        #             cmd.append(f"--{key} {value}")
+        # 如果eval_data.eval_config中debug为True，则增加--debug参数
+        if eval_data.eval_config.get("debug", False):
+            cmd.append("--debug")
+        
+        # 如果eval_data.eval_config中return_intermediate_result为True，则增加--return-intermediate-result参数
+        if eval_data.eval_config.get("return_intermediate_result", False):
+            cmd.append("--return-intermediate-result")
+
+
 
         return self.env_manager.inject_to_command(" ".join(cmd))
     def _handle_error(self, error: Exception):
