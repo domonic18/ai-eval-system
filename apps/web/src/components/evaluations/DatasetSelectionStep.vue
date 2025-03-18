@@ -1,31 +1,51 @@
 <template>
   <div class="dataset-selection">
     <h3>选择评测数据集</h3>
-    <Multiselect
-      v-model="selectedDatasets"
-      :options="datasetOptions"
-      mode="tags"
-      :searchable="true"
-      placeholder="选择或搜索数据集"
-      :close-on-select="false"
-      label="value"
-      track-by="value"
-      ref="datasetMultiselect"
-      class="dataset-multiselect"
-    >
-      <template #option="{ option }">
-        <div class="dataset-option">
-          <div class="option-value">{{ option.value }}</div>
-          <div class="option-label">{{ option.label }}</div>
+    
+    <div class="dataset-selection-container">
+      <!-- 使用Element Plus的Cascader组件替代Multiselect -->
+      <el-cascader
+        v-model="selectedDatasets"
+        :options="formatDatasetOptions"
+        :props="cascaderProps"
+        placeholder="选择或搜索数据集"
+        clearable
+        filterable
+        multiple
+        collapse-tags
+        collapse-tags-tooltip
+        class="dataset-cascader"
+        @change="handleDatasetChange"
+      />
+      
+      <!-- 所选数据集展示 -->
+      <div class="selected-datasets-container" v-if="selectedDatasets.length > 0">
+        <h4>已选择的数据集 ({{ selectedDatasets.length }})</h4>
+        <div class="selected-datasets-list">
+          <el-tag
+            v-for="dataset in selectedDatasetsInfo"
+            :key="dataset.id"
+            closable
+            class="dataset-tag"
+            @close="removeDataset(dataset)"
+            @mouseenter="startHoverTimer(dataset)"
+            @mouseleave="clearHoverTimer"
+          >
+            {{ dataset.name }}
+            <div class="tooltip" v-if="hoveredOption && hoveredOption.id === dataset.id">
+              <div class="tooltip-content">
+                <div class="tooltip-title">{{ dataset.name }}</div>
+                <div class="tooltip-description">{{ dataset.description || '暂无描述' }}</div>
+                <div class="tooltip-meta" v-if="dataset.itemCount">
+                  <span class="tooltip-count">包含 {{ dataset.itemCount }} 条数据</span>
+                </div>
+              </div>
+              <div class="tooltip-arrow"></div>
+            </div>
+          </el-tag>
         </div>
-      </template>
-      <template #tag="{ option, handleTagRemove }">
-        <div class="multiselect-tag">
-          <span class="tag-value">{{ option.value }}</span>
-          <span class="tag-remove" @click="handleTagRemove(option)">×</span>
-        </div>
-      </template>
-    </Multiselect>
+      </div>
+    </div>
 
     <!-- 步骤导航按钮 -->
     <div class="step-buttons">
@@ -49,13 +69,15 @@
 </template>
 
 <script>
-import Multiselect from '@vueform/multiselect'
-import '@vueform/multiselect/themes/default.css'
+// 替换Multiselect导入为Element Plus组件
+import { ElCascader, ElTag } from 'element-plus'
+import 'element-plus/dist/index.css'
 
 export default {
   name: 'DatasetSelectionStep',
   components: {
-    Multiselect
+    ElCascader,
+    ElTag
   },
   props: {
     initialSelectedDatasets: {
@@ -65,58 +87,189 @@ export default {
   },
   data() {
     return {
-      selectedDatasets: [...this.initialSelectedDatasets],
+      selectedDatasets: [],
       datasetOptions: [],
+      hoveredOption: null,
+      hoverTimer: null,
+      // 配置Cascader组件属性
+      cascaderProps: {
+        multiple: true,
+        value: 'id',
+        label: 'name',
+        children: 'datasets',
+        emitPath: false
+      },
+      // 默认数据集保持不变
       defaultDatasets: [
-        { value: 'demo_cmmlu_chat_gen', label: '中文通用语言理解测试' },
-        { value: 'demo_math_chat_gen', label: '数学问题测试集' }
+        { 
+          id: 'demo_cmmlu_chat_gen', 
+          name: 'CMMLU', 
+          description: '中文通用语言理解测试数据集，覆盖多个学科和领域',
+          category: '综合评测',
+          itemCount: 42 
+        },
+        { 
+          id: 'demo_math_chat_gen', 
+          name: 'Math', 
+          description: '数学问题测试集，包含基础算术、代数和几何问题',
+          category: '数学能力',
+          itemCount: 64 
+        },
+        { 
+          id: 'agieval_chat_gen', 
+          name: 'AGIEval', 
+          description: 'AGI评测数据集，测试模型的推理和决策能力',
+          category: '综合评测',
+          itemCount: 35 
+        },
+        { 
+          id: 'ceval_chat_gen', 
+          name: 'C-Eval', 
+          description: '中文评测数据集，包含多个学科的专业知识',
+          category: '综合评测',
+          itemCount: 50 
+        },
+        { 
+          id: 'code_chat_gen', 
+          name: 'CodeGen', 
+          description: '代码生成测试集，评估模型编写代码的能力',
+          category: '编程能力',
+          itemCount: 25 
+        }
       ]
     }
   },
+  computed: {
+    // 将数据集格式化为Cascader需要的格式
+    formatDatasetOptions() {
+      console.log('格式化Cascader选项:', this.datasetOptions);
+      const grouped = {};
+      
+      // 如果没有数据，返回空数组
+      if (!this.datasetOptions || this.datasetOptions.length === 0) {
+        return [];
+      }
+      
+      // 根据category分组
+      this.datasetOptions.forEach(dataset => {
+        const category = dataset.category || '未分类';
+        if (!grouped[category]) {
+          grouped[category] = {
+            id: `category_${category}`,
+            name: category,
+            datasets: []
+          };
+        }
+        grouped[category].datasets.push(dataset);
+      });
+      
+      // 转换为数组格式
+      const result = Object.values(grouped);
+      console.log('Cascader格式的数据:', result);
+      return result;
+    },
+    
+    // 获取已选数据集的详细信息
+    selectedDatasetsInfo() {
+      return this.selectedDatasets.map(id => {
+        // 在所有数据集中查找匹配的ID
+        const allDatasets = this.datasetOptions.flat();
+        return allDatasets.find(d => d.id === id) || { id, name: id, description: '未知数据集' };
+      });
+    }
+  },
+  created() {
+    // 初始化数据集为默认数据集
+    this.datasetOptions = [...this.defaultDatasets];
+    // 处理初始选中的数据集
+    if (this.initialSelectedDatasets && this.initialSelectedDatasets.length > 0) {
+      this.selectedDatasets = this.initialSelectedDatasets.map(d => d.id);
+    }
+  },
   mounted() {
+    // 尝试从服务器获取数据集
     this.fetchDatasets();
-    // 添加窗口调整事件监听
-    window.addEventListener('resize', this.adjustDropdownHeight);
-    // 初始调整高度
-    this.$nextTick(() => {
-      this.adjustDropdownHeight();
-    });
   },
   beforeDestroy() {
-    // 移除事件监听
-    window.removeEventListener('resize', this.adjustDropdownHeight);
+    this.clearHoverTimer();
   },
   methods: {
-    // 调整下拉列表高度
-    adjustDropdownHeight() {
-      if (this.$refs.datasetMultiselect) {
-        const viewportHeight = window.innerHeight;
-        // 计算合适的最大高度，保留上下边距和额外空间
-        const maxHeight = viewportHeight - 320; // 保留顶部导航栏和底部按钮的空间
-        // 设置CSS变量
-        this.$refs.datasetMultiselect.$el.style.setProperty('--ms-max-height', `${maxHeight}px`);
+    // 处理数据集选择变化
+    handleDatasetChange(value) {
+      console.log('选中的数据集变更:', value);
+    },
+    
+    // 开始悬停计时器
+    startHoverTimer(option) {
+      this.clearHoverTimer();
+      this.hoverTimer = setTimeout(() => {
+        this.hoveredOption = option;
+      }, 300); // 300毫秒后显示提示
+    },
+    
+    // 清除悬停计时器
+    clearHoverTimer() {
+      if (this.hoverTimer) {
+        clearTimeout(this.hoverTimer);
+        this.hoverTimer = null;
       }
+      this.hoveredOption = null;
+    },
+    
+    // 移除已选数据集
+    removeDataset(dataset) {
+      this.selectedDatasets = this.selectedDatasets.filter(id => id !== dataset.id);
     },
     
     async fetchDatasets() {
       try {
+        console.log('正在尝试获取数据集列表...');
+        const token = localStorage.getItem('token');
+        
+        // 如果没有令牌，则使用默认数据集
+        if (!token) {
+          console.log('未找到登录令牌，使用默认数据集');
+          return;
+        }
+        
         const response = await fetch('/api/v1/datasets', {
+          method: 'GET',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         });
         
         if (response.ok) {
           const data = await response.json();
-          this.datasetOptions = data.map(dataset => ({
-            value: dataset.name,
-            label: dataset.description
-          }));
+          console.log('成功获取数据集列表:', data);
+          
+          if (Array.isArray(data) && data.length > 0) {
+            // 将获取到的数据集格式化
+            const formattedDatasets = data.map(dataset => ({
+              id: dataset.id || dataset.name,
+              name: dataset.name,
+              description: dataset.description || '',
+              category: dataset.category || '未分类',
+              itemCount: dataset.item_count || 0
+            }));
+            
+            // 直接赋值
+            this.datasetOptions = formattedDatasets;
+            console.log('处理后的数据集列表:', this.datasetOptions);
+          } else {
+            console.log('服务器返回的数据集为空，使用默认数据集');
+            // 确保使用默认数据集
+            this.datasetOptions = [...this.defaultDatasets];
+          }
         } else {
+          console.error('获取数据集列表失败，状态码:', response.status);
+          // 如果API请求失败，确保使用默认数据集
           this.datasetOptions = [...this.defaultDatasets];
         }
       } catch (error) {
-        console.error('获取数据集列表失败:', error);
+        console.error('获取数据集列表出错:', error);
+        // 如果发生异常，确保使用默认数据集
         this.datasetOptions = [...this.defaultDatasets];
       }
     },
@@ -126,20 +279,20 @@ export default {
     },
     
     goToNextStep() {
-      this.$emit('next-step', {
-        selectedDatasets: this.selectedDatasets
+      // 获取选中数据集的完整信息
+      const selectedDatasetInfo = this.selectedDatasets.map(id => {
+        // 在所有数据集中查找匹配的ID
+        for (const dataset of this.datasetOptions) {
+          if (dataset.id === id) {
+            return dataset;
+          }
+        }
+        return { id, name: id }; // 默认信息
       });
-    }
-  },
-  watch: {
-    // 当切换到数据集选择步骤时调整下拉高度
-    '$parent.currentStep'(newStep) {
-      if (newStep === 2) {
-        // 在DOM更新后调整高度
-        this.$nextTick(() => {
-          this.adjustDropdownHeight();
-        });
-      }
+      
+      this.$emit('next-step', {
+        selectedDatasets: selectedDatasetInfo
+      });
     }
   }
 }
@@ -152,8 +305,97 @@ export default {
   color: #2d3748;
 }
 
+.dataset-selection-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Cascader样式 */
+.dataset-cascader {
+  width: 100%;
+}
+
+/* 已选数据集展示区域 */
+.selected-datasets-container {
+  margin-top: 15px;
+}
+
+.selected-datasets-container h4 {
+  font-size: 14px;
+  color: #4a5568;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+.selected-datasets-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dataset-tag {
+  position: relative;
+  margin: 4px;
+}
+
+/* 悬停提示样式 */
+.tooltip {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translate(-50%, -100%);
+  background-color: white;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  min-width: 200px;
+  max-width: 300px;
+  animation: fadeIn 0.2s;
+  padding: 0;
+  pointer-events: none;
+}
+
+.tooltip-content {
+  padding: 12px;
+}
+
+.tooltip-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #2d3748;
+  margin-bottom: 6px;
+}
+
+.tooltip-description {
+  font-size: 12px;
+  color: #4a5568;
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.tooltip-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #718096;
+}
+
+.tooltip-arrow {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid white;
+}
+
+/* 按钮样式 */
 .step-buttons {
-  margin-top: 25px;
+  margin-top: 30px;
   display: flex;
   gap: 15px;
   justify-content: flex-end;
@@ -166,6 +408,11 @@ export default {
   transition: all 0.3s;
   background-color: #f0f0f0;
   border: 1px solid #ddd;
+  font-size: 14px;
+}
+
+.btn-prev:hover {
+  background-color: #e2e8f0;
 }
 
 .btn-next {
@@ -176,6 +423,11 @@ export default {
   background-color: #3182ce;
   color: white;
   border: none;
+  font-size: 14px;
+}
+
+.btn-next:hover:not(:disabled) {
+  background-color: #2c5282;
 }
 
 .btn-next:disabled {
@@ -183,62 +435,8 @@ export default {
   cursor: not-allowed;
 }
 
-/* 数据集下拉列表样式优化 */
-.dataset-multiselect {
-  --ms-max-height: calc(100vh - 320px);
-  --ms-option-padding: 8px 16px;
-  --ms-py: 6px;
-}
-
-/* 修正数据集选项样式 */
-.dataset-option {
-  padding: 6px 0;
-}
-
-.dataset-option .option-value {
-  font-weight: 500;
-  color: #2d3748;
-  font-size: 14px;
-  line-height: 1.3;
-}
-
-.dataset-option .option-label {
-  font-size: 12px;
-  color: #718096;
-  margin-top: 2px;
-  line-height: 1.2;
-}
-
-/* 修正标签样式 */
-.multiselect-tag {
-  display: flex;
-  align-items: center;
-  background-color: #ebf8ff;
-  color: #2b6cb0;
-  padding: 2px 8px;
-  border-radius: 4px;
-  margin: 2px;
-}
-
-.multiselect-tag .tag-value {
-  font-size: 14px;
-}
-
-.multiselect-tag .tag-remove {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  margin-left: 6px;
-  border-radius: 50%;
-  background-color: #4299e1;
-  color: white;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.multiselect-tag .tag-remove:hover {
-  background-color: #3182ce;
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style> 
