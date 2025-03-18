@@ -17,16 +17,18 @@ class Settings(BaseSettings):
     SERVER_PORT: int = 8000
 
     # 路径配置
-    opencompass_path: Path = Path(os.getenv("OPENCOMPASS_PATH", BASE_DIR / "libs" / "OpenCompass"))
-    workspace: Path = Path(os.getenv("WORKING_DIR", BASE_DIR / "workspace"))
+    opencompass_path: Path = Path(
+        os.getenv("OPENCOMPASS_PATH", BASE_DIR / "libs" / "OpenCompass"))
+    workspace: Path = Path(
+        os.getenv("WORKING_DIR", BASE_DIR / "workspace"))
     logs_dir: Path = workspace / "logs" / "celery_task"
 
     # 数据库配置（分项模式）
-    mysql_host: str = os.getenv("MYSQL_HOST")
-    mysql_port: int = os.getenv("MYSQL_PORT")
-    mysql_user: str = os.getenv("MYSQL_USER")
-    mysql_password: str = os.getenv("MYSQL_PASSWORD")
-    mysql_db: str = os.getenv("MYSQL_DB")
+    mysql_host: str = os.getenv("MYSQL_HOST", "localhost")
+    mysql_port: int = os.getenv("MYSQL_PORT", 3306)
+    mysql_user: str = os.getenv("MYSQL_USER", "ai_eval_user")
+    mysql_password: str = os.getenv("MYSQL_PASSWORD", "ai_eval_password")
+    mysql_db: str = os.getenv("MYSQL_DB", "ai_eval")
     
     # 调试模式
     mysql_debug: bool = False
@@ -41,13 +43,11 @@ class Settings(BaseSettings):
     ]
 
     # Redis配置
-    # redis_url: RedisDsn = "redis://localhost:6379/0"  # 使用RedisDsn类型验证
-    redis_url: RedisDsn = os.getenv("REDIS_URL", 
-                                    "redis://localhost:6379/0")  # 使用环境变量验证
+    redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
     # Celery配置
-    celery_broker_url: RedisDsn = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-    celery_result_backend: RedisDsn = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")  # 建议与broker使用不同DB
+    celery_broker_url: str = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+    celery_result_backend: str = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
 
     # 并发配置
     celery_concurrency: int = os.getenv("CELERY_CONCURRENCY", 1)  # 全局并发限制
