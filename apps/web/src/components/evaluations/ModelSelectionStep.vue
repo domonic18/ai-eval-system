@@ -24,7 +24,7 @@
       </div>
     </div>
 
-    <!-- 预置模型选择 -->
+    <!-- 我的模型选择 -->
     <div v-if="modelType === 'preset'" class="form-section">
       <div class="form-group">
         <label>选择模型</label>
@@ -196,14 +196,14 @@ export default {
   props: {
     initialModelType: {
       type: String,
-      default: 'preset'
+      default: 'custom'
     },
     initialSelectedModel: {
       type: [String, Number, null],
       default: null
     },
     initialCustomApiConfig: {
-      type: String,
+      type: [String, Object],
       default: ''
     }
   },
@@ -232,23 +232,27 @@ export default {
       },
       modelOptions: [],
       defaultModels: [
-        { value: 'hk33smarter_api', label: 'HK33 Smarter API' },
-        { value: 'gpt-4', label: 'GPT-4' },
-        { value: 'claude-3', label: 'Claude 3' }
+        { value: 'hk33smarter_api', label: 'HK33 Smarter API' }
       ]
     }
   },
   computed: {
     customApiConfig() {
-      // 根据选择的接入类型生成配置字符串
+      // 返回 JSON 对象
       if (this.apiType === 'api') {
-        return `API_URL=${this.apiConfig.url || ''}
-API_KEY=${this.apiConfig.key || ''}
-MODEL=${this.apiConfig.model || ''}`
+        return {
+          type: 'api',
+          api_url: this.apiConfig.url || '',
+          api_key: this.apiConfig.key || '',
+          model: this.apiConfig.model || ''
+        };
       } else {
-        return `DIFY_TYPE=${this.difyConfig.type || 'chat'}
-DIFY_URL=${this.difyConfig.url || ''}
-DIFY_API_KEY=${this.difyConfig.key || ''}`
+        return {
+          type: 'dify',
+          dify_type: this.difyConfig.type || 'chat',
+          dify_url: this.difyConfig.url || '',
+          dify_api_key: this.difyConfig.key || ''
+        };
       }
     },
     canGoNext() {
@@ -267,6 +271,14 @@ DIFY_API_KEY=${this.difyConfig.key || ''}`
   mounted() {
     this.fetchModels();
     this.loadApiConfigFromStorage();
+    
+    // 确保modelType有默认值，如果没有则设为custom
+    if (!this.modelType) {
+      this.modelType = 'custom';
+    }
+    
+    // 记录当前状态用于调试
+    console.log('初始模型类型:', this.modelType);
   },
   methods: {
     showHint(field) {
@@ -283,32 +295,20 @@ DIFY_API_KEY=${this.difyConfig.key || ''}`
       try {
         const savedConfig = localStorage.getItem('evaluation_custom_api_config');
         if (savedConfig) {
-          // 解析保存的配置字符串
-          const configLines = savedConfig.split('\n');
+          // 直接解析 JSON 字符串
+          const configObj = JSON.parse(savedConfig);
           
-          // 检测是否为Dify配置
-          if (savedConfig.includes('DIFY_TYPE')) {
+          // 判断配置类型
+          if (configObj.type === 'dify') {
             this.apiType = 'dify';
-            
-            configLines.forEach(line => {
-              const [key, value] = line.split('=');
-              if (key && value) {
-                if (key.trim() === 'DIFY_TYPE') this.difyConfig.type = value.trim();
-                if (key.trim() === 'DIFY_URL') this.difyConfig.url = value.trim();
-                if (key.trim() === 'DIFY_API_KEY') this.difyConfig.key = value.trim();
-              }
-            });
+            this.difyConfig.type = configObj.dify_type || 'chat';
+            this.difyConfig.url = configObj.dify_url || '';
+            this.difyConfig.key = configObj.dify_api_key || '';
           } else {
             this.apiType = 'api';
-            
-            configLines.forEach(line => {
-              const [key, value] = line.split('=');
-              if (key && value) {
-                if (key.trim() === 'API_URL') this.apiConfig.url = value.trim();
-                if (key.trim() === 'API_KEY') this.apiConfig.key = value.trim();
-                if (key.trim() === 'MODEL') this.apiConfig.model = value.trim();
-              }
-            });
+            this.apiConfig.url = configObj.api_url || '';
+            this.apiConfig.key = configObj.api_key || '';
+            this.apiConfig.model = configObj.model || '';
           }
         } else {
           // 默认值设置
@@ -331,7 +331,8 @@ DIFY_API_KEY=${this.difyConfig.key || ''}`
     
     saveApiConfigToStorage(config) {
       try {
-        localStorage.setItem('evaluation_custom_api_config', config);
+        // 直接存储 JSON 字符串
+        localStorage.setItem('evaluation_custom_api_config', JSON.stringify(config));
       } catch (error) {
         console.error('保存配置到本地存储失败:', error);
       }
@@ -373,6 +374,15 @@ DIFY_API_KEY=${this.difyConfig.key || ''}`
     customApiConfig(newConfig) {
       // 保存配置到本地存储
       this.saveApiConfigToStorage(newConfig);
+    },
+    initialModelType: {
+      immediate: true,
+      handler(newValue) {
+        if (newValue) {
+          this.modelType = newValue;
+          console.log('模型类型已更新:', this.modelType);
+        }
+      }
     }
   }
 }

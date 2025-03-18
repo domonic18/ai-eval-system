@@ -55,16 +55,16 @@
             <!-- Dify配置信息 -->
             <template v-else-if="customConfig.type === 'dify'">
               <div class="info-item">
-                <span class="item-label">Dify URL</span>
+                <span class="item-label">DIFY URL</span>
                 <span class="item-value">{{ customConfig.url }}</span>
               </div>
               <div class="info-item">
-                <span class="item-label">Dify 类型</span>
-                <span class="item-value">{{ customConfig.dify_type === 'chat' ? 'Chat类型' : 'WorkFlow类型' }}</span>
+                <span class="item-label">DIFY API KEY</span>
+                <span class="item-value">{{ maskSecret(customConfig.key) }}</span>
               </div>
               <div class="info-item">
-                <span class="item-label">Dify API KEY</span>
-                <span class="item-value">{{ maskSecret(customConfig.key) }}</span>
+                <span class="item-label">DIFY类型</span>
+                <span class="item-value">{{ customConfig.dify_type === 'chat' ? 'Chat类型' : 'WorkFlow类型' }}</span>
               </div>
             </template>
           </template>
@@ -228,7 +228,12 @@ export default {
   },
   computed: {
     modelTypeText() {
-      return this.modelType === 'preset' ? '预设模型' : '自定义API';
+      if (this.modelType === 'preset') {
+        return '我的模型';
+      } else {
+        // 针对自定义API类型，进一步区分API接入和Dify接入
+        return this.customConfig.type === 'api' ? 'API接入' : 'Dify接入';
+      }
     },
     selectedModelName() {
       if (!this.selectedModel) return '未选择';
@@ -238,44 +243,43 @@ export default {
     }
   },
   created() {
+    console.log('原始配置字符串:', this.customApiConfig);
     this.parseCustomApiConfig();
+    console.log('初始化完成，自定义配置:', this.customConfig);
   },
   methods: {
     parseCustomApiConfig() {
-      if (!this.customApiConfig) return;
-      
-      const lines = this.customApiConfig.split('\n');
-      
-      // 判断是API还是Dify配置
-      if (this.customApiConfig.includes('DIFY_TYPE')) {
-        this.customConfig.type = 'dify';
-        
-        lines.forEach(line => {
-          const [key, value] = line.split('=');
-          if (key && value) {
-            const trimmedKey = key.trim();
-            const trimmedValue = value.trim();
-            
-            if (trimmedKey === 'DIFY_URL') this.customConfig.url = trimmedValue;
-            if (trimmedKey === 'DIFY_API_KEY') this.customConfig.key = trimmedValue;
-            if (trimmedKey === 'DIFY_TYPE') this.customConfig.dify_type = trimmedValue;
-          }
-        });
-      } else {
-        this.customConfig.type = 'api';
-        
-        lines.forEach(line => {
-          const [key, value] = line.split('=');
-          if (key && value) {
-            const trimmedKey = key.trim();
-            const trimmedValue = value.trim();
-            
-            if (trimmedKey === 'API_URL') this.customConfig.url = trimmedValue;
-            if (trimmedKey === 'API_KEY') this.customConfig.key = trimmedValue;
-            if (trimmedKey === 'MODEL') this.customConfig.model = trimmedValue;
-          }
-        });
+      if (!this.customApiConfig || typeof this.customApiConfig !== 'object') {
+        console.error('自定义API配置为空或格式不正确');
+        return;
       }
+      
+      console.log('解析配置对象:', this.customApiConfig);
+      
+      // 直接使用传入的配置对象
+      const configObj = this.customApiConfig;
+      
+      // 判断配置类型
+      this.customConfig.type = configObj.type || 'api';
+      
+      if (this.customConfig.type === 'api') {
+        this.customConfig.url = configObj.api_url || '';
+        this.customConfig.key = configObj.api_key || '';
+        this.customConfig.model = configObj.model || '';
+      } else {
+        this.customConfig.dify_type = configObj.dify_type || 'chat';
+        this.customConfig.url = configObj.dify_url || '';
+        this.customConfig.key = configObj.dify_api_key || '';
+      }
+      
+      console.log('配置解析完成，结果:', {
+        type: this.customConfig.type,
+        url: this.customConfig.url,
+        model: this.customConfig.model,
+        dify_type: this.customConfig.dify_type,
+        // 不输出敏感信息
+        key_length: this.customConfig.key ? this.customConfig.key.length : 0
+      });
     },
     
     maskSecret(secret) {
@@ -295,16 +299,55 @@ export default {
       this.isSubmitting = true;
       
       try {
-        // 构建提交的数据
-        const evaluationData = {
-          model_type: this.modelType,
-          model_id: this.modelType === 'preset' ? this.selectedModel : null,
-          custom_api_config: this.modelType === 'custom' ? this.customApiConfig : null,
-          datasets: this.selectedDatasets.map(d => d.id),
-          config: this.config
+        // 构建环境变量对象 - 无需解析字符串
+        const envVarsObj = this.modelType === 'preset' ? {} : {
+          // 根据配置类型设置不同的环境变量
+          ...(this.customConfig.type === 'api' ? {
+            API_URL: this.customConfig.url,
+            API_KEY: this.customConfig.key,
+            MODEL: this.customConfig.model
+          } : {
+            DIFY_TYPE: this.customConfig.dify_type,
+            DIFY_URL: this.customConfig.url,
+            DIFY_API_KEY: this.customConfig.key
+          })
         };
         
-        console.log('提交评测任务:', evaluationData);
+        // 构建提交的数据结构
+        const evaluationData = {
+          model_type: this.modelType === 'preset' ? 'preset' : 'custom',
+          model_name: this.modelType === 'preset' ? this.selectedModelName : 'custom_api',
+          
+          // 添加api_type字段
+          api_type: this.modelType === 'preset' ? null : this.customConfig.type,
+          
+          // 数据集信息
+          datasets: {
+            names: this.selectedDatasets.map(d => d.name || d.id),
+            configuration: {}
+          },
+          
+          // 模型配置
+          model_configuration: this.modelType === 'preset' 
+            ? { model_id: this.selectedModel }
+            : { 
+                api_type: this.customConfig.type,
+                model: this.customConfig.model,
+                url: this.customConfig.url
+              },
+          
+          // 评估配置
+          eval_config: {
+            debug: this.config.debug,
+            verbose: this.config.verbose,
+            return_intermediate_result: this.config.returnIntermediateResult
+          },
+          
+          // 环境变量
+          env_vars: envVarsObj
+        };
+        
+        console.log('提交评测任务数据结构:', evaluationData);
         
         // 发送API请求
         const response = await fetch('/api/v1/evaluations', {
@@ -318,7 +361,24 @@ export default {
         
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.detail || '创建评测任务失败');
+          // 错误处理逻辑
+          if (typeof errorData.detail === 'string') {
+            throw new Error(errorData.detail);
+          } else if (Array.isArray(errorData.detail)) {
+            // 将错误数组转换为可读的错误信息
+            const errorMessages = errorData.detail.map(err => {
+              if (typeof err === 'object') {
+                // 提取错误对象中的信息
+                return Object.entries(err)
+                  .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+                  .join(', ');
+              }
+              return String(err);
+            }).join('; ');
+            throw new Error(`数据验证错误: ${errorMessages}`);
+          } else {
+            throw new Error('创建评测任务失败: ' + JSON.stringify(errorData));
+          }
         }
         
         const result = await response.json();
@@ -331,6 +391,17 @@ export default {
         this.$emit('submit-error', error.message || '创建评测任务失败，请稍后再试');
       } finally {
         this.isSubmitting = false;
+      }
+    }
+  },
+  watch: {
+    customApiConfig: {
+      immediate: true,
+      handler(newValue) {
+        if (newValue) {
+          console.log('customApiConfig已更新，重新解析');
+          this.parseCustomApiConfig();
+        }
       }
     }
   }
