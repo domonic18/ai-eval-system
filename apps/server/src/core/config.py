@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     celery_result_backend: str = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
 
     # Dify2OpenAI服务
-    dify2openai_url: str = os.getenv("DIFY2OPENAI_URL", "http://localhost:3099")
+    dify2openai_url: str = os.getenv("DIFY2OPENAI_URL", "http://localhost:3099/v1/")
 
     # 并发配置
     celery_concurrency: int = os.getenv("CELERY_CONCURRENCY", 1)  # 全局并发限制
