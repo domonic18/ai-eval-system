@@ -78,7 +78,6 @@ class TaskEvaluator:
                 # 4. 初始化增强型执行器
                 runner = EnhancedRunner(
                     eval_id=self.eval_id,
-                    # working_dir=Path(BASE_DIR),
                     working_dir=settings.workspace,
                     opencompass_path=settings.opencompass_path
                 )

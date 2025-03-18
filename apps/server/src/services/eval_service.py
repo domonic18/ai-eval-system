@@ -14,6 +14,7 @@ from utils.redis_manager import RedisManager
 from tasks.runners.runner_base import get_runner
 import os
 from pathlib import Path
+from core.config import settings
 
 
 
@@ -39,15 +40,26 @@ class EvaluationService:
         Returns:
             dict: 创建结果
         """
-                # 创建评估记录
+        # 特殊处理逻辑：
+        # 问题：由于dify平台不支持OpenAI标准API，所以我们需要借助dify2openai网关服务进行中转
+        # 解决方案：详细查看localhost:3099
+        # 1. 原有的env_vars中的API_URL改为settings.dify2openai_url
+        # 2. 原有env_vars中的API_KEY保持不变
+        # 3. 原有env_vars中的MODEL改为dify|Chat|原有env_vars中的DIFY_URL
+        if eval_data.api_type == "dify":
+            eval_data.env_vars["MODEL"] = f"dify|{eval_data.env_vars['DIFY_TYPE']}|{eval_data.env_vars['DIFY_URL']}"
+            eval_data.env_vars["API_URL"] = settings.dify2openai_url
+            eval_data.env_vars["API_KEY"] = eval_data.env_vars["DIFY_API_KEY"]
+
+        # 创建评估记录
         db_eval = await EvaluationRepository.create_evaluation_async(
             db,
-            eval_data.model_name,
-            eval_data.dataset_names,
-            eval_data.model_configuration,
-            eval_data.dataset_configuration,
-            eval_data.eval_config or {},
-            eval_data.env_vars or {}
+            model_name=eval_data.model_name,
+            dataset_names=eval_data.datasets.names,
+            model_configuration=eval_data.model_configuration,
+            dataset_configuration=eval_data.datasets.configuration,
+            eval_config=eval_data.eval_config,
+            env_vars=eval_data.env_vars
         )
                 
         # 使用TaskManager创建任务

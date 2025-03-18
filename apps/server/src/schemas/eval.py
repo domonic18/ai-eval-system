@@ -8,18 +8,28 @@ class EvaluationBase(BaseModel):
     dataset_config: dict
 
 
+class DatasetInfo(BaseModel):
+    names: List[str] = Field(..., description="数据集名称列表")
+    configuration: Dict[str, Any] = Field(default={}, description="数据集配置")
+
+
 class EvaluationCreate(BaseModel):
     """评估创建请求模式"""
     model_name: str = Field(..., description="要评估的模型名称")
-    dataset_names: List[str] = Field(..., description="要使用的数据集名称")
-    model_configuration: Union[Dict[str, Any], str] = Field(default={}, description="模型的配置信息")
-    dataset_configuration: Union[Dict[str, Any], str] = Field(default={}, description="数据集的配置信息")
-    eval_config: Optional[Dict[str, Any]] = Field(default={}, description="评估的配置信息")    
+    model_type: str = Field(..., description="模型类型：preset或custom")
+    
+    # 使用新的数据集信息模型，合并数据集相关字段
+    datasets: DatasetInfo = Field(..., description="数据集信息")
+    
+    # 修改为仅接受字典类型
+    model_configuration: Dict[str, Any] = Field(default={}, description="模型的配置信息")
+    eval_config: Optional[Dict[str, Any]] = Field(default={}, description="评估的配置信息")
+    env_vars: Optional[Dict[str, Any]] = Field(default={}, description="环境变量（API_URL/API_KEY等）")
+
     model_config = ConfigDict(
         populate_by_name=True,
         extra='allow'
     )
-    env_vars: Optional[Dict[str, Any]] = Field(default={}, description="环境变量（API_URL/API_KEY等）")
 
 
 class EvaluationResponse(BaseModel):

@@ -32,7 +32,7 @@ class EnvManager:
                 filtered_vars[k] = str(v)  # 统一转换为字符串
                 
             self.vars = filtered_vars
-            
+
         except json.JSONDecodeError as e:
             raise ValueError(f"无效的JSON格式: {str(e)}") from e
         except ValueError as e:
