@@ -63,144 +63,33 @@
               
               <!-- 评测配置表单 -->
               <div class="evaluation-form">
-                <!-- 模型选择部分 -->
-                <div class="model-selection" v-if="currentStep === 1">
-                  <h3>选择模型</h3>
-                  
-                  <!-- 模型类型选择 -->
-                  <div class="model-type-select">
-                    <label>
-                      <input 
-                        type="radio" 
-                        v-model="modelType" 
-                        value="preset"
-                      /> 预置模型
-                    </label>
-                    <label>
-                      <input 
-                        type="radio" 
-                        v-model="modelType" 
-                        value="custom" 
-                      /> 自定义API
-                    </label>
-                  </div>
-
-                  <!-- 多选模型下拉 -->
-                  <div class="form-group">
-                    <label v-if="modelType === 'preset'">选择预置模型</label>
-                    <label v-else>API配置</label>
-                    <Multiselect
-                      v-if="modelType === 'preset'"
-                      v-model="selectedModel"
-                      :options="modelOptions"
-                      mode="single"
-                      :searchable="true"
-                      placeholder="选择或搜索模型"
-                      :close-on-select="true"
-                    />
-                    <textarea
-                      v-else
-                      v-model="customApiConfig"
-                      class="api-config-input"
-                      placeholder="输入API配置"
-                      rows="4"
-                    ></textarea>
-                  </div>
-
-                  <!-- 步骤导航按钮 -->
-                  <div class="step-buttons">
-                    <button 
-                      type="button" 
-                      class="btn-next"
-                      @click="currentStep = 2"
-                      :disabled="!canGoNext"
-                    >
-                      下一步
-                    </button>
-                  </div>
-                </div>
+                <!-- 使用拆分的组件 -->
+                <ModelSelectionStep 
+                  v-show="currentStep === 1"
+                  :initial-model-type="modelType"
+                  :initial-selected-model="selectedModel"
+                  :initial-custom-api-config="customApiConfig"
+                  @next-step="handleModelStepComplete"
+                />
                 
-                <!-- 数据集选择部分 -->
-                <div class="dataset-selection" v-show="currentStep === 2">
-                  <h3>选择评测数据集</h3>
-                  <Multiselect
-                    v-model="selectedDatasets"
-                    :options="datasetOptions"
-                    mode="tags"
-                    :searchable="true"
-                    placeholder="选择或搜索数据集"
-                    :close-on-select="false"
-                    label="value"
-                    track-by="value"
-                    ref="datasetMultiselect"
-                    class="dataset-multiselect"
-                  >
-                    <template #option="{ option }">
-                      <div class="dataset-option">
-                        <div class="option-value">{{ option.value }}</div>
-                        <div class="option-label">{{ option.label }}</div>
-                      </div>
-                    </template>
-                    <template #tag="{ option, handleTagRemove }">
-                      <div class="multiselect-tag">
-                        <span class="tag-value">{{ option.value }}</span>
-                        <span class="tag-remove" @click="handleTagRemove(option)">×</span>
-                      </div>
-                    </template>
-                  </Multiselect>
-
-                  <!-- 步骤导航按钮 -->
-                  <div class="step-buttons">
-                    <button 
-                      type="button" 
-                      class="btn-prev"
-                      @click="currentStep = 1"
-                    >
-                      上一步
-                    </button>
-                    <button 
-                      type="button" 
-                      class="btn-next"
-                      @click="currentStep = 3"
-                      :disabled="selectedDatasets.length === 0"
-                    >
-                      下一步
-                    </button>
-                  </div>
-                </div>
+                <DatasetSelectionStep 
+                  v-show="currentStep === 2"
+                  :initial-selected-datasets="selectedDatasets"
+                  @next-step="handleDatasetStepComplete"
+                  @prev-step="currentStep = 1"
+                />
                 
-                <div class="config-section" v-show="currentStep === 3">
-                  <!-- <h3>评测配置</h3>
-                  <div class="form-group">
-                    <label for="config_file">配置文件路径</label>
-                    <input
-                      type="text"
-                      id="config_file"
-                      v-model="configFile"
-                      placeholder="输入配置文件路径"
-                    />
-                  </div> -->
-                  <!-- 其他配置项... -->
-
-                  <!-- 步骤导航按钮 -->
-                  <div class="step-buttons">
-                    <button 
-                      type="button" 
-                      class="btn-prev"
-                      @click="currentStep = 2"
-                    >
-                      上一步
-                    </button>
-                    <button 
-                      type="button" 
-                      class="btn-submit"
-                      @click="submitForm"
-                      :disabled="isSubmitting"
-                    >
-                      {{ isSubmitting ? '提交中...' : '开始评测' }}
-                    </button>
-                  </div>
-                </div>
+                <SubmitEvaluationStep 
+                  v-show="currentStep === 3"
+                  :model-type="modelType"
+                  :selected-model="selectedModel"
+                  :custom-api-config="customApiConfig"
+                  :selected-datasets="selectedDatasets"
+                  :model-options="modelOptions"
+                  @prev-step="currentStep = 2"
+                  @submit-success="handleSubmitSuccess"
+                  @submit-error="handleSubmitError"
+                />
               </div>
             </div>
             
@@ -294,8 +183,9 @@ import TaskForm from '@/components/TaskForm.vue'
 import TaskList from '@/components/TaskList.vue'
 import LogViewer from '@/components/LogViewer.vue'
 import ResultViewer from '@/components/ResultViewer.vue'
-import Multiselect from '@vueform/multiselect'
-import '@vueform/multiselect/themes/default.css'
+import ModelSelectionStep from '@/components/ModelSelectionStep.vue'
+import DatasetSelectionStep from '@/components/DatasetSelectionStep.vue'
+import SubmitEvaluationStep from '@/components/SubmitEvaluationStep.vue'
 
 export default {
   name: 'EvaluationView',
@@ -305,7 +195,9 @@ export default {
     TaskList,
     LogViewer,
     ResultViewer,
-    Multiselect
+    ModelSelectionStep,
+    DatasetSelectionStep,
+    SubmitEvaluationStep
   },
   data() {
     return {
@@ -319,20 +211,7 @@ export default {
       lastCustomApiConfig: null,
       modelOptions: [],
       selectedDatasets: [],
-      datasetOptions: [],
-      defaultModels: [
-        { value: 'hk33smarter_api', label: 'HK33 Smarter API' },
-        { value: 'gpt-4', label: 'GPT-4' },
-        { value: 'claude-3', label: 'Claude 3' }
-      ],
-      defaultDatasets: [
-        { value: 'demo_cmmlu_chat_gen', label: '中文通用语言理解测试' },
-        { value: 'demo_math_chat_gen', label: '数学问题测试集' }
-      ],
-      submitting: false,
       showSubmitSuccess: false,
-      configFile: '',
-      isSubmitting: false,
       notification: {
         show: false,
         type: 'success',
@@ -340,75 +219,15 @@ export default {
       }
     }
   },
-  computed: {
-    defaultApiConfig() {
-      return `API_URL=https://guanghua-api.hk33smarter.com/v1
-API_KEY=sk-xxxx
-MODEL=Qwen/qwen2-1.5b-instruct`
-    },
-    canGoNext() {
-      if (this.currentStep === 1) {
-        return this.modelType === 'preset' 
-          ? this.selectedModel !== null
-          : this.customApiConfig.trim() !== ''
-      }
-      return true
-    }
-  },
   mounted() {
+    // 加载模型选项供第三步使用
     this.fetchModels();
-    this.fetchDatasets();
-    
-    this.loadApiConfigFromStorage();
     
     if (this.$route.path === '/evaluation/records' && this.$refs.taskList) {
       this.$refs.taskList.fetchTasks();
     }
-    
-    // 添加窗口调整事件监听
-    window.addEventListener('resize', this.adjustDropdownHeight);
-    // 初始调整高度
-    this.$nextTick(() => {
-      this.adjustDropdownHeight();
-    });
-  },
-  beforeDestroy() {
-    // 移除事件监听
-    window.removeEventListener('resize', this.adjustDropdownHeight);
   },
   methods: {
-    // 调整下拉列表高度
-    adjustDropdownHeight() {
-      if (this.$refs.datasetMultiselect) {
-        const viewportHeight = window.innerHeight;
-        // 计算合适的最大高度，保留上下边距和额外空间
-        const maxHeight = viewportHeight - 320; // 保留顶部导航栏和底部按钮的空间
-        // 设置CSS变量
-        this.$refs.datasetMultiselect.$el.style.setProperty('--ms-max-height', `${maxHeight}px`);
-      }
-    },
-    
-    loadApiConfigFromStorage() {
-      try {
-        const savedConfig = localStorage.getItem('evaluation_custom_api_config');
-        if (savedConfig) {
-          this.lastCustomApiConfig = savedConfig;
-        }
-        this.customApiConfig = this.lastCustomApiConfig || this.defaultApiConfig;
-      } catch (error) {
-        console.error('从本地存储加载配置失败:', error);
-        this.customApiConfig = this.defaultApiConfig;
-      }
-    },
-    
-    saveApiConfigToStorage(config) {
-      try {
-        localStorage.setItem('evaluation_custom_api_config', config);
-      } catch (error) {
-        console.error('保存配置到本地存储失败:', error);
-      }
-    },
-    
     async fetchModels() {
       try {
         const response = await fetch('/api/v1/models', {
@@ -424,126 +243,64 @@ MODEL=Qwen/qwen2-1.5b-instruct`
             label: model.name
           }));
         } else {
-          this.modelOptions = [...this.defaultModels];
+          this.modelOptions = [
+            { value: 'hk33smarter_api', label: 'HK33 Smarter API' },
+            { value: 'gpt-4', label: 'GPT-4' },
+            { value: 'claude-3', label: 'Claude 3' }
+          ];
         }
       } catch (error) {
         console.error('获取模型列表失败:', error);
-        this.modelOptions = [...this.defaultModels];
+        this.modelOptions = [
+          { value: 'hk33smarter_api', label: 'HK33 Smarter API' },
+          { value: 'gpt-4', label: 'GPT-4' },
+          { value: 'claude-3', label: 'Claude 3' }
+        ];
       }
     },
     
-    async fetchDatasets() {
-      try {
-        const response = await fetch('/api/v1/datasets', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          this.datasetOptions = data.map(dataset => ({
-            value: dataset.name,
-            label: dataset.description
-          }));
-        } else {
-          this.datasetOptions = [...this.defaultDatasets];
-        }
-      } catch (error) {
-        console.error('获取数据集列表失败:', error);
-        this.datasetOptions = [...this.defaultDatasets];
+    // 第一步完成的回调
+    handleModelStepComplete(data) {
+      this.modelType = data.modelType;
+      this.selectedModel = data.selectedModel;
+      this.customApiConfig = data.customApiConfig;
+      this.currentStep = 2;
+    },
+    
+    // 第二步完成的回调
+    handleDatasetStepComplete(data) {
+      this.selectedDatasets = data.selectedDatasets;
+      this.currentStep = 3;
+    },
+    
+    // 第三步提交成功的回调
+    handleSubmitSuccess() {
+      // 显示成功提示
+      this.showSubmitSuccess = true;
+      
+      // 重置表单状态
+      this.currentStep = 1;
+      this.selectedModel = null;
+      this.selectedDatasets = [];
+      
+      // 刷新任务列表
+      if (this.$refs.taskList) {
+        this.$refs.taskList.fetchTasks();
       }
     },
     
-    goToStep(step) {
-      this.currentStep = step;
-    },
-    
-    async submitForm() {
-      this.isSubmitting = true;
-      try {
-        // 处理API配置转换
-        const envVars = {}
-        if (this.modelType === 'custom') {
-          this.customApiConfig.split('\n').forEach(line => {
-            const [key, value] = line.split('=')
-            if (key && value) {
-              envVars[key.trim()] = value.trim()
-            }
-          })
-        }
-
-        // 处理数据集选择的格式转换
-        // 如果selectedDatasets是对象数组，提取value属性作为字符串数组
-        const datasetNames = this.selectedDatasets.map(dataset => {
-          return typeof dataset === 'object' && dataset.value ? dataset.value : dataset
-        });
-        
-        // 获取选中模型的名称
-        let modelName = 'custom_api'
-        if (this.modelType === 'preset' && this.selectedModel) {
-          // 根据选中的模型ID查找对应的模型名称
-          const selectedModelOption = this.modelOptions.find(model => model.value === this.selectedModel)
-          modelName = selectedModelOption ? selectedModelOption.label : this.selectedModel
-        }
-
-        // 构建请求体
-        const requestBody = {
-          model_name: modelName,
-          dataset_names: datasetNames,
-          env_vars: envVars,
-          model_configuration: {
-            model_type: this.modelType,
-            ...(this.modelType === 'preset' && { preset_model: this.selectedModel })
-          },
-          dataset_configuration: {},
-          eval_config: {
-            // 可以添加其他评估配置参数
-            timestamp: new Date().toISOString()
-          }
-        }
-
-        // 发送创建评测请求
-        const response = await fetch('/api/v1/evaluations', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: JSON.stringify(requestBody)
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.detail || '创建评测任务失败')
-        }
-
-        const result = await response.json()
-        
-        // 显示成功提示
-        this.showSubmitSuccess = true
-        
-        // 重置表单状态
-        this.currentStep = 1
-        this.selectedModel = null
-        this.selectedDatasets = []
-        
-        // 刷新任务列表
-        if (this.$refs.taskList) {
-          this.$refs.taskList.fetchTasks()
-        }
-
-      } catch (error) {
-        console.error('提交评测任务失败:', error)
-        this.$notify({
-          type: 'error',
-          title: '创建任务失败',
-          text: error.message || '请检查配置后重试',
-          duration: 5000
-        })
-      } finally {
-        this.isSubmitting = false
-      }
+    // 处理提交错误
+    handleSubmitError(errorMessage) {
+      this.notification = {
+        show: true,
+        type: 'error',
+        message: errorMessage
+      };
+      
+      // 5秒后自动关闭通知
+      setTimeout(() => {
+        this.notification.show = false;
+      }, 5000);
     },
     
     goToRecords() {
@@ -570,26 +327,6 @@ MODEL=Qwen/qwen2-1.5b-instruct`
     '$route.path'(newPath) {
       if (newPath === '/evaluation/records' && this.$refs.taskList) {
         this.$refs.taskList.fetchTasks();
-      }
-    },
-    modelType(newType) {
-      if (newType === 'custom') {
-        this.customApiConfig = this.lastCustomApiConfig || this.defaultApiConfig;
-      }
-    },
-    customApiConfig(newConfig) {
-      if (this.modelType === 'custom' && newConfig !== this.defaultApiConfig) {
-        this.lastCustomApiConfig = newConfig;
-        this.saveApiConfigToStorage(newConfig);
-      }
-    },
-    // 当切换到数据集选择步骤时调整下拉高度
-    currentStep(newStep) {
-      if (newStep === 2) {
-        // 在DOM更新后调整高度
-        this.$nextTick(() => {
-          this.adjustDropdownHeight();
-        });
       }
     }
   }
@@ -758,96 +495,6 @@ MODEL=Qwen/qwen2-1.5b-instruct`
   margin-bottom: 30px;
 }
 
-.models-grid, .datasets-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 20px;
-  margin: 20px 0 30px;
-}
-
-.model-card, .dataset-card {
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  cursor: pointer;
-  transition: all 0.3s;
-  border: 2px solid transparent;
-  overflow: hidden;
-}
-
-.model-card:hover, .dataset-card:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
-}
-
-.model-card.selected, .dataset-card.selected {
-  border-color: #3182ce;
-}
-
-.model-card-header, .dataset-card-header {
-  padding: 16px;
-  background-color: #f7fafc;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.model-card-body, .dataset-card-body {
-  padding: 16px;
-}
-
-.model-type, .dataset-category {
-  display: inline-block;
-  padding: 4px 8px;
-  background-color: #ebf8ff;
-  color: #3182ce;
-  border-radius: 4px;
-  font-size: 12px;
-  margin-top: 8px;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 30px;
-}
-
-.confirmation-details {
-  background-color: white;
-  border-radius: 8px;
-  padding: 20px;
-}
-
-.detail-group {
-  margin-bottom: 24px;
-}
-
-.detail-group h4 {
-  margin-bottom: 8px;
-  color: #4a5568;
-}
-
-.text-sm {
-  font-size: 14px;
-  color: #718096;
-}
-
-.form-group {
-  margin-bottom: 16px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 500;
-}
-
-.form-input {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  font-size: 16px;
-}
-
 /* 按钮样式 */
 .btn {
   padding: 8px 16px;
@@ -989,114 +636,24 @@ MODEL=Qwen/qwen2-1.5b-instruct`
   .step-line {
     width: 50px;
   }
-  
-  .models-grid, .datasets-grid {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  }
 }
 
-/* 多选组件样式 */
-.multiselect {
-  border-color: #e2e8f0;
-  border-radius: 0.5rem;
+.sidebar-item.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.multiselect .multiselect-tag {
-  background-color: #ebf8ff;
-  color: #2c5282;
-  border-radius: 0.375rem;
+.sidebar-link.disabled {
+  color: #a0aec0;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
-.multiselect .multiselect-input {
-  border: 0;
-}
-.multiselect .multiselect-input:focus {
-  box-shadow: none;
-  outline: none;
-}
-
-/* 自定义模型配置布局 */
-.custom-model-config {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-  margin-top: 1.5rem;
-  padding: 1rem;
-  background-color: #f9fafb;
-  border-radius: 0.5rem;
-}
-
-.custom-model-config h4 {
-  grid-column: span 2 / span 2;
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-}
-
-/* 响应式布局 */
-@media (max-width: 768px) {
-  .custom-model-config {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
-}
-
-/* 数据集下拉列表样式优化 */
-.dataset-multiselect {
-  --ms-max-height: calc(100vh - 320px);
-  --ms-option-padding: 8px 16px;
-  --ms-py: 6px;
-}
-
-/* 修正数据集选项样式 */
-.dataset-option {
-  padding: 6px 0;
-}
-
-.dataset-option .option-value {
-  font-weight: 500;
-  color: #2d3748;
-  font-size: 14px;
-  line-height: 1.3;
-}
-
-.dataset-option .option-label {
+.development-notice {
   font-size: 12px;
   color: #718096;
-  margin-top: 2px;
-  line-height: 1.2;
-}
-
-/* 修正标签样式 */
-.multiselect-tag {
-  display: flex;
-  align-items: center;
-  background-color: #ebf8ff;
-  color: #2b6cb0;
-  padding: 2px 8px;
-  border-radius: 4px;
-  margin: 2px;
-}
-
-.multiselect-tag .tag-value {
-  font-size: 14px;
-}
-
-.multiselect-tag .tag-remove {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  margin-left: 6px;
-  border-radius: 50%;
-  background-color: #4299e1;
-  color: white;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.multiselect-tag .tag-remove:hover {
-  background-color: #3182ce;
+  font-style: italic;
+  padding: 0 24px 8px;
 }
 
 /* 成功提示弹窗样式 */
@@ -1139,81 +696,6 @@ MODEL=Qwen/qwen2-1.5b-instruct`
 .modal-actions {
   display: flex;
   justify-content: space-between;
-}
-
-.sidebar-item.disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.sidebar-link.disabled {
-  color: #a0aec0;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-.development-notice {
-  font-size: 12px;
-  color: #718096;
-  font-style: italic;
-  padding: 0 24px 8px;
-}
-
-.model-type-select {
-  display: flex;
-  gap: 20px;
-  margin-bottom: 15px;
-}
-
-.model-type-select label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-}
-
-.api-config-input {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-family: monospace;
-}
-
-.step-buttons {
-  margin-top: 25px;
-  display: flex;
-  gap: 15px;
-  justify-content: flex-end;
-}
-
-.btn-prev, .btn-next, .btn-submit {
-  padding: 10px 25px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.btn-prev {
-  background-color: #f0f0f0;
-  border: 1px solid #ddd;
-}
-
-.btn-next {
-  background-color: #3182ce;
-  color: white;
-  border: none;
-}
-
-.btn-submit {
-  background-color: #38a169;
-  color: white;
-  border: none;
-}
-
-.btn-next:disabled, .btn-submit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .notification {
