@@ -46,6 +46,10 @@ celery_app.conf.update(
     # 失败重试机制
     task_reject_on_worker_lost=True, # worker失败时放回队列
     task_acks_on_failure_or_timeout=False, # 失败不确认，重新入队
+
+    # 结果后端设置
+    result_backend_max_retries=3,
+    result_extended=True  # 启用扩展结果
 )
 
 # 添加调试配置

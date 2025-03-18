@@ -1,6 +1,6 @@
 import logging
 from sqlalchemy.orm import Session
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime
 from celery.result import AsyncResult
 from core.database import SessionLocal
@@ -9,6 +9,7 @@ from tasks.task_eval import run_evaluation
 from tasks.runners.runner_base import get_runner
 from utils.redis_manager import RedisManager
 import psutil
+import sqlalchemy.exc
 
 
 # 配置日志
@@ -106,36 +107,54 @@ class TaskManager:
     def terminate_task(self, eval_id: int) -> dict:
         """使用Celery原生终止功能"""
         try:
-            # 获取数据库中的任务记录
-            evaluation = self._get_db_evaluation(eval_id)
-            if not evaluation or not evaluation.task_id:
-                return {"success": False, "message": "任务不存在"}
+            with SessionLocal() as db:  # 使用上下文管理器管理会话
+                # 获取最小必要字段
+                evaluation = db.query(
+                    Evaluation.id,
+                    Evaluation.task_id,
+                    Evaluation.status
+                ).filter(Evaluation.id == eval_id).first()
 
-            # 获取Celery任务实例
-            task = AsyncResult(evaluation.task_id)
-            
-            # 双重检查任务状态
-            if task.state in ['SUCCESS', 'FAILURE', 'REVOKED']:
-                return {"success": False, "message": "任务已处于最终状态无法终止"}
+                if not evaluation or not evaluation.task_id:
+                    return {"success": False, "message": "任务不存在"}
 
-            try:
-                task.revoke(terminate=True, signal='SIGTERM', timeout=10)
-                # 如果5秒后仍在运行，强制终止
-                if not task.ready():
-                    task.revoke(terminate=True, signal='SIGKILL')
-                    logger.warning(f"强制终止任务 {evaluation.task_id}")
+                try:
+                    task = AsyncResult(evaluation.task_id)
+                    
+                    # 添加更精确的后端检查
+                    if not hasattr(task, 'backend') or task.backend == 'disabled':
+                        raise AttributeError("结果后端不可用")
+                    
+                    # 更严谨的状态检查
+                    terminal_states = ['SUCCESS', 'FAILURE', 'REVOKED', 'TERMINATED']
+                    if task.state in terminal_states:
+                        return {"success": False, "message": "任务已处于最终状态无法终止"}
 
-                # 清理子进程（关键修复点）
-                self._cleanup_child_processes(eval_id)
+                    task.revoke(terminate=True, signal='SIGTERM', timeout=10)
+                    # 如果5秒后仍在运行，强制终止
+                    if not task.ready():
+                        task.revoke(terminate=True, signal='SIGKILL')
+                        logger.warning(f"强制终止任务 {evaluation.task_id}")
+
+                    # 清理子进程（关键修复点）
+                    self._cleanup_child_processes(eval_id)
+                    
+                    return {"success": True, "message": "任务终止指令已发送"}
+                    
+                except (AttributeError, ValueError) as e:
+                    logger.error(f"终止参数错误: {str(e)}")
+                    return {"success": False, "message": f"终止失败: {str(e)}"}
+                except Exception as e:
+                    logger.error(f"终止过程异常: {str(e)}")
+                    return {"success": False, "message": "终止过程发生意外错误"}
                 
-                return {"success": True, "message": "任务终止指令已发送"}
-            except Exception as e:
-                logger.error(f"终止任务异常: {str(e)}")
-                return {"success": False, "message": f"终止失败: {str(e)}"}
+        except sqlalchemy.exc.SQLAlchemyError as e:
+            logger.error(f"数据库操作失败: {str(e)}")
+            return {"success": False, "message": "数据库服务异常"}
         except Exception as e:
-            logger.exception("终止任务时发生意外错误")
+            logger.exception("系统级错误")
             return {"success": False, "message": "内部服务错误"}
-    
+
     def _cleanup_child_processes(self, task_id: str):
         """清理子进程"""
         try:
@@ -151,8 +170,15 @@ class TaskManager:
                 logger.info(f"已清理任务 {task_id} 的 {len(children)+1} 个进程")
         except Exception as e:
             logger.warning(f"清理子进程失败: {str(e)}")
+
     def _get_db_evaluation(self, eval_id: int):
         """辅助方法获取数据库记录"""
         with SessionLocal() as db:
-            return db.query(Evaluation).get(eval_id)
+            # 使用with语句自动管理会话生命周期
+            # 显式加载需要的字段，避免延迟加载
+            return db.query(
+                Evaluation.id,
+                Evaluation.task_id,
+                Evaluation.status
+            ).filter(Evaluation.id == eval_id).first()
     
