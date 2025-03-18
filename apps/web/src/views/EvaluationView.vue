@@ -205,7 +205,7 @@ export default {
       currentStep: 1,
       currentLogTaskId: null,
       currentResultTaskId: null,
-      modelType: 'preset',
+      modelType: 'custom',
       selectedModel: null,
       customApiConfig: '',
       lastCustomApiConfig: null,
