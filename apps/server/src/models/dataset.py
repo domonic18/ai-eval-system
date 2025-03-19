@@ -11,10 +11,11 @@ class Dataset(Base, TimestampMixin):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False, comment="数据集名称")
     description = Column(Text, nullable=True, comment="数据集描述")
-    is_active = Column(Boolean, default=True, comment="是否激活(软删除控制)")
     type = Column(String(50), nullable=False, comment="数据集类型")
+    category = Column(String(50), nullable=True, comment="数据集分类")
     file_path = Column(String(255), nullable=True, comment="数据集文件路径")
     configuration = Column(JSON, nullable=True, comment="数据集配置")
+    is_active = Column(Boolean, default=True, comment="是否激活(软删除控制)")
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="创建者ID")
     created_at = Column(DateTime(timezone=True), 
                         server_default=text('CURRENT_TIMESTAMP(6)'),
