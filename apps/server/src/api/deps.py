@@ -38,8 +38,8 @@ def get_current_user(
         # 1. 解码JWT令牌
         payload = jwt.decode(
             token,
-            settings.SECRET_KEY,
-            algorithms=[settings.ALGORITHM],
+            settings.JWT_SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM],
             options={"verify_aud": False}
         )
         
