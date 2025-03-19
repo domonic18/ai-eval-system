@@ -6,9 +6,11 @@ import json
 from datetime import datetime
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from typing import Dict, Any, Optional, List
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Dict, Any, Optional, List, Union, AsyncIterator
 from models.eval import Evaluation, EvaluationStatus
 import asyncio
+from utils.utils_db import async_db_operation
 
 logger = logging.getLogger(__name__)
 
@@ -168,15 +170,16 @@ class EvaluationRepository:
     
     @staticmethod
     async def create_evaluation_async(
-        db: Session, 
-        model_name: str, 
+        db: Union[Session, AsyncIterator[AsyncSession]],
+        model_name: str,
         dataset_names: List[str],
-        model_configuration: Dict[str, Any], 
-        dataset_configuration: Dict[str, Any], 
+        model_configuration: Dict[str, Any] = None,
+        dataset_configuration: Dict[str, Any] = None,
         eval_config: Dict[str, Any] = None,
-        env_vars: Dict[str, Any] = {}
+        env_vars: Dict[str, Any] = None,
+        user_id: int = 1  # 默认为1，系统用户
     ) -> Evaluation:
-        """异步创建新的评估记录
+        """创建评估记录
         
         Args:
             db: 数据库会话
@@ -186,29 +189,28 @@ class EvaluationRepository:
             dataset_configuration: 数据集配置
             eval_config: 评估配置
             env_vars: 环境变量
+            user_id: 用户ID
+            
         Returns:
             Evaluation: 创建的评估记录
         """
-        try:
-            db_eval = Evaluation(
-                model_name=model_name,
-                dataset_names=json.dumps(dataset_names),
-                model_configuration=model_configuration,
-                dataset_configuration=dataset_configuration,
-                eval_config=eval_config or {},
-                status=EvaluationStatus.PENDING.value,
-                log_dir="logs/default",
-                progress=0.0,
-                env_vars=env_vars
-            )
+        # 创建评估记录
+        db_eval = Evaluation(
+            model_name=model_name,
+            dataset_names=dataset_names,
+            model_configuration=model_configuration or {},
+            dataset_configuration=dataset_configuration or {},
+            eval_config=eval_config or {},
+            env_vars=env_vars or {},
+            status=EvaluationStatus.PENDING.value,
+            user_id=user_id
+        )
         
-            # 添加并提交(异步执行)
-            db.add(db_eval)
-            await asyncio.to_thread(db.commit)
-            await asyncio.to_thread(db.refresh, db_eval)
-        except Exception as e:
-            logger.error(f"异步创建评估记录失败: {str(e)}")
-            raise e
+        # 添加到会话并提交
+        async with async_db_operation(db) as session:
+            session.add(db_eval)
+            await session.commit()
+            await session.refresh(db_eval)
         
         return db_eval
     
