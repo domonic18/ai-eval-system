@@ -351,7 +351,7 @@ export default defineComponent({
     const user = computed(() => store.state.auth.user)
     
     const userAvatar = computed(() => {
-      return user.value?.image || '/img/default-avatar.png'
+      return user.value?.image || '/assets/images/default-avatar.png'
     })
     
     // 生命周期钩子

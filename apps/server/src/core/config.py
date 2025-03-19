@@ -58,6 +58,14 @@ class Settings(BaseSettings):
     secret_key: str = os.getenv("SECRET_KEY", "your-secret-key-here")
     access_token_expire_minutes: int = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24 * 90)
 
+    # 头像相关配置
+    upload_dir: Path = Path(os.getenv("UPLOAD_DIR", workspace / "data" / "user_uploads"))
+    avatar_storage_dir: Path = Path(os.getenv("AVATAR_DIR", upload_dir / "avatars"))
+    avatar_url_prefix: str = "/api/uploads/avatars"  # API URL前缀
+    default_avatar_url: str = "/images/default-avatar.png"  # 前端静态资源
+    max_avatar_size: int = 2 * 1024 * 1024  # 2MB
+    allowed_avatar_types: list = ["image/jpeg", "image/png", "image/gif", "image/webp"]
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_prefix="AI_EVAL_",  # 添加环境变量前缀避免冲突

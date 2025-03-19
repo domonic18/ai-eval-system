@@ -13,6 +13,7 @@ import logging
 from utils.password import verify_password, get_password_hash
 from schemas.user import UserInDB, UserResponse
 from core.config import settings
+from utils.avatar_helper import AvatarHelper
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -106,7 +107,7 @@ class AuthService:
             email=user_data.email,
             hashed_password=hashed_password,
             display_name=user_data.display_name or user_data.username,
-            avatar=user_data.avatar or "/default-avatar.png",
+            avatar=user_data.avatar or settings.default_avatar_url,
             is_active=True,
             is_admin=False
         )
