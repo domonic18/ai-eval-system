@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, text
 from core.database import Base, TimestampMixin
 from sqlalchemy.orm import relationship
+from datetime import datetime
 
 
 class User(Base, TimestampMixin):
@@ -9,9 +10,13 @@ class User(Base, TimestampMixin):
 
     id = Column(Integer, primary_key=True, index=True, comment="主键ID")
     username = Column(String(50), unique=True, nullable=False, index=True, comment="用户名")
-    password = Column(String(255), nullable=False, comment="密码（加密存储）")
-    email = Column(String(255), unique=True, nullable=False, index=True, comment="邮箱")
+    email = Column(String(100), unique=True, index=True, nullable=False, comment="邮箱")
+    hashed_password = Column(String(100), nullable=True, comment="密码（加密存储）")
+    
+    # 添加显示名称和头像字段
+    display_name = Column(String(100), nullable=True, comment="显示名称")
     avatar = Column(String(255), nullable=True, comment="头像URL")
+    
     is_active = Column(Boolean, default=True, comment="是否激活")
     is_admin = Column(Boolean, default=False, comment="是否管理员")
     created_at = Column(DateTime(timezone=True),
