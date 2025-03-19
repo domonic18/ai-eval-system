@@ -264,16 +264,16 @@ class EvaluationService:
                         )
                     )
                 
-                # 计算总数
-                total_query = select(func.count()).select_from(query)
-                total = await db_session.execute(total_query)
-                total = total.scalar() or 0
+                # 计算总数 - 修改为同步方式
+                total_query = select(func.count()).select_from(query.subquery())
+                total_result = db_session.execute(total_query)  # 移除 await
+                total = total_result.scalar() or 0
                 
                 # 添加排序和分页
                 query = query.order_by(desc(Evaluation.created_at)).offset(offset).limit(limit)
                 
-                # 执行查询
-                result = await db_session.execute(query)
+                # 执行查询 - 同样需要修改
+                result = db_session.execute(query)  # 移除 await
                 evaluations = result.unique().all()
                 
                 # 格式化结果
@@ -282,8 +282,8 @@ class EvaluationService:
                     # 从关联的用户对象获取用户信息
                     user_info = {
                         "user_id": eval_task.user_id,
-                        "user_name": eval_task.user.display_name if eval_task.user else "未知用户",
-                        "user_avatar": eval_task.user.avatar if eval_task.user else "/default-avatar.png"
+                        "user_name": eval_task.user.display_name if hasattr(eval_task, 'user') and eval_task.user else "未知用户",
+                        "user_avatar": eval_task.user.avatar if hasattr(eval_task, 'user') and eval_task.user else "/assets/images/default-avatar.png"
                     }
                     
                     # 构建评测信息
