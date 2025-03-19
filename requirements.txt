@@ -12,6 +12,7 @@ asyncmy>=0.2.7
 alembic>=1.12.0
 redis>=5.0.0
 aioredis
+aiomysql
 
 # 其他依赖
 python-dotenv>=1.0.0
