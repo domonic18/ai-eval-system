@@ -136,7 +136,7 @@ export default defineComponent({
           password: password.value
         })
         
-        // 注册并登录成功后跳转到首页
+        // 注册成功后跳转到首页
         router.push('/')
       } catch (err) {
         error.value = err.response?.data?.detail || '注册失败，请检查输入信息'

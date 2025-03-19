@@ -80,16 +80,28 @@ export default {
       this.error = null
       
       try {
-        await this.$store.dispatch('auth/login', {
+        console.log('开始登录流程')
+        // 调用store中的登录方法
+        const response = await this.$store.dispatch('auth/login', {
           username: this.username,
           password: this.password
         })
         
-        // 登录成功后跳转到首页
-        this.$router.push('/')
+        console.log('登录API响应:', response.data)
+        
+        // 验证token是否已保存
+        const savedToken = localStorage.getItem('token')
+        console.log('保存的token状态:', !!savedToken)
+        
+        // 登录成功后，优先使用URL中的redirect参数跳转
+        const redirectPath = this.$route.query.redirect || '/'
+        console.log('准备跳转到:', redirectPath)
+        
+        // 使用replace而不是push，避免浏览器历史记录中保留登录页
+        this.$router.replace(redirectPath)
       } catch (error) {
+        console.error('登录失败:', error)
         this.error = error.response?.data?.detail || '登录失败，请检查用户名和密码'
-        console.error('登录错误:', error)
       } finally {
         this.loading = false
       }

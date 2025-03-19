@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { useStore } from 'vuex'
+import store from '@/store'
 
 // 路由定义
 const routes = [
@@ -84,32 +84,33 @@ const router = createRouter({
   }
 })
 
-// 导航守卫
+// 全局前置守卫
 router.beforeEach((to, from, next) => {
-  // 在Vue 3中，我们需要在组件内部使用useStore，但在路由守卫中需要直接引入
-  const store = import.meta.hot ? useStore() : require('@/store').default
-  const isLoggedIn = store.getters['auth/isLoggedIn']
+  // 获取目标路由是否需要认证
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
   
-  // 需要登录的路由
-  if (to.matched.some(record => record.meta.requiresAuth)) {
-    if (!isLoggedIn) {
-      next({
-        path: '/login',
-        query: { redirect: to.fullPath }
-      })
-    } else {
-      next()
-    }
+  // 判断当前是否已登录
+  const isAuthenticated = store.getters['auth/isAuthenticated']
+  
+  console.log('路由守卫检查:', { 
+    路径: to.path, 
+    需要认证: requiresAuth, 
+    已认证: isAuthenticated,
+    token存在: !!localStorage.getItem('token')
+  })
+
+  // 需要认证但未登录，重定向到登录页
+  if (requiresAuth && !isAuthenticated) {
+    next({
+      path: '/login',
+      query: { redirect: to.fullPath }
+    })
   } 
-  // 只有未登录用户可以访问的路由（如登录页）
-  else if (to.matched.some(record => record.meta.guest)) {
-    if (isLoggedIn) {
-      next('/')
-    } else {
-      next()
-    }
-  } 
-  // 其他路由
+  // 已登录但访问登录/注册页，重定向到首页
+  else if (isAuthenticated && (to.path === '/login' || to.path === '/register')) {
+    next('/')
+  }
+  // 其他情况正常通过
   else {
     next()
   }

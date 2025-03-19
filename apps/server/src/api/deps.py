@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from typing import Optional
+from fastapi.security import OAuth2PasswordBearer
 
 from core.database import db
 from core.config import settings
@@ -22,33 +23,48 @@ def get_db():
         db_session.close()
 
 # 添加获取当前用户的依赖函数
-def get_current_user(db: Session = Depends(get_db)):
-    """获取当前登录用户
-    
-    从请求的Authorization头部获取令牌，验证后返回用户对象
-    
-    Args:
-        db: 数据库会话
-        
-    Returns:
-        User: 当前登录用户对象
-        
-    Raises:
-        HTTPException: 认证失败时抛出401异常
-    """
+def get_current_user(
+    token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")),
+    db: Session = Depends(get_db)
+) -> User:
+    """完整的JWT认证实现"""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="认证失败",
         headers={"WWW-Authenticate": "Bearer"},
     )
     
-    # 实际项目中应该从请求headers中获取token，这里简化为使用固定用户
-    # 在真实环境中应该解析JWT token并验证
-    
-    # 查询系统默认用户（此处使用ID=1作为演示）
-    user = db.query(User).filter(User.id == 1).first()
-    if not user:
-        # 如果默认用户不存在，抛出认证异常
-        raise credentials_exception
-    
-    return user
+    try:
+        # 1. 解码JWT令牌
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM],
+            options={"verify_aud": False}
+        )
+        
+        # 2. 验证令牌结构
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+            
+        # 3. 查询数据库获取用户
+        user = db.query(User).filter(User.username == username).first()
+        if user is None:
+            raise credentials_exception
+            
+        # 4. 验证用户状态
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="用户已被禁用"
+            )
+            
+        return user
+        
+    except JWTError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="无效的认证令牌",
+            headers={"WWW-Authenticate": "Bearer"},
+        )

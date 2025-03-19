@@ -34,8 +34,10 @@ class Settings(BaseSettings):
     mysql_debug: bool = False
     
     # 安全配置
+    JWT_ALGORITHM: str = "HS256"
     JWT_SECRET_KEY: str = "your-secret-key-here"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 30 # 30天
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 30 # 30天
+
 
     # CORS配置
     CORS_ORIGINS: list = [
@@ -55,8 +57,6 @@ class Settings(BaseSettings):
     # 并发配置
     celery_concurrency: int = os.getenv("CELERY_CONCURRENCY", 1)
 
-    secret_key: str = os.getenv("SECRET_KEY", "your-secret-key-here")
-    access_token_expire_minutes: int = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24 * 90)
 
     # 头像相关配置
     upload_dir: Path = Path(os.getenv("UPLOAD_DIR", workspace / "data" / "user_uploads"))
@@ -85,6 +85,7 @@ class Settings(BaseSettings):
             path=self.mysql_db,
             query="charset=utf8mb4"  # 移除非标准参数
         )
+
 
 settings = Settings()
 

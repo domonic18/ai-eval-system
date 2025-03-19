@@ -21,11 +21,6 @@ logger = logging.getLogger(__name__)
 # 密码哈希上下文
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# JWT配置
-SECRET_KEY = settings.secret_key
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
-
 # OAuth2密码流程
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
@@ -56,23 +51,14 @@ class AuthService:
         return pwd_context.hash(password)
 
     @staticmethod
-    def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
-        """创建访问令牌
-
-        Args:
-            data: 要编码的数据
-            expires_delta: 过期时间增量
-
-        Returns:
-            str: JWT令牌
-        """
+    def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
         to_encode = data.copy()
         if expires_delta:
             expire = datetime.utcnow() + expires_delta
         else:
-            expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            expire = datetime.utcnow() + timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
         to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+        encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
         return encoded_jwt
 
     @staticmethod
@@ -148,7 +134,7 @@ class AuthService:
             Optional[User]: 当前用户，解析失败返回None
         """
         try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
             username = payload.get("sub")
             if username is None:
                 return None
@@ -177,24 +163,24 @@ class AuthService:
             )
         return user
 
-    @staticmethod
-    def create_token_response(user: User) -> Token:
-        """创建令牌响应
+    # @staticmethod
+    # def create_token_response(user: User) -> Token:
+    #     """创建令牌响应
 
-        Args:
-            user: 用户
+    #     Args:
+    #         user: 用户
 
-        Returns:
-            Token: 令牌响应
-        """
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = AuthService.create_access_token(
-            data={"sub": user.username}, expires_delta=access_token_expires
-        )
-        return Token(
-            access_token=access_token,
-            token_type="Bearer"
-        )
+    #     Returns:
+    #         Token: 令牌响应
+    #     """
+    #     access_token_expires = timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
+    #     access_token = AuthService.create_access_token(
+    #         data={"sub": user.username}, expires_delta=access_token_expires
+    #     )
+    #     return Token(
+    #         access_token=access_token,
+    #         token_type="Bearer"
+    #     )
 
     @staticmethod
     def user_to_response(user: User) -> UserResponse:

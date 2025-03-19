@@ -42,6 +42,10 @@ class EvaluationService:
         Returns:
             dict: 创建结果
         """
+        # 直接从当前用户获取
+        current_user = get_current_user()
+        eval_data.user_id = current_user.id
+        
         # 特殊处理逻辑：
         if eval_data.api_type == "dify":
             eval_data.env_vars = self.adapt_dify_configuration(
