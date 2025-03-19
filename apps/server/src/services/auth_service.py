@@ -10,6 +10,9 @@ from schemas.auth import UserCreate, Token
 from api.deps import get_db
 import os
 import logging
+from utils.password import verify_password, get_password_hash
+from schemas.user import UserInDB, UserResponse
+from core.config import settings
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -18,9 +21,9 @@ logger = logging.getLogger(__name__)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # JWT配置
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-for-local-development")
+SECRET_KEY = settings.secret_key
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24小时过期
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
 
 # OAuth2密码流程
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
@@ -84,18 +87,26 @@ class AuthService:
         """
         # 检查用户名是否已存在
         if db.query(User).filter(User.username == user_data.username).first():
-            raise ValueError(f"用户名 '{user_data.username}' 已被使用")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"用户名 '{user_data.username}' 已被使用"
+            )
 
         # 检查邮箱是否已存在
         if db.query(User).filter(User.email == user_data.email).first():
-            raise ValueError(f"邮箱 '{user_data.email}' 已被注册")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"邮箱 '{user_data.email}' 已被注册"
+            )
 
         # 创建新用户
         hashed_password = AuthService.get_password_hash(user_data.password)
         db_user = User(
             username=user_data.username,
             email=user_data.email,
-            password=hashed_password,
+            hashed_password=hashed_password,
+            display_name=user_data.display_name or user_data.username,
+            avatar=user_data.avatar or "/default-avatar.png",
             is_active=True,
             is_admin=False
         )
@@ -118,7 +129,7 @@ class AuthService:
             Optional[User]: 认证成功的用户，认证失败返回None
         """
         user = db.query(User).filter(User.username == username).first()
-        if not user or not AuthService.verify_password(password, user.password):
+        if not user or not verify_password(password, user.hashed_password):
             return None
         if not user.is_active:
             raise ValueError("用户已被停用")
@@ -182,6 +193,28 @@ class AuthService:
         return Token(
             access_token=access_token,
             token_type="Bearer"
+        )
+
+    @staticmethod
+    def user_to_response(user: User) -> UserResponse:
+        """将用户模型转换为响应模型
+        
+        Args:
+            user: 用户模型
+            
+        Returns:
+            UserResponse: 用户响应模型
+        """
+        return UserResponse(
+            id=user.id,
+            username=user.username,
+            email=user.email,
+            display_name=user.display_name,
+            avatar=user.avatar,
+            is_admin=user.is_admin,
+            is_active=user.is_active,
+            created_at=user.created_at,
+            updated_at=user.updated_at
         )
 
 # 创建服务实例

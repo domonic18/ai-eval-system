@@ -1,8 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from datetime import datetime, timedelta
+from typing import Any, Dict
+
 from api.deps import get_db
-from schemas.auth import UserCreate, UserLogin, Token, UserResponse
+from schemas.user import UserCreate, UserResponse, Token
 from services.auth_service import auth_service
 from models.user import User
 import logging
@@ -12,92 +15,88 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# OAuth2密码流程 - 现在移到 auth_service.py 中
-# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+# OAuth2密码承载令牌
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    """注册新用户
+@router.post("/token", response_model=Token)
+async def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+) -> Any:
+    """获取访问令牌
     
     Args:
-        user_data: 用户数据
+        form_data: 表单数据（用户名和密码）
         db: 数据库会话
         
     Returns:
-        UserResponse: 用户信息
+        Dict[str, str]: 包含访问令牌和令牌类型的字典
     """
-    try:
-        user = auth_service.register_user(db, user_data)
-        return UserResponse(
-            id=user.id,
-            username=user.username,
-            email=user.email,
-            avatar=user.avatar,
-            is_admin=user.is_admin
-        )
-    except ValueError as e:
+    user = auth_service.authenticate_user(db, form_data.username, form_data.password)
+    if not user:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户名或密码不正确",
+            headers={"WWW-Authenticate": "Bearer"},
         )
-    except Exception as e:
-        logger.error(f"注册用户失败: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"注册用户失败: {str(e)}"
-        )
+    
+    access_token_expires = timedelta(minutes=30)
+    access_token = auth_service.create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}
 
-@router.post("/login", response_model=Token)
+@router.post("/register", response_model=UserResponse)
+async def register_user(user_create: UserCreate, db: Session = Depends(get_db)):
+    """注册新用户"""
+    try:
+        user = auth_service.register_user(db, user_create)
+        return auth_service.user_to_response(user)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/login", response_model=Dict[str, Any])
 async def login(
-    login_data: UserLogin,  # 使用自定义的UserLogin schema
+    user_data: dict,
     db: Session = Depends(get_db)
-):
+) -> Any:
     """用户登录
     
     Args:
-        login_data: 登录数据
+        user_data: 包含用户名和密码的字典
         db: 数据库会话
         
     Returns:
-        Token: 令牌信息
+        Dict[str, Any]: 包含访问令牌、令牌类型和用户信息的字典
     """
-    try:
-        user = auth_service.authenticate_user(db, login_data.username, login_data.password)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="用户名或密码不正确",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        return auth_service.create_token_response(user)
-    except ValueError as e:
+    user = auth_service.authenticate_user(db, user_data.get("username"), user_data.get("password"))
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),
+            detail="用户名或密码不正确",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except Exception as e:
-        logger.error(f"用户登录失败: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"登录失败: {str(e)}"
-        )
+    
+    access_token_expires = timedelta(minutes=30)
+    access_token = auth_service.create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "display_name": user.display_name,
+            "avatar": user.avatar,
+            "is_admin": user.is_admin
+        }
+    }
 
 @router.get("/me", response_model=UserResponse)
 async def get_user_info(current_user: User = Depends(auth_service.get_current_user)):
-    """获取当前用户信息
-    
-    Args:
-        current_user: 当前登录用户
-        
-    Returns:
-        UserResponse: 用户信息
-    """
-    return UserResponse(
-        id=current_user.id,
-        username=current_user.username,
-        email=current_user.email,
-        avatar=current_user.avatar,
-        is_admin=current_user.is_admin
-    ) 
+    """获取当前用户信息"""
+    return auth_service.user_to_response(current_user) 

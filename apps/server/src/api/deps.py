@@ -48,23 +48,7 @@ def get_current_user(db: Session = Depends(get_db)):
     # 查询系统默认用户（此处使用ID=1作为演示）
     user = db.query(User).filter(User.id == 1).first()
     if not user:
-        # 如果默认用户不存在，创建一个
-        user = User(
-            id=1,
-            username="admin",
-            email="admin@example.com",
-            display_name="系统管理员",
-            avatar="/default-avatar.png",
-            is_active=True,
-            is_superuser=True
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
+        # 如果默认用户不存在，抛出认证异常
+        raise credentials_exception
     
     return user
-
-# from core.database import AsyncSessionLocal
-# async def get_db() -> AsyncSession:
-#     async with AsyncSessionLocal() as session:
-#         yield session

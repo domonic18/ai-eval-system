@@ -53,7 +53,10 @@ class Settings(BaseSettings):
     dify2openai_url: str = os.getenv("DIFY2OPENAI_URL", "http://localhost:3099/v1/")
 
     # 并发配置
-    celery_concurrency: int = os.getenv("CELERY_CONCURRENCY", 1)  # 全局并发限制
+    celery_concurrency: int = os.getenv("CELERY_CONCURRENCY", 1)
+
+    secret_key: str = os.getenv("SECRET_KEY", "your-secret-key-here")
+    access_token_expire_minutes: int = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24 * 90)
 
     model_config = SettingsConfigDict(
         env_file=".env",

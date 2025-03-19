@@ -78,12 +78,11 @@ const actions = {
     commit('setError', null)
     
     try {
-      // 使用FormData格式提交 (OAuth2 password flow要求)
-      const formData = new FormData()
-      formData.append('username', credentials.username)
-      formData.append('password', credentials.password)
-      
-      const response = await http.post('/api/v1/auth/login', formData)
+      // 使用JSON格式提交
+      const response = await http.post('/api/v1/auth/login', {
+        username: credentials.username,
+        password: credentials.password
+      })
       
       // 保存token
       commit('setToken', response.data.access_token)

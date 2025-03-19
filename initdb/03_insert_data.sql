@@ -1,6 +1,6 @@
-INSERT INTO users (username, email, password)
+INSERT INTO users (username, email, hashed_password, display_name, avatar, is_active, is_admin)
 VALUES 
-('admin', 'admin@example.com', 'admin');
+('admin', 'admin@example.com', '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '系统管理员', '/default-avatar.png', 1, 1);
 
 INSERT INTO ai_models (name, provider, description, model_type, version, configuration, is_public, user_id, is_active)
 VALUES 
