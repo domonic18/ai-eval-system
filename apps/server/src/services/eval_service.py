@@ -15,6 +15,8 @@ from tasks.runners.runner_base import get_runner
 import os
 from pathlib import Path
 from core.config import settings
+from sqlalchemy import select, func, or_, desc, String, cast
+from sqlalchemy.orm import joinedload
 
 
 
@@ -47,6 +49,11 @@ class EvaluationService:
                 dify2openai_url=settings.dify2openai_url
             )
 
+        # 确保有用户ID
+        if not eval_data.user_id:
+            # 如果没有提供用户ID，使用默认用户ID（应该避免这种情况）
+            eval_data.user_id = 1  # 默认系统用户ID
+        
         # 创建评估记录
         db_eval = await EvaluationRepository.create_evaluation_async(
             db,
@@ -55,7 +62,8 @@ class EvaluationService:
             model_configuration=eval_data.model_configuration,
             dataset_configuration=eval_data.datasets.configuration,
             eval_config=eval_data.eval_config,
-            env_vars=eval_data.env_vars
+            env_vars=eval_data.env_vars,
+            user_id=eval_data.user_id  # 添加用户ID
         )
                 
         # 使用TaskManager创建任务
@@ -210,21 +218,23 @@ class EvaluationService:
         # 没有找到日志，返回空列表
         return []
 
-    async def list_evaluations(self, status: Optional[str] = None, limit: int = 100, offset: int = 0, db: Union[Session, Iterator[Session]] = Depends(get_db)):
-        """获取所有评估任务列表
-        
-        Args:
-            db: 数据库会话
-            
-        Returns:
-            dict: 评估任务列表
-        """
-        """列出评估任务
+    async def list_evaluations(
+        self, 
+        status: Optional[str] = None, 
+        limit: int = 10,
+        offset: int = 0, 
+        user_id: Optional[int] = None,
+        search_query: Optional[str] = None,
+        db: Union[Session, Iterator[Session]] = Depends(get_db)
+    ):
+        """列出评估任务，支持用户筛选和搜索
         
         Args:
             status: 可选的状态过滤条件
-            limit: 分页限制
+            limit: 分页限制，默认10条
             offset: 分页偏移
+            user_id: 可选的用户ID过滤
+            search_query: 搜索关键词（模型名称或数据集）
             db: 数据库会话
             
         Returns:
@@ -232,16 +242,65 @@ class EvaluationService:
         """
         async with async_db_operation(db) as db_session:
             try:
-                # 获取评估任务列表
-                evaluations = await EvaluationRepository.list_evaluations_async(
-                    db_session,
-                    status,
-                    limit,
-                    offset
-                )
+                # 构建查询条件
+                query = db_session.query(Evaluation).options(joinedload(Evaluation.user))
                 
+                # 添加状态过滤
+                if status:
+                    query = query.filter(Evaluation.status == status)
+                    
+                # 添加用户过滤
+                if user_id:
+                    query = query.filter(Evaluation.user_id == user_id)
+                    
+                # 添加搜索功能
+                if search_query:
+                    search_pattern = f"%{search_query}%"
+                    query = query.filter(
+                        or_(
+                            Evaluation.model_name.ilike(search_pattern),
+                            cast(Evaluation.dataset_names, String).ilike(search_pattern),
+                            Evaluation.name.ilike(search_pattern)
+                        )
+                    )
+                
+                # 计算总数
+                total_query = select(func.count()).select_from(query)
+                total = await db_session.execute(total_query)
+                total = total.scalar() or 0
+                
+                # 添加排序和分页
+                query = query.order_by(desc(Evaluation.created_at)).offset(offset).limit(limit)
+                
+                # 执行查询
+                result = await db_session.execute(query)
+                evaluations = result.unique().all()
+                
+                # 格式化结果
+                items = []
+                for eval_task in evaluations:
+                    # 从关联的用户对象获取用户信息
+                    user_info = {
+                        "user_id": eval_task.user_id,
+                        "user_name": eval_task.user.display_name if eval_task.user else "未知用户",
+                        "user_avatar": eval_task.user.avatar if eval_task.user else "/default-avatar.png"
+                    }
+                    
+                    # 构建评测信息
+                    eval_info = {
+                        "id": eval_task.id,
+                        "name": eval_task.name,
+                        "model_name": eval_task.model_name,
+                        "dataset_names": eval_task.dataset_names,
+                        "status": eval_task.status,
+                        "created_at": eval_task.created_at,
+                        "updated_at": eval_task.updated_at,
+                        **user_info  # 合并用户信息
+                    }
+                    
+                    items.append(eval_info)
+                    
                 # 获取活动任务的最新状态
-                items = evaluations.get("items", [])
                 for item in items:
                     # 如果任务正在运行，尝试获取最新进度
                     if item.get("status") == EvaluationStatus.RUNNING.value:
@@ -260,7 +319,7 @@ class EvaluationService:
                 # 构建响应
                 return {
                     "items": items,
-                    "total": evaluations.get("total", 0),
+                    "total": total,
                     "limit": limit,
                     "offset": offset
                 }
