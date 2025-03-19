@@ -19,25 +19,28 @@
       </div>
     </div>
     
-    <!-- 筛选区域 -->
+    <!-- 筛选和操作区域 -->
     <div class="filter-container">
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
         <el-tab-pane label="我的评测" name="my"></el-tab-pane>
         <el-tab-pane label="全部评测" name="all"></el-tab-pane>
       </el-tabs>
       
-      <div class="search-area">
+      <div class="right-controls">
         <el-input
           v-model="searchQuery"
           placeholder="搜索模型名称或数据集"
-          prefix-icon="el-icon-search"
-          clearable
+          class="search-input"
           @input="handleSearch"
         >
           <template #prefix>
             <el-icon><Search /></el-icon>
           </template>
         </el-input>
+        
+        <el-button type="primary" @click="$emit('create-task')">
+          <el-icon><Plus /></el-icon> 创建新任务
+        </el-button>
       </div>
     </div>
     
@@ -50,30 +53,11 @@
       :header-cell-style="{ 'background-color': '#f7f7f7' }"
       @header-dragend="handleHeaderDragend"
     >
-      <!-- 用户信息列 -->
-      <el-table-column
-        label="创建者"
-        width="120"
-        align="center"
-        fixed="left"
-      >
-        <template #default="scope">
-          <div class="user-info">
-            <el-avatar 
-              :size="30" 
-              :src="scope.row.user_avatar || defaultAvatar"
-              class="user-avatar"
-            ></el-avatar>
-            <span class="user-name">{{ scope.row.user_name || '未知用户' }}</span>
-          </div>
-        </template>
-      </el-table-column>
-      
       <!-- 任务名称列 -->
       <el-table-column
         label="任务名称"
         min-width="180"
-        prop="name"
+        fixed="left"
       >
         <template #default="scope">
           <div class="task-name-cell">
@@ -82,9 +66,12 @@
               <el-button
                 type="primary"
                 link
-                icon="Edit"
+                circle
+                size="small"
                 @click="startEditing(scope.row)"
-              />
+              >
+                <el-icon><Edit /></el-icon>
+              </el-button>
             </span>
             <div v-else class="name-editor">
               <el-input
@@ -120,13 +107,30 @@
       <el-table-column
         label="评测数据集"
         min-width="160"
-        prop="dataset_names"
-      />
+      >
+        <template #default="scope">
+          <div class="dataset-tags">
+            <template v-if="getDatasetNames(scope.row.dataset_names).length > 0">
+              <el-tag
+                v-for="(dataset, index) in getDatasetNames(scope.row.dataset_names)"
+                :key="index"
+                effect="plain"
+                type="info"
+                size="small"
+                class="dataset-tag"
+              >
+                {{ dataset }}
+              </el-tag>
+            </template>
+            <span v-else>-</span>
+          </div>
+        </template>
+      </el-table-column>
       
       <!-- 评测状态列 -->
       <el-table-column
         label="状态"
-        width="120"
+        width="100"
         prop="status"
       >
         <template #default="scope">
@@ -137,6 +141,24 @@
           >
             {{ formatStatus(scope.row.status) }}
           </el-tag>
+        </template>
+      </el-table-column>
+      
+      <!-- 创建者列 -->
+      <el-table-column
+        label="创建者"
+        width="150"
+        align="center"
+      >
+        <template #default="scope">
+          <div class="user-info-horizontal">
+            <el-avatar 
+              :size="28" 
+              :src="scope.row.user_avatar || defaultAvatar"
+              class="user-avatar"
+            ></el-avatar>
+            <span class="user-name-horizontal">{{ scope.row.user_name || '未知用户' }}</span>
+          </div>
         </template>
       </el-table-column>
       
@@ -158,65 +180,73 @@
       <!-- 操作列 -->
       <el-table-column
         label="操作"
-        width="220"
+        width="180"
         fixed="right"
       >
         <template #default="scope">
           <div class="action-column">
-            <el-button
-              type="primary"
-              size="small"
-              @click="viewLogs(scope.row.id)"
-            >日志</el-button>
+            <el-button-group>
+              <el-button
+                type="primary"
+                size="small"
+                @click="viewLogs(scope.row.id)"
+              >日志</el-button>
+              
+              <el-button
+                v-if="getTaskStatusType(scope.row.status) === 'completed'"
+                type="success"
+                size="small"
+                @click="viewResults(scope.row.id)"
+              >结果</el-button>
+            </el-button-group>
             
-            <el-button
-              v-if="getTaskStatusType(scope.row.status) === 'completed'"
-              type="success"
-              size="small"
-              @click="viewResults(scope.row.id)"
-            >结果</el-button>
-            
-            <el-button
-              v-if="getTaskStatusType(scope.row.status) === 'running'"
-              type="warning"
-              size="small"
-              @click="terminateTask(scope.row.id)"
-            >停止</el-button>
-            
-            <el-button
-              type="danger"
-              size="small"
-              @click="deleteTask(scope.row.id)"
-            >删除</el-button>
+            <el-button-group>
+              <el-button
+                v-if="getTaskStatusType(scope.row.status) === 'running'"
+                type="warning"
+                size="small"
+                @click="terminateTask(scope.row.id)"
+              >停止</el-button>
+              
+              <el-button
+                type="danger"
+                size="small"
+                @click="deleteTask(scope.row.id)"
+              >删除</el-button>
+            </el-button-group>
           </div>
         </template>
       </el-table-column>
+      
+      <!-- 空数据状态 -->
+      <template #empty>
+        <el-empty 
+          description="暂无评测任务"
+          :image-size="100"
+        >
+          <el-button type="primary" @click="$emit('create-task')">
+            <el-icon><Plus /></el-icon> 创建新任务
+          </el-button>
+        </el-empty>
+      </template>
     </el-table>
     
     <!-- 分页区域 -->
     <div class="pagination-container">
       <el-pagination
-        v-model:current-page="currentPage"
+        v-model="currentPage"
         :page-size="pageSize"
         :total="total"
         layout="total, prev, pager, next, jumper"
         @current-change="handlePageChange"
       />
     </div>
-    
-    <!-- 无数据提示 -->
-    <el-empty
-      v-if="tableData.length === 0 && !loading"
-      description="暂无评测任务，请创建新任务"
-    >
-      <el-button type="primary" @click="$emit('create-task')">创建新任务</el-button>
-    </el-empty>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
-import { Search, Edit, MoreFilled } from '@element-plus/icons-vue';
+import { Search, Edit, Plus } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 // 导入API客户端
 import api from '@/utils/api';
@@ -567,6 +597,21 @@ function formatTimePart(dateStr) {
     second: '2-digit'
   }).format(date);
 }
+
+// 添加数据集处理方法
+const getDatasetNames = (datasetNames) => {
+  if (!datasetNames) return [];
+  
+  if (Array.isArray(datasetNames)) {
+    return datasetNames;
+  }
+  
+  if (typeof datasetNames === 'string') {
+    return datasetNames.split(',').map(name => name.trim()).filter(Boolean);
+  }
+  
+  return [];
+};
 </script>
 
 <style scoped>
@@ -603,8 +648,14 @@ function formatTimePart(dateStr) {
   margin-bottom: 16px;
 }
 
-.search-area {
-  width: 300px;
+.right-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.search-input {
+  width: 250px;
 }
 
 .date-display {
@@ -618,19 +669,16 @@ function formatTimePart(dateStr) {
   margin-top: 4px;
 }
 
-.user-info {
+.user-info-horizontal {
   display: flex;
-  flex-direction: column;
   align-items: center;
+  gap: 8px;
 }
 
-.user-avatar {
-  margin-bottom: 5px;
-}
-
-.user-name {
-  font-size: 12px;
-  max-width: 100px;
+.user-name-horizontal {
+  font-size: 13px;
+  color: #606266;
+  max-width: 80px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -639,7 +687,7 @@ function formatTimePart(dateStr) {
 .task-name-cell {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
 }
 
 .name-editor {
@@ -656,8 +704,19 @@ function formatTimePart(dateStr) {
 
 .action-column {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
+}
+
+.dataset-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.dataset-tag {
+  margin: 2px;
+  background-color: #f4f4f5;
 }
 
 .pagination-container {
@@ -666,16 +725,8 @@ function formatTimePart(dateStr) {
   justify-content: center;
 }
 
-.empty-table {
-  padding: 40px 0;
-  text-align: center;
-}
-.empty-image {
-  width: 200px;
-  opacity: 0.6;
-  margin-bottom: 16px;
-}
-.empty-text {
+/* 添加空状态样式 */
+.dataset-tags > span {
   color: #909399;
   font-size: 14px;
 }
