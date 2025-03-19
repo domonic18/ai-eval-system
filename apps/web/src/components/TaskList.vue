@@ -218,6 +218,8 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { Search, Edit, MoreFilled } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+// 导入API客户端
+import api from '@/utils/api';
 
 // 接收属性
 const props = defineProps({
@@ -296,13 +298,15 @@ async function fetchTasks() {
       params.append('search', searchQuery.value);
     }
     
-    const response = await fetch(`/api/v1/evaluations?${params.toString()}`);
+    console.log('正在获取评测任务列表...');
     
-    if (!response.ok) {
-      throw new Error(`获取任务列表失败: ${response.status} ${response.statusText}`);
-    }
+    // 使用导入的api而不是this.$api
+    const response = await api.get(`/api/v1/evaluations?${params.toString()}`);
     
-    const data = await response.json();
+    console.log('评测任务列表API响应:', response.status);
+    
+    // 不需要再次await response.data，axios已经提供data属性
+    const data = response.data;
     tasks.value = data.items || [];
     total.value = data.total || 0;
     
@@ -362,17 +366,16 @@ async function terminateTask(taskId) {
     if (result === 'confirm') {
       loading.value = true;
       
-      const response = await fetch(`/api/v1/evaluations/${taskId}/terminate`, {
-        method: 'POST',
-      });
+      // 使用导入的api
+      const response = await api.post(`/api/v1/evaluations/${taskId}/terminate`);
       
-      if (!response.ok) {
+      if (response.status === 200) {
+        const result = response.data;
+        ElMessage.success(result.message || '任务终止操作已执行');
+        fetchTasks();
+      } else {
         throw new Error(`终止任务失败: ${response.status} ${response.statusText}`);
       }
-      
-      const result = await response.json();
-      ElMessage.success(result.message || '任务终止操作已执行');
-      fetchTasks();
     }
   } catch (err) {
     if (err !== 'cancel') {
@@ -400,13 +403,8 @@ async function deleteTask(taskId) {
     if (result === 'confirm') {
       loading.value = true;
       
-      const response = await fetch(`/api/v1/evaluations/${taskId}`, {
-        method: 'DELETE',
-      });
-      
-      if (!response.ok) {
-        throw new Error(`删除任务失败: ${response.status} ${response.statusText}`);
-      }
+      // 使用导入的api
+      const response = await api.delete(`/api/v1/evaluations/${taskId}`);
       
       ElMessage.success('任务已成功删除');
       fetchTasks();
@@ -449,17 +447,10 @@ async function saveTaskName(taskId) {
   }
   
   try {
-    const response = await fetch(`/api/v1/evaluations/${taskId}/name`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ name: editingName.value.trim() })
+    // 使用导入的api
+    const response = await api.patch(`/api/v1/evaluations/${taskId}/name`, {
+      name: editingName.value.trim()
     });
-    
-    if (!response.ok) {
-      throw new Error(`更新任务名称失败: ${response.status} ${response.statusText}`);
-    }
     
     // 更新本地任务名称
     const taskIndex = tasks.value.findIndex(t => t.id === taskId);

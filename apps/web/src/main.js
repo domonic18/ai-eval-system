@@ -8,12 +8,16 @@ import router from './router'
 import store from './store'
 import api from './utils/api'
 
+// 启动应用前，确保尝试恢复认证状态
+store.dispatch('auth/autoLogin')
+
 const app = createApp(App)
 
-// 全局API客户端
+// 提供给所有组件
+app.provide('api', api)
+
+// 兼容选项式API
 app.config.globalProperties.$api = api
-// 替换全局axios，确保使用我们的拦截器
-app.config.globalProperties.$http = api
 
 app.use(router)
 app.use(store)
