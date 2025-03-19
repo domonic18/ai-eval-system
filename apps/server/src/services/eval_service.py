@@ -171,7 +171,7 @@ class EvaluationService:
             status_response = EvaluationStatusResponse(
                 id=eval_task.id,
                 model_name=eval_task.model_name or "",
-                dataset_names=eval_task.dataset_names or "",
+                dataset_names=self._ensure_dataset_names_format(eval_task.dataset_names),
                 status=eval_task.status or EvaluationStatus.UNKNOWN.value,
                 progress=0,
                 results=eval_task.results or {},
@@ -565,25 +565,34 @@ class EvaluationService:
         # 3. 原有env_vars中的MODEL改为dify|Chat|原有env_vars中的DIFY_URL
 
         try:
-            if adapted_vars.get('api_type') == 'dify':
-                # 检查DIFY_TYPE的首字母是否大写，如果没有则将首字母转为大写
-                if adapted_vars['DIFY_TYPE'][0].islower():
-                    adapted_vars['DIFY_TYPE'] = adapted_vars['DIFY_TYPE'][0].upper() + adapted_vars['DIFY_TYPE'][1:]
+            # 检查DIFY_TYPE的首字母是否大写，如果没有则将首字母转为大写
+            if adapted_vars['DIFY_TYPE'][0].islower():
+                adapted_vars['DIFY_TYPE'] = adapted_vars['DIFY_TYPE'][0].upper() + adapted_vars['DIFY_TYPE'][1:]
 
-                # 构造MODEL参数格式：dify|{类型}|{DIFY_URL}
-                adapted_vars['MODEL'] = f"dify|{adapted_vars['DIFY_TYPE']}|{adapted_vars['DIFY_URL']}"
-                
-                # 更新API相关配置
-                adapted_vars.update({
-                    'API_URL': dify2openai_url,
-                    'API_KEY': adapted_vars['DIFY_API_KEY']
-                })
-                
-                # 移除不再需要的Dify专用参数
-                for key in ['DIFY_TYPE', 'DIFY_URL', 'DIFY_API_KEY']:
-                    adapted_vars.pop(key, None)
+            # 构造MODEL参数格式：dify|{类型}|{DIFY_URL}
+            adapted_vars['MODEL'] = f"dify|{adapted_vars['DIFY_TYPE']}|{adapted_vars['DIFY_URL']}"
+            
+            # 更新API相关配置
+            adapted_vars.update({
+                'API_URL': dify2openai_url,
+                'API_KEY': adapted_vars['DIFY_API_KEY']
+            })
+            
+            # 移除不再需要的Dify专用参数
+            for key in ['DIFY_TYPE', 'DIFY_URL', 'DIFY_API_KEY']:
+                adapted_vars.pop(key, None)
                 
         except KeyError as e:
             raise ValueError(f"缺少必要的Dify配置参数: {str(e)}") from e
         
         return adapted_vars
+
+    def _ensure_dataset_names_format(self, dataset_names: Any) -> Union[List[str], str]:
+        """确保数据集名称格式正确"""
+        if isinstance(dataset_names, str):
+            return dataset_names
+        elif isinstance(dataset_names, (list, tuple)):
+            return [str(name) for name in dataset_names]
+        elif dataset_names is None:
+            return ""
+        return str(dataset_names)
