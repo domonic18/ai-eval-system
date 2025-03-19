@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends, Query, WebSocket, WebSocketDisconnect, Response
 from sqlalchemy.orm import Session
-from api.deps import get_db
+from api.deps import get_db, get_current_user
 from schemas.eval import EvaluationCreate, EvaluationResponse, EvaluationStatusResponse
 from services.eval_service import EvaluationService
 from services.rlog_service import WebSocketLogService
@@ -8,6 +8,7 @@ from typing import Dict, Any, List, Optional
 from fastapi.responses import FileResponse
 import os
 from pathlib import Path
+from models.user import User
 
 router = APIRouter()
 eval_service = EvaluationService()
@@ -26,17 +27,24 @@ async def websocket_logs(websocket: WebSocket, eval_id: int):
 @router.post("/evaluations", 
              response_model=EvaluationResponse,
              status_code=status.HTTP_201_CREATED)
-async def create_evaluation(eval_data: EvaluationCreate, db: Session = Depends(get_db)):
+async def create_evaluation(
+    eval_data: EvaluationCreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """创建评估任务
     
     Args:
         eval_data: 评估数据
         db: 数据库会话
+        current_user: 当前用户
         
     Returns:
         EvaluationResponse: 评估响应
     """
     try:
+        # 将用户ID添加到评估数据中
+        eval_data.user_id = current_user.id
         return await eval_service.create_evaluation_task(eval_data, db)
     except Exception as e:
         raise HTTPException(
@@ -47,23 +55,39 @@ async def create_evaluation(eval_data: EvaluationCreate, db: Session = Depends(g
 @router.get("/evaluations", response_model=Dict[str, Any])
 async def get_evaluations(
     task_status: Optional[str] = None,
-    limit: int = Query(100, ge=1, le=1000),
+    current_user_only: bool = Query(False, description="只显示当前用户的评测"),
+    search: Optional[str] = Query(None, description="搜索关键词"),
+    limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    """获取评估任务列表，支持分页和状态过滤
+    """获取评估任务列表，支持分页、状态过滤和用户筛选
     
     Args:
         task_status: 可选的状态过滤
-        limit: 每页数量，默认100
+        current_user_only: 是否只显示当前用户的评测
+        search: 搜索关键词
+        limit: 每页数量，默认10
         offset: 分页偏移，默认0
         db: 数据库会话
+        current_user: 当前用户
         
     Returns:
         Dict[str, Any]: 包含评估任务列表和分页信息的字典
     """
     try:
-        return await eval_service.list_evaluations(task_status, limit, offset, db)
+        # 根据current_user_only参数决定是否只显示当前用户的评测
+        user_id = current_user.id if current_user_only else None
+        
+        return await eval_service.list_evaluations(
+            task_status, 
+            limit, 
+            offset, 
+            user_id=user_id,
+            search_query=search,
+            db=db
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
