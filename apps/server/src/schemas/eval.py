@@ -18,13 +18,17 @@ class EvaluationCreate(BaseModel):
     model_name: str = Field(..., description="要评估的模型名称")
     model_type: str = Field(..., description="模型类型：preset或custom")
     
-    # 使用新的数据集信息模型，合并数据集相关字段
+    # 使用数据集信息模型
     datasets: DatasetInfo = Field(..., description="数据集信息")
     
-    # 修改为仅接受字典类型
+    # 配置信息
     model_configuration: Dict[str, Any] = Field(default={}, description="模型的配置信息")
     eval_config: Optional[Dict[str, Any]] = Field(default={}, description="评估的配置信息")
     env_vars: Optional[Dict[str, Any]] = Field(default={}, description="环境变量（API_URL/API_KEY等）")
+    
+    # 添加用户ID字段（在控制器中设置，不需要客户端提供）
+    user_id: Optional[int] = Field(None, description="创建者用户ID")
+    api_type: Optional[str] = Field(None, description="API集成类型")
 
     model_config = ConfigDict(
         populate_by_name=True,
