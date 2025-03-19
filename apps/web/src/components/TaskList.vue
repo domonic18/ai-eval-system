@@ -10,22 +10,14 @@
 -->
 <template>
   <div class="task-list-container">
-    <!-- 顶部操作区 -->
+    <!-- 顶部操作区 - 将创建按钮和搜索框放在同一行 -->
     <div class="top-controls" v-if="!hideHeader">
-      <h3 class="section-title">评测任务列表</h3>
-      <div class="action-buttons">
-        <el-button type="primary" @click="$emit('create-task')">创建新任务</el-button>
-        <el-button @click="fetchTasks">刷新列表</el-button>
+      <div class="left-section">
+        <h3 class="section-title">评测任务列表</h3>
+        <el-button type="primary" @click="createTask">创建新任务</el-button>
       </div>
-    </div>
-    
-    <!-- 筛选区域 -->
-    <div class="filter-container">
-      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-        <el-tab-pane label="我的评测" name="my"></el-tab-pane>
-        <el-tab-pane label="全部评测" name="all"></el-tab-pane>
-      </el-tabs>
       
+      <!-- 搜索区域移到右侧 -->
       <div class="search-area">
         <el-input
           v-model="searchQuery"
@@ -41,39 +33,29 @@
       </div>
     </div>
     
-    <!-- 表格区域 -->
+    <!-- 筛选区域 -->
+    <div class="filter-container">
+      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
+        <el-tab-pane label="我的评测" name="my"></el-tab-pane>
+        <el-tab-pane label="全部评测" name="all"></el-tab-pane>
+      </el-tabs>
+    </div>
+    
+    <!-- 表格区域 - 重新排序列，加粗表头 -->
     <el-table
       v-loading="loading"
       :data="tableData"
       style="width: 100%"
       border
-      :header-cell-style="{ 'background-color': '#f7f7f7' }"
+      :header-cell-style="{ 'background-color': '#f7f7f7', 'font-weight': 'bold' }"
       @header-dragend="handleHeaderDragend"
     >
-      <!-- 用户信息列 -->
-      <el-table-column
-        label="创建者"
-        width="120"
-        align="center"
-        fixed="left"
-      >
-        <template #default="scope">
-          <div class="user-info">
-            <el-avatar 
-              :size="30" 
-              :src="scope.row.user_avatar || defaultAvatar"
-              class="user-avatar"
-            ></el-avatar>
-            <span class="user-name">{{ scope.row.user_name || '未知用户' }}</span>
-          </div>
-        </template>
-      </el-table-column>
-      
-      <!-- 任务名称列 -->
+      <!-- 任务编号/名称列（放在第一列） -->
       <el-table-column
         label="任务名称"
         min-width="180"
         prop="name"
+        fixed="left"
       >
         <template #default="scope">
           <div class="task-name-cell">
@@ -126,8 +108,9 @@
       <!-- 评测状态列 -->
       <el-table-column
         label="状态"
-        width="120"
+        width="100"
         prop="status"
+        align="center"
       >
         <template #default="scope">
           <el-tag
@@ -137,6 +120,24 @@
           >
             {{ formatStatus(scope.row.status) }}
           </el-tag>
+        </template>
+      </el-table-column>
+      
+      <!-- 用户信息列（移到第5列） -->
+      <el-table-column
+        label="创建者"
+        width="120"
+        align="center"
+      >
+        <template #default="scope">
+          <div class="user-info-horizontal">
+            <el-avatar 
+              :size="24" 
+              :src="scope.row.user_avatar || defaultAvatar"
+              class="user-avatar"
+            ></el-avatar>
+            <span class="user-name">{{ scope.row.user_name || '未知用户' }}</span>
+          </div>
         </template>
       </el-table-column>
       
@@ -155,10 +156,10 @@
         </template>
       </el-table-column>
       
-      <!-- 操作列 -->
+      <!-- 操作列 - 调整按钮间距 -->
       <el-table-column
         label="操作"
-        width="220"
+        width="200"
         fixed="right"
       >
         <template #default="scope">
@@ -193,15 +194,33 @@
       </el-table-column>
     </el-table>
     
-    <!-- 分页区域 -->
+    <!-- 分页区域 - 修改样式为上一页 第X页 共X页 下一页 并添加每页显示数量选择器 -->
     <div class="pagination-container">
-      <el-pagination
-        v-model:current-page="currentPage"
-        :page-size="pageSize"
-        :total="total"
-        layout="total, prev, pager, next, jumper"
-        @current-change="handlePageChange"
-      />
+      <div class="page-size-selector">
+        <span>每页显示：</span>
+        <el-select v-model="pageSize" @change="handlePageSizeChange" size="small">
+          <el-option :value="10" label="10条" />
+          <el-option :value="20" label="20条" />
+          <el-option :value="50" label="50条" />
+          <el-option :value="100" label="100条" />
+        </el-select>
+      </div>
+      
+      <div class="pagination-controls">
+        <el-button 
+          size="small" 
+          :disabled="currentPage <= 1" 
+          @click="handlePrevPage"
+        >上一页</el-button>
+        
+        <span class="page-info">第 {{ currentPage }} 页，共 {{ totalPages }} 页</span>
+        
+        <el-button 
+          size="small" 
+          :disabled="currentPage >= totalPages" 
+          @click="handleNextPage"
+        >下一页</el-button>
+      </div>
     </div>
     
     <!-- 无数据提示 -->
@@ -209,7 +228,7 @@
       v-if="tableData.length === 0 && !loading"
       description="暂无评测任务，请创建新任务"
     >
-      <el-button type="primary" @click="$emit('create-task')">创建新任务</el-button>
+      <el-button type="primary" @click="createTask">创建新任务</el-button>
     </el-empty>
   </div>
 </template>
@@ -252,6 +271,11 @@ const defaultAvatar = '/default-avatar.png';  // 默认头像
 // 计算属性
 const tableData = computed(() => {
   return tasks.value;
+});
+
+// 计算总页数
+const totalPages = computed(() => {
+  return Math.ceil(total.value / pageSize.value) || 1;
 });
 
 // 排序方法
@@ -478,9 +502,26 @@ function handleSearch() {
   fetchTasks();
 }
 
-// 分页处理
-function handlePageChange() {
+// 处理每页显示数量变化
+function handlePageSizeChange() {
+  currentPage.value = 1;
   fetchTasks();
+}
+
+// 上一页按钮处理
+function handlePrevPage() {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+    fetchTasks();
+  }
+}
+
+// 下一页按钮处理
+function handleNextPage() {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++;
+    fetchTasks();
+  }
 }
 
 // 列宽调整处理
@@ -567,6 +608,11 @@ function formatTimePart(dateStr) {
     second: '2-digit'
   }).format(date);
 }
+
+function createTask() {
+  console.log('点击了创建新任务按钮');
+  emit('create-task');
+}
 </script>
 
 <style scoped>
@@ -585,26 +631,83 @@ function formatTimePart(dateStr) {
   margin-bottom: 20px;
 }
 
+.left-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .section-title {
   margin: 0;
   font-size: 20px;
   color: #303133;
 }
 
-.action-buttons {
-  display: flex;
-  gap: 12px;
+.search-area {
+  width: 300px;
 }
 
 .filter-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 16px;
 }
 
-.search-area {
-  width: 300px;
+/* 水平布局的用户信息 */
+.user-info-horizontal {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.user-avatar {
+  margin: 0;
+}
+
+.user-name {
+  font-size: 14px;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 调整操作按钮样式，使其更紧凑 */
+.action-column {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.action-column .el-button {
+  padding: 6px 10px;
+  min-width: 40px;
+}
+
+/* 分页控件样式 */
+.pagination-container {
+  margin-top: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.page-size-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #606266;
+  font-size: 14px;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.page-info {
+  color: #606266;
+  font-size: 14px;
 }
 
 .date-display {
@@ -616,24 +719,6 @@ function formatTimePart(dateStr) {
   font-size: 12px;
   color: #909399;
   margin-top: 4px;
-}
-
-.user-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.user-avatar {
-  margin-bottom: 5px;
-}
-
-.user-name {
-  font-size: 12px;
-  max-width: 100px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .task-name-cell {
@@ -654,15 +739,5 @@ function formatTimePart(dateStr) {
   gap: 8px;
 }
 
-.action-column {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.pagination-container {
-  margin-top: 20px;
-  display: flex;
-  justify-content: center;
-}
+/* 其他已有样式保持不变 */
 </style> 
