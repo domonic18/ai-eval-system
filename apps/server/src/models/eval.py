@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, JSON, DateTime, Enum, Text, Float, ForeignKey, text
 from sqlalchemy.ext.hybrid import hybrid_property 
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from enum import Enum as PyEnum
 from core.database import Base, TimestampMixin
 
@@ -33,6 +34,8 @@ class Evaluation(Base, TimestampMixin):
     log_dir = Column(String(255), nullable=True, comment="日志目录")
     progress = Column(Float, nullable=False, default=0.0, comment="进度百分比")
     results = Column(JSON, nullable=True, comment="评估结果")
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True, comment="创建者用户ID")
+    
     created_at = Column(DateTime(timezone=True),
                    server_default=text('CURRENT_TIMESTAMP(6)'),
                    comment="创建时间（北京时间）")
@@ -40,7 +43,10 @@ class Evaluation(Base, TimestampMixin):
                    server_default=text('CURRENT_TIMESTAMP(6)'),
                    onupdate=text('CURRENT_TIMESTAMP(6)'),
                    comment="更新时间（北京时间）")
-    
+
+    # 添加用户关系，实现联合查询
+    user = relationship("User", backref="evaluations")
+
     @hybrid_property
     def formatted_results(self) -> dict:
         """格式化后的结果展示结构"""
@@ -51,17 +57,21 @@ class Evaluation(Base, TimestampMixin):
     
     def _parse_scores(self):
         """从summary解析得分"""
+        if not self.results or 'summary' not in self.results:
+            return {}
         return {item['dataset']: item['accuracy'] 
                 for item in self.results.get('summary', [])}
     
     def _list_prediction_files(self):
         """列出预测文件"""
+        if not self.results or 'prediction_files' not in self.results:
+            return []
         return [f"predictions/{f}" 
                 for f in self.results.get('prediction_files', [])]
 
     @hybrid_property
     def result_details(self) -> dict:
         return {
-            "model_metrics": self.results.get('metrics', {}),
-            "prediction_paths": self.results.get('prediction_files', {})
+            "model_metrics": self.results.get('metrics', {}) if self.results else {},
+            "prediction_paths": self.results.get('prediction_files', {}) if self.results else {}
         }
