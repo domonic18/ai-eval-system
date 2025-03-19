@@ -102,7 +102,6 @@
               
               <!-- 直接显示任务表格，移除额外的标题和按钮 -->
               <TaskList 
-                @create-task="handleCreateTask" 
                 @view-logs="viewTaskLogs" 
                 @view-results="viewTaskResults"
                 ref="taskList"
@@ -187,7 +186,6 @@ import ResultViewer from '@/components/ResultViewer.vue'
 import ModelSelectionStep from '@/components/evaluations/ModelSelectionStep.vue'
 import DatasetSelectionStep from '@/components/evaluations/DatasetSelectionStep.vue'
 import SubmitEvaluationStep from '@/components/evaluations/SubmitEvaluationStep.vue'
-import { useRouter } from 'vue-router'
 
 export default {
   name: 'EvaluationView',
@@ -221,24 +219,11 @@ export default {
       }
     }
   },
-  setup() {
-    const router = useRouter()
-
-    function handleCreateTask() {
-      console.log('准备导航到创建评测页面');
-      console.log('处理创建任务事件')
-      router.push('/evaluations/create') // 或您实际的创建评测页面路径
-    }
-
-    return {
-      handleCreateTask
-    }
-  },
   mounted() {
     // 加载模型选项供第三步使用
     this.fetchModels();
     
-    if (this.$route.path === '/evaluation/records' && this.$refs.taskList) {
+    if (this.$refs.taskList && this.$refs.taskList.fetchTasks) {
       this.$refs.taskList.fetchTasks();
     }
   },
