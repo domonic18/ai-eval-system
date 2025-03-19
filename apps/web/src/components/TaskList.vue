@@ -194,11 +194,16 @@
       </el-table-column>
     </el-table>
     
-    <!-- 分页区域 - 修改样式为上一页 第X页 共X页 下一页 并添加每页显示数量选择器 -->
+    <!-- 分页区域 -->
     <div class="pagination-container">
       <div class="page-size-selector">
-        <span>每页显示：</span>
-        <el-select v-model="pageSize" @change="handlePageSizeChange" size="small">
+        <span class="page-size-label">每页显示：</span>
+        <el-select 
+          v-model="pageSize" 
+          @change="handlePageSizeChange" 
+          size="small"
+          style="width: 80px"
+        >
           <el-option :value="10" label="10条" />
           <el-option :value="20" label="20条" />
           <el-option :value="50" label="50条" />
@@ -697,6 +702,19 @@ function createTask() {
   gap: 8px;
   color: #606266;
   font-size: 14px;
+  white-space: nowrap;
+  min-width: 180px;
+}
+
+.page-size-selector .el-select {
+  width: 80px;
+  min-width: 80px;
+}
+
+.page-size-label {
+  display: inline-block;
+  line-height: 32px; /* 与el-select的高度保持一致 */
+  vertical-align: middle;
 }
 
 .pagination-controls {
