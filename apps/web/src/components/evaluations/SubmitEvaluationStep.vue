@@ -263,14 +263,34 @@ export default {
 
         // 确保配置对象存在
         if (configObj && typeof configObj === 'object') {
-          this.customConfig = {
-            type: configObj.type || 'api',
-            url: configObj.api_url || '',
-            key: configObj.api_key || '',
-            model: configObj.model || '',
-            dify_type: configObj.dify_type || 'Chat'
-          };
+          if (configObj.type === 'dify') {
+            // Dify 配置
+            this.customConfig = {
+              type: 'dify',
+              url: configObj.dify_url || '',
+              key: configObj.dify_api_key || '',
+              dify_type: configObj.dify_type || 'Chat',
+              model: ''  // Dify 不需要 model 字段
+            };
+          } else {
+            // API 配置
+            this.customConfig = {
+              type: 'api',
+              url: configObj.api_url || '',
+              key: configObj.api_key || '',
+              model: configObj.model || '',
+              dify_type: 'Chat'  // 默认值
+            };
+          }
         }
+
+        console.log('解析后的配置:', {
+          type: this.customConfig.type,
+          url: this.customConfig.url,
+          key: '***' + (this.customConfig.key ? this.customConfig.key.slice(-4) : ''),
+          model: this.customConfig.model,
+          dify_type: this.customConfig.dify_type
+        });
       } catch (error) {
         console.error('解析配置时出错:', error);
       }
@@ -293,10 +313,9 @@ export default {
       this.isSubmitting = true;
       
       try {
-        // 构建环境变量对象
-        const envVarsObj = this.modelType === 'preset' ? {} : {
-          // 确保使用正确的字段名
-          ...(this.customConfig.type === 'api' ? {
+        // 根据类型构建环境变量
+        const envVarsObj = this.modelType === 'preset' ? {} : 
+          (this.customConfig.type === 'api' ? {
             API_URL: this.customConfig.url,
             API_KEY: this.customConfig.key,
             MODEL: this.customConfig.model
@@ -304,9 +323,8 @@ export default {
             DIFY_TYPE: this.customConfig.dify_type,
             DIFY_URL: this.customConfig.url,
             DIFY_API_KEY: this.customConfig.key
-          })
-        };
-        
+          });
+
         // 构建提交的数据结构
         const evaluationData = {
           model_type: this.modelType === 'preset' ? 'preset' : 'custom',
@@ -324,9 +342,17 @@ export default {
             ? { model_id: this.selectedModel }
             : { 
                 api_type: this.customConfig.type,
-                model: this.customConfig.model,
-                url: this.customConfig.url,
-                key: this.customConfig.key  // 添加 key 字段
+                ...(this.customConfig.type === 'api' 
+                  ? {
+                      model: this.customConfig.model,
+                      url: this.customConfig.url,
+                      key: this.customConfig.key
+                    }
+                  : {
+                      dify_type: this.customConfig.dify_type,
+                      dify_url: this.customConfig.url,
+                      dify_api_key: this.customConfig.key
+                    })
               },
           
           // 评估配置
@@ -339,8 +365,15 @@ export default {
           // 环境变量
           env_vars: envVarsObj
         };
-        
-        console.log('提交评测任务数据结构:', evaluationData);
+
+        console.log('提交评测任务数据结构:', {
+          ...evaluationData,
+          env_vars: {
+            ...evaluationData.env_vars,
+            API_KEY: evaluationData.env_vars.API_KEY ? '***' : undefined,
+            DIFY_API_KEY: evaluationData.env_vars.DIFY_API_KEY ? '***' : undefined
+          }
+        });
         
         // 发送API请求
         const response = await fetch('/api/v1/evaluations', {
