@@ -11,8 +11,10 @@ const state = {
 // getter
 const getters = {
   isAuthenticated: state => !!state.token,
+  isLoggedIn: state => !!state.token,
   authStatus: state => state.status,
-  currentUser: state => state.user,
+  username: state => state.user?.username || '',
+  user: state => state.user,
   authError: state => state.error
 };
 
@@ -28,6 +30,15 @@ const mutations = {
     state.user = user;
     state.error = null;
   },
+  setToken(state, token) {
+    state.token = token;
+    if (token) {
+      state.status = 'success';
+    }
+  },
+  setUser(state, user) {
+    state.user = user;
+  },
   auth_error(state, err) {
     state.status = 'error';
     state.error = err.response?.data?.detail || '认证失败';
@@ -41,7 +52,6 @@ const mutations = {
 
 // 动作
 const actions = {
-  // 登录动作
   async login({ commit }, user) {
     commit('auth_request');
     try {
@@ -61,11 +71,9 @@ const actions = {
       
       console.log('登录成功，保存token');
       
-      // 保存token到localStorage
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userInfo));
       
-      // 设置axios默认headers
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       
       commit('auth_success', { token, user: userInfo });
@@ -79,13 +87,38 @@ const actions = {
     }
   },
   
-  // 注册动作
+  async getCurrentUser({ commit, state }) {
+    if (!state.token) {
+      return null;
+    }
+    
+    try {
+      if (state.user && Object.keys(state.user).length > 0) {
+        return state.user;
+      }
+      
+      const res = await axios.get('/api/v1/auth/me');
+      const userInfo = res.data;
+      
+      localStorage.setItem('user', JSON.stringify(userInfo));
+      commit('setUser', userInfo);
+      return userInfo;
+    } catch (err) {
+      console.error('获取用户信息失败:', err);
+      if (err.response && err.response.status === 401) {
+        commit('logout');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
+      return null;
+    }
+  },
+  
   async register({ commit }, userData) {
     commit('auth_request');
     try {
       const res = await axios.post('/api/v1/auth/register', userData);
       
-      // 注册成功后自动登录
       const token = res.data.access_token;
       const userInfo = res.data.user || { username: userData.username };
       
@@ -102,17 +135,14 @@ const actions = {
     }
   },
   
-  // 登出动作
   logout({ commit }) {
-    // 移除token
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     delete axios.defaults.headers.common['Authorization'];
     commit('logout');
   },
   
-  // 自动登录（从localStorage恢复会话）
-  autoLogin({ commit }) {
+  autoLogin({ commit, dispatch }) {
     const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     
@@ -120,6 +150,10 @@ const actions = {
       console.log('发现已保存的token，自动恢复会话');
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       commit('auth_success', { token, user });
+      
+      dispatch('getCurrentUser').catch(err => {
+        console.warn('自动获取用户信息失败:', err);
+      });
     } else {
       console.log('未找到保存的token，需要登录');
     }

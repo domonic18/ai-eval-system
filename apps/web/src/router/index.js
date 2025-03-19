@@ -84,34 +84,40 @@ const router = createRouter({
   }
 })
 
-// 全局前置守卫
+// 优化全局前置守卫
 router.beforeEach((to, from, next) => {
   // 获取目标路由是否需要认证
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
+  const isGuestOnly = to.matched.some(record => record.meta.guest)
   
-  // 判断当前是否已登录
+  // 统一使用isAuthenticated
   const isAuthenticated = store.getters['auth/isAuthenticated']
   
-  console.log('路由守卫检查:', { 
-    路径: to.path, 
-    需要认证: requiresAuth, 
+  // 为调试添加详细日志
+  console.log('路由导航:', { 
+    从: from.path,
+    到: to.path, 
+    需要认证: requiresAuth,
+    仅游客: isGuestOnly,
     已认证: isAuthenticated,
-    token存在: !!localStorage.getItem('token')
+    token: store.state.auth.token?.substring(0, 10) + '...'
   })
 
-  // 需要认证但未登录，重定向到登录页
+  // 路由逻辑处理
   if (requiresAuth && !isAuthenticated) {
+    // 需要认证但未登录
+    console.log('拦截访问，重定向到登录页');
     next({
       path: '/login',
       query: { redirect: to.fullPath }
     })
-  } 
-  // 已登录但访问登录/注册页，重定向到首页
-  else if (isAuthenticated && (to.path === '/login' || to.path === '/register')) {
+  } else if (isGuestOnly && isAuthenticated) {
+    // 已登录用户访问仅限游客页面(如登录页)
+    console.log('已登录用户试图访问登录页，重定向到首页');
     next('/')
-  }
-  // 其他情况正常通过
-  else {
+  } else {
+    // 其他情况正常通过
+    console.log('允许路由导航');
     next()
   }
 })

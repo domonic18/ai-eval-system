@@ -87,17 +87,20 @@ export default {
           password: this.password
         })
         
-        console.log('登录API响应:', response.data)
+        console.log('登录API响应状态:', response.status)
         
         // 验证token是否已保存
         const savedToken = localStorage.getItem('token')
-        console.log('保存的token状态:', !!savedToken)
+        console.log('token已保存:', !!savedToken)
         
         // 登录成功后，优先使用URL中的redirect参数跳转
         const redirectPath = this.$route.query.redirect || '/'
         console.log('准备跳转到:', redirectPath)
         
-        // 使用replace而不是push，避免浏览器历史记录中保留登录页
+        // 确保在跳转前从后端获取最新的用户信息
+        await this.$store.dispatch('auth/getCurrentUser')
+        
+        // 使用replace而不是push
         this.$router.replace(redirectPath)
       } catch (error) {
         console.error('登录失败:', error)
