@@ -40,7 +40,7 @@ class EvaluationResponse(BaseModel):
     """评估响应模式"""
     id: int = Field(..., description="评估任务ID")
     model_name: str = Field(..., description="模型名称")
-    dataset_names: str = Field(..., description="数据集名称")
+    dataset_names: Union[List[str], str] = Field(..., description="数据集名称")
     status: str = Field(..., description="评估任务状态")
     task_id: Optional[str] = Field(None, description="Celery 任务ID")
     created_at: datetime = Field(..., description="创建时间")

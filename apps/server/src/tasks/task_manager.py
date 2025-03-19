@@ -10,6 +10,8 @@ from tasks.runners.runner_base import get_runner
 from utils.redis_manager import RedisManager
 import psutil
 import sqlalchemy.exc
+from core.repositories import EvaluationRepository
+from utils.utils_db import db_operation
 
 
 # 配置日志
@@ -25,22 +27,25 @@ class TaskManager:
         self.logger = logging.getLogger(__name__)
 
     def create_task(self, eval_id: int, db: Session) -> Dict[str, Any]:
-        """使用Celery原生机制创建任务
+        """创建并启动Celery任务
         
         Args:
-            eval_id: 评估ID
+            eval_id: 评估任务ID
             db: 数据库会话
             
         Returns:
-            Dict[str, Any]: 包含任务ID和状态的信息
+            Dict[str, Any]: 任务创建结果
         """
         try:
-            # 获取评估记录
-            evaluation = db.query(Evaluation).filter(Evaluation.id == eval_id).first()
-            if not evaluation:
-                return {"success": False, "message": "Evaluation not found"}
-
-            # 提交Celery任务
+            # 使用同步方式获取评估记录
+            eval_data = EvaluationRepository.get_evaluation_by_id(db, eval_id)
+            if not eval_data:
+                return {
+                    "success": False,
+                    "message": f"未找到ID为 {eval_id} 的评估任务"
+                }
+            
+            # 创建Celery任务
             task = run_evaluation.apply_async(
                 args=(eval_id,),
                 queue='eval_tasks',  # 显式指定队列
@@ -52,26 +57,23 @@ class TaskManager:
                 # track_started=True
             )
 
-            # 更新数据库记录
-            evaluation.task_id = task.id
-            evaluation.status = EvaluationStatus.PENDING.value
-            evaluation.updated_at = datetime.now()
-            db.commit()
-
+            # 更新数据库中的任务ID
+            with db_operation(db) as session:
+                eval_record = session.query(Evaluation).filter(Evaluation.id == eval_id).first()
+                if eval_record:
+                    eval_record.task_id = task.id
+                    session.commit()
+            
             return {
                 "success": True,
                 "task_id": task.id,
-                "status": "PENDING",
-                "message": "任务已提交到Celery队列"
+                "message": "任务已创建并开始执行"
             }
-
         except Exception as e:
-            db.rollback()
-            logger.exception(f"创建Celery任务失败 [eval_id={eval_id}]: {str(e)}")
+            logger.error(f"创建任务失败 [eval_id={eval_id}]: {str(e)}")
             return {
                 "success": False,
-                "message": f"任务提交失败: {str(e)}",
-                "error": str(e)
+                "message": f"创建任务失败: {str(e)}"
             }
 
     def get_task_status(self, eval_id: int) -> dict:

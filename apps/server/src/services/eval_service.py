@@ -6,7 +6,7 @@ from fastapi import HTTPException, status
 from typing import Optional, Union, Iterator, Dict, Any, List
 from models.eval import Evaluation, EvaluationStatus
 from schemas.eval import EvaluationCreate, EvaluationResponse, EvaluationStatusResponse
-from api.deps import get_db
+from api.deps import get_db, get_current_user
 from utils.utils_db import async_db_operation,db_operation
 from tasks.task_manager import TaskManager
 from core.repositories.evaluation_repository import EvaluationRepository
@@ -17,6 +17,7 @@ from pathlib import Path
 from core.config import settings
 from sqlalchemy import select, func, or_, desc, String, cast
 from sqlalchemy.orm import joinedload
+from utils.avatar_helper import AvatarHelper
 
 
 
@@ -50,41 +51,44 @@ class EvaluationService:
                 dify2openai_url=settings.dify2openai_url
             )
 
-        # 确保有用户ID
-        if not eval_data.user_id:
-            # 如果没有提供用户ID，使用默认用户ID（应该避免这种情况）
-            eval_data.user_id = 1  # 默认系统用户ID
-        
-        # 创建评估记录
-        db_eval = await EvaluationRepository.create_evaluation_async(
-            db,
-            model_name=eval_data.model_name,
-            dataset_names=eval_data.datasets.names,
-            model_configuration=eval_data.model_configuration,
-            dataset_configuration=eval_data.datasets.configuration,
-            eval_config=eval_data.eval_config,
-            env_vars=eval_data.env_vars,
-            user_id=eval_data.user_id  # 添加用户ID
-        )
+        try:
+            # 创建评估记录 - 在这里进行异常捕获
+            db_eval = await EvaluationRepository.create_evaluation_async(
+                db,
+                model_name=eval_data.model_name,
+                dataset_names=eval_data.datasets.names,
+                model_configuration=eval_data.model_configuration,
+                dataset_configuration=eval_data.datasets.configuration,
+                eval_config=eval_data.eval_config,
+                env_vars=eval_data.env_vars,
+                user_id=eval_data.user_id
+            )
                 
-        # 使用TaskManager创建任务
-        task_result = self.task_manager.create_task(db_eval.id, db)
-        
-        if not task_result["success"]:
+            # 使用TaskManager创建任务
+            task_result = self.task_manager.create_task(db_eval.id, db)
+            
+            if not task_result["success"]:
+                raise HTTPException(
+                    status_code=500,
+                    detail=task_result["message"]
+                )
+            
+            return EvaluationResponse(
+                id=db_eval.id,
+                model_name=db_eval.model_name,
+                dataset_names=db_eval.dataset_names,
+                status=db_eval.status,
+                created_at=db_eval.created_at,
+                updated_at=db_eval.updated_at,
+                task_id=task_result["task_id"]
+            )
+        except Exception as e:
+            # 详细日志记录帮助调试
+            logger.error(f"创建评测任务失败: {str(e)}", exc_info=True)
             raise HTTPException(
                 status_code=500,
-                detail=task_result["message"]
+                detail=f"创建评测任务失败: {str(e)}"
             )
-        
-        return EvaluationResponse(
-            id=db_eval.id,
-            model_name=db_eval.model_name,
-            dataset_names=db_eval.dataset_names,
-            status=db_eval.status,
-            created_at=db_eval.created_at,
-            updated_at=db_eval.updated_at,
-            task_id=task_result["task_id"]
-        )
 
 
     def get_evaluation_status(self, eval_id: int, db: Session):
@@ -243,7 +247,7 @@ class EvaluationService:
         """
         async with async_db_operation(db) as db_session:
             try:
-                # 构建查询条件
+                # 构建查询条件 - 修改查询方式，使用直接查询并关联加载
                 query = db_session.query(Evaluation).options(joinedload(Evaluation.user))
                 
                 # 添加状态过滤
@@ -265,37 +269,45 @@ class EvaluationService:
                         )
                     )
                 
-                # 计算总数 - 修改为同步方式
-                total_query = select(func.count()).select_from(query.subquery())
-                total_result = db_session.execute(total_query)  # 移除 await
-                total = total_result.scalar() or 0
+                # 计算总数 - 使用 count() 方法替代复杂的子查询
+                total = query.count()
                 
                 # 添加排序和分页
                 query = query.order_by(desc(Evaluation.created_at)).offset(offset).limit(limit)
                 
-                # 执行查询 - 同样需要修改
-                result = db_session.execute(query)  # 移除 await
-                evaluations = result.unique().all()
+                # 直接获取结果，而不是使用 execute
+                evaluations = query.all()
                 
                 # 格式化结果
                 items = []
                 for eval_task in evaluations:
                     # 从关联的用户对象获取用户信息
-                    user_info = {
-                        "user_id": eval_task.user_id,
-                        "user_name": eval_task.user.display_name if hasattr(eval_task, 'user') and eval_task.user else "未知用户",
-                        "user_avatar": eval_task.user.avatar if hasattr(eval_task, 'user') and eval_task.user else "/assets/images/default-avatar.png"
-                    }
+                    try:
+                        # 安全获取用户信息
+                        user = eval_task.user if hasattr(eval_task, 'user') else None
+                        user_info = {
+                            "user_id": eval_task.user_id,  # 现在应该可以正确访问
+                            "user_name": user.display_name if user else "未知用户",
+                            "user_avatar": user.avatar if user and user.avatar else settings.default_avatar_url
+                        }
+                    except Exception as user_err:
+                        # 如果获取用户信息失败，使用默认值
+                        logger.warning(f"获取用户信息失败 [eval_id={eval_task.id}]: {str(user_err)}")
+                        user_info = {
+                            "user_id": None,
+                            "user_name": "未知用户",
+                            "user_avatar": settings.default_avatar_url
+                        }
                     
-                    # 构建评测信息
+                    # 构建评测信息 - 安全获取属性
                     eval_info = {
-                        "id": eval_task.id,
-                        "name": eval_task.name,
-                        "model_name": eval_task.model_name,
-                        "dataset_names": eval_task.dataset_names,
-                        "status": eval_task.status,
-                        "created_at": eval_task.created_at,
-                        "updated_at": eval_task.updated_at,
+                        "id": getattr(eval_task, 'id', None),
+                        "name": getattr(eval_task, 'name', f"评测任务-{getattr(eval_task, 'id', '未知')}"),
+                        "model_name": getattr(eval_task, 'model_name', ""),
+                        "dataset_names": getattr(eval_task, 'dataset_names', ""),
+                        "status": getattr(eval_task, 'status', "UNKNOWN"),
+                        "created_at": getattr(eval_task, 'created_at', datetime.now()),
+                        "updated_at": getattr(eval_task, 'updated_at', None),
                         **user_info  # 合并用户信息
                     }
                     

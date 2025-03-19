@@ -7,10 +7,10 @@ from datetime import datetime
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Dict, Any, Optional, List, Union, AsyncIterator
+from typing import Dict, Any, Optional, List, Union, AsyncIterator, Callable
 from models.eval import Evaluation, EvaluationStatus
 import asyncio
-from utils.utils_db import async_db_operation
+from utils.utils_db import db_operation, async_db_operation
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +23,15 @@ class EvaluationRepository:
     @staticmethod
     def create_evaluation(
         db: Session, 
-        model_name: str, 
-        dataset_names: List[str], 
-        model_configuration: Dict[str, Any], 
-        dataset_configuration: Dict[str, Any], 
-        eval_config: Dict[str, Any] = None
+        model_name: str,
+        dataset_names: List[str],
+        model_configuration: Dict,
+        dataset_configuration: Dict,
+        eval_config: Dict,
+        env_vars: Dict,
+        user_id: int = 1
     ) -> Evaluation:
-        """创建新的评估记录
+        """同步创建评估记录
         
         Args:
             db: 数据库会话
@@ -38,30 +40,97 @@ class EvaluationRepository:
             model_configuration: 模型配置
             dataset_configuration: 数据集配置
             eval_config: 评估配置
+            env_vars: 环境变量
+            user_id: 用户ID
             
         Returns:
             Evaluation: 创建的评估记录
         """
-        db_eval = Evaluation(
-            model_name=model_name,
-            dataset_names=json.dumps(dataset_names),
-            model_configuration=model_configuration,
-            dataset_configuration=dataset_configuration,
-            eval_config=eval_config or {},
-            status=EvaluationStatus.PENDING.value,
-            log_dir="logs/default"  # 设置一个默认值，避免空字符串
-        )
+        with db_operation(db) as session:
+            # 创建评估记录
+            db_eval = Evaluation(
+                name=f"{model_name}评估任务",
+                model_name=model_name,
+                dataset_names=dataset_names,
+                model_configuration=model_configuration,
+                dataset_configuration=dataset_configuration,
+                eval_config=eval_config,
+                env_vars=env_vars,
+                status=EvaluationStatus.PENDING.value,
+                user_id=user_id,
+                created_at=datetime.now(),
+                updated_at=datetime.now()
+            )
             
-        # 添加并提交
-        db.add(db_eval)
-        db.commit()
-        db.refresh(db_eval)
+            # 添加到会话并提交
+            session.add(db_eval)
+            session.commit()
+            session.refresh(db_eval)
+            
+            return db_eval
+    
+    @staticmethod
+    async def create_evaluation_async(
+        db: Union[Session, AsyncSession, Callable],
+        model_name: str,
+        dataset_names: List[str],
+        model_configuration: Dict,
+        dataset_configuration: Dict,
+        eval_config: Dict,
+        env_vars: Dict,
+        user_id: int = 1
+    ) -> Evaluation:
+        """异步创建评估记录
         
-        return db_eval
+        Args:
+            db: 数据库会话
+            model_name: 模型名称
+            dataset_names: 数据集名称列表
+            model_configuration: 模型配置
+            dataset_configuration: 数据集配置
+            eval_config: 评估配置
+            env_vars: 环境变量
+            user_id: 用户ID
+            
+        Returns:
+            Evaluation: 创建的评估记录
+        """
+        try:
+            # 创建评估记录
+            db_eval = Evaluation(
+                name=f"{model_name}评估任务",
+                model_name=model_name,
+                dataset_names=dataset_names,
+                model_configuration=model_configuration,
+                dataset_configuration=dataset_configuration,
+                eval_config=eval_config,
+                env_vars=env_vars,
+                status=EvaluationStatus.PENDING.value,
+                user_id=user_id,
+                created_at=datetime.now(),
+                updated_at=datetime.now()
+            )
+            
+            # 添加到会话并提交
+            async with async_db_operation(db) as session:
+                session.add(db_eval)
+                # 根据会话类型选择同步或异步提交
+                if isinstance(session, AsyncSession):
+                    await session.commit()
+                    await session.refresh(db_eval)
+                else:
+                    session.commit()
+                    session.refresh(db_eval)
+                
+            return db_eval
+        except Exception as e:
+            logger.error(f"异步创建评估记录失败: {str(e)}", exc_info=True)
+            # 如果是在异步上下文中，重新抛出异常
+            raise
     
     @staticmethod
     def get_evaluation_by_id(db: Session, eval_id: int) -> Optional[Evaluation]:
-        """根据ID获取评估记录
+        """通过ID获取评估记录
         
         Args:
             db: 数据库会话
@@ -70,7 +139,8 @@ class EvaluationRepository:
         Returns:
             Optional[Evaluation]: 找到的评估记录或None
         """
-        return db.query(Evaluation).filter(Evaluation.id == eval_id).first()
+        with db_operation(db) as session:
+            return session.query(Evaluation).filter(Evaluation.id == eval_id).first()
     
     @staticmethod
     def update_log_dir(db: Session, eval_id: int, log_dir: str) -> bool:
@@ -86,12 +156,14 @@ class EvaluationRepository:
         """
         try:
             update_stmt = text("UPDATE evaluations SET log_dir = :log_dir WHERE id = :id")
-            db.execute(update_stmt, {"log_dir": log_dir, "id": eval_id})
-            db.commit()
+            with db_operation(db) as session:
+                session.execute(update_stmt, {"log_dir": log_dir, "id": eval_id})
+                session.commit()
             return True
         except Exception as e:
             logger.error(f"更新日志目录失败: {str(e)}")
-            db.rollback()
+            with db_operation(db) as session:
+                session.rollback()
             return False
     
     @staticmethod
@@ -108,12 +180,14 @@ class EvaluationRepository:
         """
         try:
             update_stmt = text("UPDATE evaluations SET task_id = :task_id WHERE id = :id")
-            db.execute(update_stmt, {"task_id": task_id, "id": eval_id})
-            db.commit()
+            with db_operation(db) as session:
+                session.execute(update_stmt, {"task_id": task_id, "id": eval_id})
+                session.commit()
             return True
         except Exception as e:
             logger.error(f"更新任务ID失败: {str(e)}")
-            db.rollback()
+            with db_operation(db) as session:
+                session.rollback()
             return False
     
     @staticmethod
@@ -130,17 +204,19 @@ class EvaluationRepository:
             bool: 更新是否成功
         """
         try:
-            eval_task = db.query(Evaluation).filter(Evaluation.id == eval_id).first()
-            if eval_task:
-                eval_task.status = status.value
-                if results:
-                    eval_task.results = results
-                db.commit()
-                return True
-            return False
+            with db_operation(db) as session:
+                eval_task = session.query(Evaluation).filter(Evaluation.id == eval_id).first()
+                if eval_task:
+                    eval_task.status = status.value
+                    if results:
+                        eval_task.results = results
+                    session.commit()
+                    return True
+                return False
         except Exception as e:
             logger.error(f"更新任务状态失败: {str(e)}")
-            db.rollback()
+            with db_operation(db) as session:
+                session.rollback()
             return False
     
     @staticmethod
@@ -156,63 +232,19 @@ class EvaluationRepository:
             bool: 更新是否成功
         """
         try:
-            eval_task = db.query(Evaluation).filter(Evaluation.id == eval_id).first()
-            if eval_task:
-                eval_task.status = EvaluationStatus.FAILED.value
-                eval_task.error_message = error_message
-                db.commit()
-                return True
-            return False
+            with db_operation(db) as session:
+                eval_task = session.query(Evaluation).filter(Evaluation.id == eval_id).first()
+                if eval_task:
+                    eval_task.status = EvaluationStatus.FAILED.value
+                    eval_task.error_message = error_message
+                    session.commit()
+                    return True
+                return False
         except Exception as e:
             logger.error(f"更新错误信息失败: {str(e)}")
-            db.rollback()
+            with db_operation(db) as session:
+                session.rollback()
             return False
-    
-    @staticmethod
-    async def create_evaluation_async(
-        db: Union[Session, AsyncIterator[AsyncSession]],
-        model_name: str,
-        dataset_names: List[str],
-        model_configuration: Dict[str, Any] = None,
-        dataset_configuration: Dict[str, Any] = None,
-        eval_config: Dict[str, Any] = None,
-        env_vars: Dict[str, Any] = None,
-        user_id: int = 1  # 默认为1，系统用户
-    ) -> Evaluation:
-        """创建评估记录
-        
-        Args:
-            db: 数据库会话
-            model_name: 模型名称
-            dataset_names: 数据集名称列表
-            model_configuration: 模型配置
-            dataset_configuration: 数据集配置
-            eval_config: 评估配置
-            env_vars: 环境变量
-            user_id: 用户ID
-            
-        Returns:
-            Evaluation: 创建的评估记录
-        """
-        # 创建评估记录
-        db_eval = Evaluation(
-            model_name=model_name,
-            dataset_names=dataset_names,
-            model_configuration=model_configuration or {},
-            dataset_configuration=dataset_configuration or {},
-            eval_config=eval_config or {},
-            env_vars=env_vars or {},
-            status=EvaluationStatus.PENDING.value,
-            user_id=user_id
-        )
-        
-        # 添加到会话并提交
-        async with async_db_operation(db) as session:
-            session.add(db_eval)
-            await session.commit()
-            await session.refresh(db_eval)
-        
-        return db_eval
     
     @staticmethod
     async def update_task_id_async(db: Session, eval_id: int, task_id: str) -> bool:
@@ -277,8 +309,8 @@ class EvaluationRepository:
             return False
             
     @staticmethod
-    async def get_evaluation_by_id_async(db: Session, eval_id: int) -> Optional[Evaluation]:
-        """异步获取评估记录
+    async def get_evaluation_by_id_async(db: Union[Session, AsyncSession, Callable], eval_id: int) -> Optional[Evaluation]:
+        """异步通过ID获取评估记录
         
         Args:
             db: 数据库会话
@@ -287,14 +319,14 @@ class EvaluationRepository:
         Returns:
             Optional[Evaluation]: 找到的评估记录或None
         """
-        try:
-            result = await asyncio.to_thread(
-                lambda: db.query(Evaluation).filter(Evaluation.id == eval_id).first()
-            )
-            return result
-        except Exception as e:
-            logger.error(f"异步获取评估记录失败: {str(e)}")
-            return None
+        async with async_db_operation(db) as session:
+            if isinstance(session, AsyncSession):
+                result = await session.execute(
+                    session.query(Evaluation).filter(Evaluation.id == eval_id)
+                )
+                return result.scalar_one_or_none()
+            else:
+                return session.query(Evaluation).filter(Evaluation.id == eval_id).first()
             
     @staticmethod
     async def list_evaluations_async(db: Session, status: Optional[str] = None, limit: int = 100, offset: int = 0) -> Dict[str, Any]:
