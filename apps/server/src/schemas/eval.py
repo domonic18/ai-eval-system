@@ -50,7 +50,7 @@ class EvaluationStatusResponse(BaseModel):
     """评估状态响应"""
     id: int
     model_name: str
-    dataset_names: str
+    dataset_names: Union[List[str], str]
     status: str
     progress: float = 0.0
     created_at: datetime
@@ -59,6 +59,12 @@ class EvaluationStatusResponse(BaseModel):
     error_message: Optional[str] = Field(None, description="错误信息")
     results: Optional[Dict[str, Any]] = Field(None, description="评估结果")
     details: Dict[str, Any] = Field(default={}, description="详细信息")
+
+    model_config = ConfigDict(
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+    )
 
 class OpenCompassConfig(BaseModel):
     """OpenCompass 配置模式"""
