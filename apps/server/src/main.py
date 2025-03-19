@@ -57,19 +57,13 @@ async def health_check():
 async def startup_event():
     """应用启动时执行的操作"""
     # 确保上传目录存在
-    os.makedirs(settings.upload_dir, exist_ok=True)
-    os.makedirs(settings.avatar_storage_dir, exist_ok=True)
+    # os.makedirs(settings.upload_dir, exist_ok=True)
+    # os.makedirs(settings.avatar_storage_dir, exist_ok=True)
     
-    logger.info(f"用户上传目录: {settings.upload_dir}")
-    logger.info(f"头像存储目录: {settings.avatar_storage_dir}")
+    # logger.info(f"用户上传目录: {settings.upload_dir}")
+    # logger.info(f"头像存储目录: {settings.avatar_storage_dir}")
 
-# 挂载用户上传目录
-app.mount("/api/uploads", StaticFiles(directory=settings.upload_dir), name="user_uploads")
 
-# 挂载静态文件目录
-app.mount("/api/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
-
-# 开发模式下直接运行
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
