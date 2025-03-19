@@ -97,7 +97,6 @@
             <div v-if="$route.path === '/evaluation/records'">
               <div class="content-header">
                 <h2 class="content-title">评测记录</h2>
-                <button @click="$router.push('/evaluation')" class="btn btn-primary">创建新任务</button>
               </div>
               
               <!-- 直接显示任务表格，移除额外的标题和按钮 -->
@@ -207,7 +206,7 @@ export default {
       currentResultTaskId: null,
       modelType: 'custom',
       selectedModel: null,
-      customApiConfig: '',
+      customApiConfig: {},
       lastCustomApiConfig: null,
       modelOptions: [],
       selectedDatasets: [],
@@ -263,7 +262,7 @@ export default {
     handleModelStepComplete(data) {
       this.modelType = data.modelType;
       this.selectedModel = data.selectedModel;
-      this.customApiConfig = data.customApiConfig;
+      this.customApiConfig = data.customApiConfig || {};
       this.currentStep = 2;
     },
     

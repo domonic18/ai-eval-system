@@ -14,7 +14,7 @@
     <div class="top-controls" v-if="!hideHeader">
       <h3 class="section-title">评测任务列表</h3>
       <div class="action-buttons">
-        <el-button type="primary" @click="$emit('create-task')">创建新任务</el-button>
+        <el-button type="primary" @click="$router.push('/evaluation')">创建新任务</el-button>
         <el-button @click="fetchTasks">刷新列表</el-button>
       </div>
     </div>
@@ -38,7 +38,8 @@
           </template>
         </el-input>
         
-        <el-button type="primary" @click="$emit('create-task')">
+        
+        <el-button type="primary"  @click="$router.push('/evaluation')">
           <el-icon><Plus /></el-icon> 创建新任务
         </el-button>
       </div>

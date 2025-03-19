@@ -196,8 +196,8 @@ export default {
       default: null
     },
     customApiConfig: {
-      type: String,
-      default: ''
+      type: [String, Object],
+      default: () => ({})
     },
     selectedDatasets: {
       type: Array,
@@ -249,37 +249,31 @@ export default {
   },
   methods: {
     parseCustomApiConfig() {
-      if (!this.customApiConfig || typeof this.customApiConfig !== 'object') {
-        console.error('自定义API配置为空或格式不正确');
+      if (!this.customApiConfig) {
         return;
       }
-      
-      console.log('解析配置对象:', this.customApiConfig);
-      
-      // 直接使用传入的配置对象
-      const configObj = this.customApiConfig;
-      
-      // 判断配置类型
-      this.customConfig.type = configObj.type || 'api';
-      
-      if (this.customConfig.type === 'api') {
-        this.customConfig.url = configObj.api_url || '';
-        this.customConfig.key = configObj.api_key || '';
-        this.customConfig.model = configObj.model || '';
-      } else {
-        this.customConfig.dify_type = configObj.dify_type || 'Chat';
-        this.customConfig.url = configObj.dify_url || '';
-        this.customConfig.key = configObj.dify_api_key || '';
+
+      try {
+        let configObj = this.customApiConfig;
+        
+        // 如果是字符串，尝试解析为对象
+        if (typeof this.customApiConfig === 'string') {
+          configObj = JSON.parse(this.customApiConfig);
+        }
+
+        // 确保配置对象存在
+        if (configObj && typeof configObj === 'object') {
+          this.customConfig = {
+            type: configObj.type || 'api',
+            url: configObj.api_url || '',
+            key: configObj.api_key || '',
+            model: configObj.model || '',
+            dify_type: configObj.dify_type || 'Chat'
+          };
+        }
+      } catch (error) {
+        console.error('解析配置时出错:', error);
       }
-      
-      console.log('配置解析完成，结果:', {
-        type: this.customConfig.type,
-        url: this.customConfig.url,
-        model: this.customConfig.model,
-        dify_type: this.customConfig.dify_type,
-        // 不输出敏感信息
-        key_length: this.customConfig.key ? this.customConfig.key.length : 0
-      });
     },
     
     maskSecret(secret) {
@@ -299,9 +293,9 @@ export default {
       this.isSubmitting = true;
       
       try {
-        // 构建环境变量对象 - 无需解析字符串
+        // 构建环境变量对象
         const envVarsObj = this.modelType === 'preset' ? {} : {
-          // 根据配置类型设置不同的环境变量
+          // 确保使用正确的字段名
           ...(this.customConfig.type === 'api' ? {
             API_URL: this.customConfig.url,
             API_KEY: this.customConfig.key,
@@ -317,8 +311,6 @@ export default {
         const evaluationData = {
           model_type: this.modelType === 'preset' ? 'preset' : 'custom',
           model_name: this.modelType === 'preset' ? this.selectedModelName : 'custom_api',
-          
-          // 添加api_type字段
           api_type: this.modelType === 'preset' ? null : this.customConfig.type,
           
           // 数据集信息
@@ -333,7 +325,8 @@ export default {
             : { 
                 api_type: this.customConfig.type,
                 model: this.customConfig.model,
-                url: this.customConfig.url
+                url: this.customConfig.url,
+                key: this.customConfig.key  // 添加 key 字段
               },
           
           // 评估配置
@@ -398,10 +391,7 @@ export default {
     customApiConfig: {
       immediate: true,
       handler(newValue) {
-        if (newValue) {
-          console.log('customApiConfig已更新，重新解析');
-          this.parseCustomApiConfig();
-        }
+        this.parseCustomApiConfig();
       }
     }
   }
