@@ -42,7 +42,14 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
         ws: true,
-        rewrite: (path) => path.replace(/^\/api/, '/api')
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, _req, _res) => {
+            console.log('代理错误', err);
+          });
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            console.log('代理请求', req.method, req.url);
+          });
+        }
       },
       '/ws': {
         target: 'ws://localhost:8000',

@@ -107,14 +107,31 @@ export default {
       
       // 创建新的WebSocket连接
       try {
-        // 根据部署环境调整WebSocket URL
+        // 改进WebSocket URL生成逻辑
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        // 始终使用当前页面的主机名和端口
-        const wsUrl = `${wsProtocol}//${window.location.host}/api/v1/evaluations/${this.taskId}/ws_logs`;
+        // 处理开发环境中的代理问题
+        const host = import.meta.env.DEV ? 
+          (import.meta.env.VITE_API_HOST || window.location.host) : 
+          window.location.host;
+        
+        const wsUrl = `${wsProtocol}//${host}/api/v1/evaluations/${this.taskId}/ws_logs`;
+        
+        console.log('尝试连接WebSocket:', wsUrl);
         
         this.socket = new WebSocket(wsUrl);
         
+        // 设置超时处理
+        const connectionTimeout = setTimeout(() => {
+          if (this.socket && this.socket.readyState !== WebSocket.OPEN) {
+            console.log('WebSocket连接超时');
+            this.socket.close();
+            this.connectionStatus = 'error';
+            this.connectionError = '连接超时';
+          }
+        }, 10000); // 10秒超时
+        
         this.socket.onopen = () => {
+          clearTimeout(connectionTimeout);
           this.connectionStatus = 'connected';
           this.reconnectAttempts = 0;
           console.log(`WebSocket连接已建立: ${wsUrl}`);
