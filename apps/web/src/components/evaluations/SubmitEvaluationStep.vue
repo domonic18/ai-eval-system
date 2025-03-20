@@ -338,6 +338,7 @@ export default {
         // 构建提交的数据结构
         const evaluationData = {
           name: taskNamePrefix,
+          eval_type: 'text',//目前默认为文字评测    
           model_type: this.modelType === 'preset' ? 'preset' : 'custom',
           model_name: this.modelType === 'preset' ? this.selectedModelName : 'custom_api',
           api_type: this.modelType === 'preset' ? null : this.customConfig.type,
