@@ -48,6 +48,7 @@ services:
       dockerfile: apps/server/Dockerfile
     volumes:
       - ../workspace:/app/workspace
+      - ../data:/app/libs/OpenCompass/data
     command: celery -A celery_app:celery_app worker --loglevel=INFO --concurrency=1 -Q eval_tasks
     environment:
       - REDIS_URL=redis://redis:6379/0

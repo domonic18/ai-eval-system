@@ -105,36 +105,15 @@ export default {
           id: 'demo_cmmlu_chat_gen', 
           name: 'CMMLU', 
           description: '中文通用语言理解测试数据集，覆盖多个学科和领域',
-          category: '综合评测',
+          category: 'Demo演示',
           itemCount: 42 
         },
         { 
           id: 'demo_math_chat_gen', 
           name: 'Math', 
           description: '数学问题测试集，包含基础算术、代数和几何问题',
-          category: '数学能力',
+          category: 'Demo演示',
           itemCount: 64 
-        },
-        { 
-          id: 'agieval_chat_gen', 
-          name: 'AGIEval', 
-          description: 'AGI评测数据集，测试模型的推理和决策能力',
-          category: '综合评测',
-          itemCount: 35 
-        },
-        { 
-          id: 'ceval_chat_gen', 
-          name: 'C-Eval', 
-          description: '中文评测数据集，包含多个学科的专业知识',
-          category: '综合评测',
-          itemCount: 50 
-        },
-        { 
-          id: 'code_chat_gen', 
-          name: 'CodeGen', 
-          description: '代码生成测试集，评估模型编写代码的能力',
-          category: '编程能力',
-          itemCount: 25 
         }
       ]
     }

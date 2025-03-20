@@ -76,26 +76,43 @@ INSERT INTO datasets (
     1, 
     1
 ),
+-- (
+--     'ceval_gen', 
+--     '覆盖52个中文学科，主要用于评估语言模型在多学科领域的知识能力', 
+--     '通用', 
+--     'benchmark', 
+--     '/data/ceval', 
+--     '{"format": "chat"}', 
+--     1, 
+--     1
+-- ),
+-- (
+--     'longbench_multifieldqa_zh_gen', 
+--     '长文本测试数据集，包括长摘要、对话推理等，用于测试模型对长文本的理解能力', 
+--     '长文本', 
+--     'benchmark', 
+--     '/data/longbench_multifieldqa_zh', 
+--     '{"format": "chat"}', 
+--     1, 
+--     1
+-- ),
 (
-    'ceval_gen', 
-    '覆盖52个中文学科，主要用于评估语言模型在多学科领域的知识能力', 
-    '通用', 
+    'teval_en_gen', 
+    'T-Eval英文数据集，用于评估 复杂任务分解与规划能力 的基准测试集，重点关注模型将高层目标拆解为可执行子任务的系统性能力。', 
+    '智能体', 
     'benchmark', 
-    '/data/ceval', 
+    '/data/teval_en', 
     '{"format": "chat"}', 
     1, 
     1
 ),
 (
-    'longbench_multifieldqa_zh_gen', 
-    '长文本测试数据集，包括长摘要、对话推理等，用于测试模型对长文本的理解能力', 
-    '长文本', 
+    'teval_zh_gen', 
+    'T-Eval中文数据集，用于评估 复杂任务分解与规划能力 的基准测试集，重点关注模型将高层目标拆解为可执行子任务的系统性能力。', 
+    '智能体', 
     'benchmark', 
-    '/data/longbench_multifieldqa_zh', 
+    '/data/teval_zh', 
     '{"format": "chat"}', 
     1, 
     1
 );
-
-
-
