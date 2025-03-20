@@ -6,11 +6,96 @@ INSERT INTO ai_models (name, provider, description, model_type, version, configu
 VALUES 
 ('hk33smarter_api', 'HK33', 'HK33 Smarter API模型', 'api', '1.0', '{"api_url": "https://api.hk33.com/v1"}', 1, 1, 1);
 
-INSERT INTO datasets (name, description, type, file_path, configuration, user_id, is_active)
-VALUES 
-('demo_cmmlu_chat_gen', '一个中文通用语言理解测试的Demo', 'benchmark', '/demo/demo_cmmlu_chat_gen/', '{"format": "chat"}', 1, 1),
-('demo_math_chat_gen', '一个64条数学问题测试集的Demo', 'benchmark', '/demo/demo_math_chat_gen/', '{"format": "chat"}', 1, 1),
-('demo_gsm8k_chat_gen', '一个64条Grade School Math 8K数学问题集的Demo', 'benchmark', '/demo/demo_gsm8k_chat_gen/', '{"format": "chat"}', 1, 1),
-('ceval', '中文多学科知识评估基准', 'benchmark', '/data/ceval/', '{"format": "mcq"}', 1, 1),
-('humaneval', '代码生成能力评估（164道编程题）', 'benchmark', '/code/humaneval/', '{"task": "code_generation"}', 1, 1),
-('hellaswag', 'HellaSwag常识推理测试', 'benchmark', '/data/hellaswag/', '{"split": "test"}', 1, 1);
+INSERT INTO datasets (
+    name, 
+    description, 
+    category,
+    type,
+    file_path, 
+    configuration, 
+    user_id, 
+    is_active
+) VALUES 
+(
+    'demo_cmmlu_chat_gen', 
+    '一个Demo演示数据集：中文通用语言理解测试，主要用于基础流程的测试验证', 
+    'Demo演示', 
+    'benchmark', 
+    '/demo/demo_cmmlu_chat_gen', 
+    '{"format": "chat"}', 
+    1, 
+    1
+),
+(
+    'demo_math_chat_gen', 
+    '一个Demo演示数据集：64条数学问题测试集，主要用于基础流程的测试验证', 
+    'Demo演示', 
+    'benchmark', 
+    '/demo/demo_math_chat_gen', 
+    '{"format": "chat"}', 
+    1, 
+    1
+),
+(
+    'demo_gsm8k_chat_gen', 
+    '一个Demo演示数据集：64条Grade School Math 8K数学问题集，主要用于基础流程的测试验证', 
+    'Demo演示', 
+    'benchmark', 
+    '/demo/demo_gsm8k_chat_gen', 
+    '{"format": "chat"}', 
+    1, 
+    1
+),
+(
+    'cmmlu', 
+    '包含67个主题的综合性中文评估基准，专门用于评估语言模型在中文语境下的知识和推理能力', 
+    '通用', 
+    'benchmark', 
+    '/data/cmmlu', 
+    '{"format": "chat"}', 
+    1, 
+    1
+),
+(
+    'GaokaoBench_gen', 
+    '以中国高考题作为评测大语言模型能力的数据集，用以评估模型的语言能力和逻辑推理能力', 
+    '通用', 
+    'benchmark', 
+    '/data/GAOKAOBench', 
+    '{"format": "chat"}', 
+    1, 
+    1
+),
+(
+    'gsm8k_gen', 
+    '由OpenAI发布的8.5K高质量语言多样化小学数学应用题数据集，要求选择最合理的解决方案', 
+    '数学', 
+    'benchmark', 
+    '/data/gsm8k', 
+    '{"format": "chat"}', 
+    1, 
+    1
+),
+(
+    'ceval_gen', 
+    '覆盖52个中文学科，主要用于评估语言模型在多学科领域的知识能力', 
+    '通用', 
+    'benchmark', 
+    '/data/ceval', 
+    '{"format": "chat"}', 
+    1, 
+    1
+),
+(
+    'longbench_multifieldqa_zh_gen', 
+    '长文本测试数据集，包括长摘要、对话推理等，用于测试模型对长文本的理解能力', 
+    '长文本', 
+    'benchmark', 
+    '/data/longbench_multifieldqa_zh', 
+    '{"format": "chat"}', 
+    1, 
+    1
+);
+
+
+

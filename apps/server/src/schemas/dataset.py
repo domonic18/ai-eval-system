@@ -7,6 +7,7 @@ class DatasetBase(BaseModel):
     """数据集基类"""
     name: str
     type: str
+    category: str
     description: Optional[str] = None
     file_path: Optional[str] = None
     configuration: Optional[dict] = None
