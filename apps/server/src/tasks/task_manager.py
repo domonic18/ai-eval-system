@@ -12,6 +12,7 @@ import psutil
 import sqlalchemy.exc
 from core.repositories import EvaluationRepository
 from utils.utils_db import db_operation
+import time
 
 
 # 配置日志
@@ -121,34 +122,50 @@ class TaskManager:
                     return {"success": False, "message": "任务不存在"}
 
                 try:
+                    # 首先在Redis中设置终止标志
+                    RedisManager.update_task_status(eval_id, {
+                        "terminate_flag": True,
+                        "timestamp": time.time()
+                    })
+                    logger.info(f"已在Redis中设置任务 {eval_id} 的终止标志")
+                    
                     task = AsyncResult(evaluation.task_id)
                     
-                    # 添加更精确的后端检查
-                    if not hasattr(task, 'backend') or task.backend == 'disabled':
-                        raise AttributeError("结果后端不可用")
+                    # 现有的检查方法存在问题，采用更安全的方式检查任务状态
+                    # 移除对task.state的直接访问，使用数据库中的状态替代
+                    db_status = evaluation.status.upper() if evaluation.status else "UNKNOWN"
                     
-                    # 更严谨的状态检查
-                    terminal_states = ['SUCCESS', 'FAILURE', 'REVOKED', 'TERMINATED']
-                    if task.state in terminal_states:
+                    # 如果数据库状态表明任务已完成或失败，则不允许终止
+                    if db_status in ['COMPLETED', 'FAILED', 'TERMINATED']:
                         return {"success": False, "message": "任务已处于最终状态无法终止"}
-
-                    task.revoke(terminate=True, signal='SIGTERM', timeout=10)
-                    # 如果5秒后仍在运行，强制终止
-                    if not task.ready():
-                        task.revoke(terminate=True, signal='SIGKILL')
-                        logger.warning(f"强制终止任务 {evaluation.task_id}")
-
+                    
+                    # 直接尝试中止任务，不再检查任务状态
+                    logger.info(f"尝试终止任务 {evaluation.task_id}")
+                    
+                    # 使用Redis终止标志通知运行中的任务
+                    # 任务会在下一次循环中检查此标志并自行终止
+                    
+                    # 为确保安全，仍然发送信号尝试终止
+                    try:
+                        # 先尝试温和地终止
+                        task.revoke(terminate=True, signal='SIGTERM', timeout=10)
+                    except Exception as e:
+                        logger.warning(f"发送SIGTERM信号失败: {str(e)}")
+                    
                     # 清理子进程（关键修复点）
                     self._cleanup_child_processes(eval_id)
                     
+                    # 更新数据库状态
+                    db_eval = db.query(Evaluation).filter(Evaluation.id == eval_id).first()
+                    if db_eval:
+                        db_eval.status = EvaluationStatus.TERMINATED.value
+                        db.commit()
+                    
                     return {"success": True, "message": "任务终止指令已发送"}
                     
-                except (AttributeError, ValueError) as e:
-                    logger.error(f"终止参数错误: {str(e)}")
-                    return {"success": False, "message": f"终止失败: {str(e)}"}
                 except Exception as e:
                     logger.error(f"终止过程异常: {str(e)}")
-                    return {"success": False, "message": "终止过程发生意外错误"}
+                    return {"success": False, "message": f"终止任务时发生错误: {str(e)}"}
                 
         except sqlalchemy.exc.SQLAlchemyError as e:
             logger.error(f"数据库操作失败: {str(e)}")

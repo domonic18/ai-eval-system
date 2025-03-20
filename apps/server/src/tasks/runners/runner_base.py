@@ -74,9 +74,8 @@ class RunnerBase:
     def _update_status(self, status: str):
         """更新状态
         Args:
-            status: running or finished or failed
+            status: running or finished or failed or terminated
         """
-
         if status == "running":
             # 1. 更新为运行中
             self.is_running = True
@@ -106,6 +105,18 @@ class RunnerBase:
                     "status": "failed",
                     "return_code": self.return_code,
                     "is_successful": False,
+                    "timestamp": time.time()
+                }
+                RedisManager.update_task_status(self.eval_id, status_data)
+        elif status == "terminated":
+            self.is_running = False
+            self.is_finished = True
+            if self.eval_id is not None:
+                status_data = {
+                    "status": "terminated",
+                    "return_code": self.return_code,
+                    "is_successful": False,
+                    "terminate_flag": False,  # 清除终止标志
                     "timestamp": time.time()
                 }
                 RedisManager.update_task_status(self.eval_id, status_data)
@@ -184,7 +195,30 @@ class RunnerBase:
         """抽象基类，定义公共接口"""
         raise NotImplementedError("子类必须实现build_command方法")
     
-    def run_sync(self, command: str ) -> int:
+    def get_task_status_from_redis(self) -> dict:
+        """从Redis获取任务状态
+        
+        Returns:
+            dict: 任务状态字典，如果没有找到则返回空字典
+        """
+        try:
+            status_data = RedisManager.get_task_status(self.eval_id)
+            return status_data if status_data else {}
+        except Exception as e:
+            logger.warning(f"从Redis获取任务状态失败: {str(e)}")
+            return {}
+
+    def is_task_terminated(self) -> bool:
+        """检查任务是否被标记为终止
+        
+        Returns:
+            bool: 如果任务已被终止则返回True，否则返回False
+        """
+        status_data = self.get_task_status_from_redis()
+        # 检查状态中是否有终止标志
+        return status_data.get('status') == 'terminated' or status_data.get('terminate_flag', False)
+
+    def run_sync(self, command: str) -> int:
         """同步执行命令并实时处理输出"""
         self.start_time = datetime.now()
         try:
@@ -204,8 +238,22 @@ class RunnerBase:
             # 2. 设置日志文件
             self._setup_log_file(self.log_file_path)
         
-            # 3. 实时处理输出
+            # 3. 实时处理输出并检查终止标志
             while self.process.poll() is None:
+                # 检查任务是否被终止
+                if self.is_task_terminated():
+                    logger.warning(f"检测到任务 {self.eval_id} 终止标志，正在停止执行...")
+                    # 记录终止日志
+                    termination_message = "任务被用户终止，强制停止执行"
+                    self._update_log(termination_message)
+                    self.log_handler.process_line(termination_message)
+                    
+                    # 设置返回码表示终止
+                    self.return_code = 143  # SIGTERM 信号对应的退出码
+                    self._update_status("terminated")
+                    return self.return_code
+
+                # 读取输出
                 line = self.process.stdout.readline()
                 if not line:
                     break
@@ -223,7 +271,10 @@ class RunnerBase:
             print(f"进程已结束，返回码: {self.return_code}")
             
             # 8. 更新状态为已完成
-            self._update_status("finished")
+            if self.is_task_terminated():
+                self._update_status("terminated")
+            else:
+                self._update_status("finished")
             
             return self.return_code
         except Exception as e:

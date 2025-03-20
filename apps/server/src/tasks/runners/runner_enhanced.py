@@ -49,8 +49,7 @@ class EnhancedRunner(RunnerBase):
             "opencompass",
             f"--models {eval_data.model_name}",
             f"--datasets {datasets_str}",
-            f"--work-dir {self.output_dir}",
-            f"--debug"
+            f"--work-dir {self.output_dir}"
         ]
 
         # 如果eval_data.eval_config中debug为True，则增加--debug参数
