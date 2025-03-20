@@ -44,9 +44,12 @@ RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua
 
 # 3.3 安装项目依赖
 RUN pip install --no-cache-dir -e . -i https://pypi.tuna.tsinghua.edu.cn/simple
+# 3.4 安装modelscope
+RUN pip install --no-cache-dir modelscope[framework] -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 4. 设置环境变量和目录
 # 4.1 设置环境变量
+ENV DATASET_SOURCE=ModelScope
 ENV PYTHONPATH=/app
 ENV WORKING_DIR=/app/workspace
 ENV OPENCOMPASS_WORK_DIR=${WORKING_DIR}/opencompass
