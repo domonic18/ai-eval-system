@@ -343,4 +343,18 @@ pre {
   padding-top: 0;
   margin-top: var(--header-height);
 }
+
+/* 添加指南页面链接专用样式 */
+.guide-link {
+  color: #3182ce;
+  text-decoration: none;
+  transition: color 0.3s;
+  padding: 0 2px;
+}
+
+.guide-link:hover {
+  color: #2c5282;
+  text-decoration: underline;
+  background-color: transparent; /* 确保指南链接hover时没有背景色 */
+}
 </style> 

@@ -13,15 +13,40 @@
 a,
 .green {
   text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
+  color: #3182ce;
   transition: 0.4s;
   padding: 3px;
 }
 
 @media (hover: hover) {
   a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
+    background-color: rgba(49, 130, 206, 0.1);
   }
 }
 
 /* 移除了对大屏幕下的特殊限制 */
+
+/* 添加指南页面链接专用样式 */
+.guide-link {
+  color: #3182ce;
+  text-decoration: none;
+  transition: color 0.3s;
+  padding: 0 2px;
+}
+
+.guide-link:hover {
+  color: #2c5282;
+  text-decoration: underline;
+  background-color: transparent; /* 确保指南链接hover时没有背景色 */
+}
+
+/* 指南页面中所有链接的样式 */
+.guide-content a {
+  color: #3182ce;
+  background-color: transparent !important; /* 强制覆盖全局样式 */
+}
+
+.guide-content a:hover {
+  color: #2c5282;
+  text-decoration: underline;
+}

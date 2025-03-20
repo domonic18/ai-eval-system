@@ -61,6 +61,7 @@ export default {
 .github-link:hover {
   color: #fff;
   text-decoration: underline;
+  background-color: transparent;
 }
 
 .github-icon {

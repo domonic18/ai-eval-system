@@ -153,6 +153,7 @@ export default {
 .nav-link:hover,
 .router-link-active {
   color: #3182ce;
+  background-color: transparent;
 }
 
 .router-link-active::after {
