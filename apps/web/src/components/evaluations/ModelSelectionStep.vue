@@ -313,7 +313,7 @@ export default {
         } else {
           // 默认值设置
           this.apiConfig = {
-            url: 'https://guanghua-api.hk33smarter.com/v1',
+            url: 'https://guanghua-api.bj33smarter.com/v1',
             key: 'sk-xxxx',
             model: 'Qwen/qwen2-1.5b-instruct'
           };
@@ -322,7 +322,7 @@ export default {
         console.error('从本地存储加载配置失败:', error);
         // 设置默认值
         this.apiConfig = {
-          url: 'https://guanghua-api.hk33smarter.com/v1',
+          url: 'https://guanghua-api.bj33smarter.com/v1',
           key: 'sk-xxxx',
           model: 'Qwen/qwen2-1.5b-instruct'
         };
