@@ -21,7 +21,7 @@
     
     <!-- 筛选和操作区域 -->
     <div class="filter-container">
-      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
+      <el-tabs v-model="activeTab" @tab-change="handleTabChange" class="custom-tabs">
         <el-tab-pane label="我的评测" name="my"></el-tab-pane>
         <el-tab-pane label="全部评测" name="all"></el-tab-pane>
       </el-tabs>
@@ -50,8 +50,9 @@
       v-loading="loading"
       :data="tableData"
       style="width: 100%"
-      border
+      :border="false"
       :header-cell-style="{ 'background-color': '#f7f7f7' }"
+      header-cell-class-name="table-header-bold"
       @header-dragend="handleHeaderDragend"
     >
       <!-- 任务名称列 -->
@@ -100,7 +101,7 @@
       <!-- 评测模型列 -->
       <el-table-column
         label="评测模型"
-        min-width="160"
+        min-width="100"
         prop="model_name"
       />
       
@@ -112,8 +113,9 @@
         <template #default="scope">
           <div class="dataset-tags">
             <template v-if="getDatasetNames(scope.row.dataset_names).length > 0">
+              <!-- 只显示前两个数据集 -->
               <el-tag
-                v-for="(dataset, index) in getDatasetNames(scope.row.dataset_names)"
+                v-for="(dataset, index) in getDatasetNames(scope.row.dataset_names).slice(0, 2)"
                 :key="index"
                 effect="plain"
                 type="info"
@@ -121,6 +123,17 @@
                 class="dataset-tag"
               >
                 {{ dataset }}
+              </el-tag>
+              
+              <!-- 如果数据集超过2个，显示剩余数量 -->
+              <el-tag
+                v-if="getDatasetNames(scope.row.dataset_names).length > 2"
+                effect="plain"
+                type="info"
+                size="small"
+                class="dataset-tag more-tag"
+              >
+                +{{ getDatasetNames(scope.row.dataset_names).length - 2 }}
               </el-tag>
             </template>
             <span v-else>-</span>
@@ -166,7 +179,7 @@
       <!-- 创建时间列 -->
       <el-table-column
         label="创建时间"
-        min-width="160"
+        min-width="120"
         sortable
         :sort-method="sortByDate"
       >
@@ -185,36 +198,54 @@
         fixed="right"
       >
         <template #default="scope">
-          <div class="action-column">
-            <el-button-group>
-              <el-button
-                type="primary"
-                size="small"
-                @click="viewLogs(scope.row.id)"
-              >日志</el-button>
-              
-              <el-button
-                v-if="getTaskStatusType(scope.row.status) === 'completed'"
-                type="success"
-                size="small"
-                @click="viewResults(scope.row.id)"
-              >结果</el-button>
-            </el-button-group>
+          <div class="action-buttons">
+            <el-button 
+              v-if="scope.row.status === 'running'" 
+              size="small" 
+              type="primary"
+              @click="viewLogs(scope.row.id)"
+              class="action-btn"
+            >
+              日志
+            </el-button>
             
-            <el-button-group>
-              <el-button
-                v-if="getTaskStatusType(scope.row.status) === 'running'"
-                type="warning"
-                size="small"
-                @click="terminateTask(scope.row.id)"
-              >停止</el-button>
-              
-              <el-button
-                type="danger"
-                size="small"
-                @click="deleteTask(scope.row.id)"
-              >删除</el-button>
-            </el-button-group>
+            <el-button 
+              v-if="scope.row.status === 'running'"
+              size="small"
+              type="warning"
+              @click="terminateTask(scope.row.id)"
+              class="action-btn"
+            >
+              停止
+            </el-button>
+            
+            <el-button 
+              v-if="scope.row.status !== 'running'"
+              size="small"
+              type="primary"
+              @click="viewLogs(scope.row.id)"
+              class="action-btn"
+            >
+              日志
+            </el-button>
+            
+            <el-button 
+              v-if="scope.row.status !== 'running'"
+              size="small"
+              type="success"
+              @click="viewResults(scope.row.id)"
+              class="action-btn"
+            >
+              结果
+            </el-button>
+            
+            <el-button 
+              size="small" 
+              type="danger"
+              @click="deleteTask(scope.row.id)"
+            >
+              删除
+            </el-button>
           </div>
         </template>
       </el-table-column>
@@ -635,6 +666,7 @@ function handleSizeChange(newSize) {
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  overflow: hidden;
 }
 
 .top-controls {
@@ -652,7 +684,11 @@ function handleSizeChange(newSize) {
 
 .action-buttons {
   display: flex;
-  gap: 12px;
+  align-items: center;
+}
+
+.action-buttons .el-button.action-btn {
+  margin-right: 1px;
 }
 
 .filter-container {
@@ -675,12 +711,13 @@ function handleSizeChange(newSize) {
 .date-display {
   display: flex;
   flex-direction: column;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .time-part {
   font-size: 12px;
   color: #909399;
-  margin-top: 4px;
 }
 
 .user-info-horizontal {
@@ -731,6 +768,12 @@ function handleSizeChange(newSize) {
 .dataset-tag {
   margin: 2px;
   background-color: #f4f4f5;
+}
+
+/* 添加剩余数量标签的样式 */
+.more-tag {
+  background-color: #e9e9eb;
+  color: #606266;
 }
 
 .pagination-container {
@@ -798,5 +841,92 @@ function handleSizeChange(newSize) {
 :deep(.el-pagination.is-background .btn-prev:hover),
 :deep(.el-pagination.is-background .btn-next:hover) {
   background-color: #f4f4f5;
+}
+
+.table-header-bold .el-table__cell {
+  font-weight: bold !important;
+}
+
+:deep(.table-header-bold .el-table__cell) {
+  font-weight: bold !important;
+}
+
+:deep(.el-table) {
+  --el-table-border-color: transparent;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+:deep(.el-table__header) th {
+  border: none !important;
+}
+
+:deep(.el-table__body) td {
+  border: none !important;
+}
+
+:deep(.el-table--border)::after,
+:deep(.el-table--group)::after,
+:deep(.el-table::before) {
+  display: none;
+}
+
+:deep(.el-table__row) {
+  border-bottom: 1px solid transparent !important;
+}
+
+:deep(.el-table__row:hover) {
+  background-color: #f7f7f7;
+  transition: background-color 0.3s;
+}
+
+:deep(.el-table__header) {
+  border-radius: 8px 8px 0 0 !important;
+}
+
+:deep(.el-table__empty-block) {
+  border-radius: 0 0 8px 8px;
+}
+
+/* 新增Tab样式调整 */
+.custom-tabs {
+  min-width: 180px;
+}
+
+:deep(.el-tabs__nav-wrap::after) {
+  /* 移除默认的底部灰线 */
+  display: none !important;
+}
+
+:deep(.el-tabs__nav) {
+  /* 确保导航项居中对齐 */
+  display: flex;
+  justify-content: center;
+}
+
+:deep(.el-tabs__item) {
+  /* 调整Tab项的样式 */
+  padding: 0 20px;
+  height: 40px;
+  line-height: 40px;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 14px;
+}
+
+:deep(.el-tabs__active-bar) {
+  /* 调整活动条样式 */
+  height: 2px;
+  bottom: 0;
+  left: 0;
+  background-color: #3182ce;
+}
+
+:deep(.el-tabs__header) {
+  /* 移除底部边框 */
+  border-bottom: none;
+  margin-bottom: 16px;
 }
 </style> 
