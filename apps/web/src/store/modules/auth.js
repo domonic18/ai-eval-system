@@ -114,20 +114,34 @@ const actions = {
     }
   },
   
-  async register({ commit }, userData) {
+  async register({ commit, dispatch }, userData) {
     commit('auth_request');
     try {
+      // 先进行注册
       const res = await axios.post('/api/v1/auth/register', userData);
       
+      // 检查响应中是否包含token
       const token = res.data.access_token;
-      const userInfo = res.data.user || { username: userData.username };
       
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userInfo));
+      if (token) {
+        // 如果有token，直接使用
+        const userInfo = res.data.user || { username: userData.username };
+        
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(userInfo));
+        
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        
+        commit('auth_success', { token, user: userInfo });
+      } else {
+        // 如果没有token，自动执行登录操作
+        console.log('注册成功但没有返回token，自动登录中...');
+        await dispatch('login', {
+          username: userData.username,
+          password: userData.password
+        });
+      }
       
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      
-      commit('auth_success', { token, user: userInfo });
       return res;
     } catch (err) {
       commit('auth_error', err);

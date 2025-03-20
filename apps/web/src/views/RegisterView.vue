@@ -130,14 +130,25 @@ export default defineComponent({
       error.value = null
       
       try {
-        await store.dispatch('auth/register', {
+        // 保存密码用于自动登录
+        const userCredentials = {
           username: username.value,
           email: email.value,
           password: password.value
-        })
+        }
         
-        // 注册成功后跳转到首页
-        router.push('/')
+        await store.dispatch('auth/register', userCredentials)
+        
+        // 检查是否已经登录
+        if (store.getters['auth/isAuthenticated']) {
+          console.log('注册并登录成功，跳转到首页');
+          // 注册成功后跳转到首页
+          router.push('/')
+        } else {
+          console.error('注册后未能自动登录');
+          error.value = '注册成功但登录失败，请尝试手动登录'
+          router.push('/login')
+        }
       } catch (err) {
         error.value = err.response?.data?.detail || '注册失败，请检查输入信息'
         console.error('注册错误:', err)
