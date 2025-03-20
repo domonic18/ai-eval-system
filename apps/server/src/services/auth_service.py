@@ -163,25 +163,6 @@ class AuthService:
             )
         return user
 
-    # @staticmethod
-    # def create_token_response(user: User) -> Token:
-    #     """创建令牌响应
-
-    #     Args:
-    #         user: 用户
-
-    #     Returns:
-    #         Token: 令牌响应
-    #     """
-    #     access_token_expires = timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
-    #     access_token = AuthService.create_access_token(
-    #         data={"sub": user.username}, expires_delta=access_token_expires
-    #     )
-    #     return Token(
-    #         access_token=access_token,
-    #         token_type="Bearer"
-    #     )
-
     @staticmethod
     def user_to_response(user: User) -> UserResponse:
         """将用户模型转换为响应模型
