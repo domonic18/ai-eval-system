@@ -54,7 +54,7 @@ RUN pip install --no-cache-dir lagent==0.1.2 -i https://pypi.tuna.tsinghua.edu.c
 # 4.1 设置环境变量
 ENV DATASET_SOURCE=ModelScope
 ENV HF_ENDPOINT=https://hf-mirror.com
-ENV COMPASS_DATA_CACHE=/app/workspace/data/cache
+ENV COMPASS_DATA_CACHE=/app/workspace/datasets
 ENV PYTHONPATH=/app
 ENV WORKING_DIR=/app/workspace
 ENV OPENCOMPASS_WORK_DIR=${WORKING_DIR}/opencompass
