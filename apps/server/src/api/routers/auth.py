@@ -8,6 +8,7 @@ from api.deps import get_db
 from schemas.user import UserCreate, UserResponse, Token
 from services.auth_service import auth_service
 from models.user import User
+from core.config import settings
 import logging
 
 # 配置日志
@@ -40,7 +41,7 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    access_token_expires = timedelta(minutes=30)
+    access_token_expires = timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = auth_service.create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )

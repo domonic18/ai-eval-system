@@ -2,8 +2,6 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
-from datetime import datetime, timedelta
-from typing import Optional
 from fastapi.security import OAuth2PasswordBearer
 
 from core.database import db
