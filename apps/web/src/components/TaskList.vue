@@ -343,8 +343,8 @@ onBeforeUnmount(() => {
 
 // 方法
 // 获取任务列表
-async function fetchTasks() {
-  if (loading.value && tasks.value.length > 0) return;
+async function fetchTasks(forceRefresh = false) {
+  if (!forceRefresh && loading.value && tasks.value.length > 0) return;
   
   const isFirstLoad = tasks.value.length === 0;
   if (isFirstLoad) loading.value = true;
@@ -372,7 +372,6 @@ async function fetchTasks() {
     
     console.log('评测任务列表API响应:', response.status);
     
-    // 不需要再次await response.data，axios已经提供data属性
     const data = response.data;
     tasks.value = data.items || [];
     total.value = data.total || 0;
@@ -474,7 +473,7 @@ async function deleteTask(taskId) {
       const response = await api.delete(`/api/v1/evaluations/${taskId}`);
       
       ElMessage.success('任务已成功删除');
-      fetchTasks();
+      fetchTasks(true);
     }
   } catch (err) {
     if (err !== 'cancel') {
@@ -536,19 +535,19 @@ async function saveTaskName(taskId) {
 // Tab变更处理
 function handleTabChange() {
   currentPage.value = 1;
-  fetchTasks();
+  fetchTasks(true);
 }
 
 // 搜索处理
 function handleSearch() {
   currentPage.value = 1;
-  fetchTasks();
+  fetchTasks(true);
 }
 
 // 分页处理
 function handlePageChange(newPage) {
   currentPage.value = newPage;
-  fetchTasks();
+  fetchTasks(true);
 }
 
 // 列宽调整处理
@@ -655,7 +654,7 @@ const getDatasetNames = (datasetNames) => {
 function handleSizeChange(newSize) {
   pageSize.value = newSize
   currentPage.value = 1  // 切换每页大小时重置到第一页
-  fetchTasks()
+  fetchTasks(true) // 强制刷新
 }
 </script>
 
