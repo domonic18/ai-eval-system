@@ -61,7 +61,8 @@ class EvaluationService:
                 dataset_configuration=eval_data.datasets.configuration,
                 eval_config=eval_data.eval_config,
                 env_vars=eval_data.env_vars,
-                user_id=eval_data.user_id
+                user_id=eval_data.user_id,
+                name=eval_data.name
             )
                 
             # 使用TaskManager创建任务

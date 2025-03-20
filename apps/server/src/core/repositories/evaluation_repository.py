@@ -29,7 +29,8 @@ class EvaluationRepository:
         dataset_configuration: Dict,
         eval_config: Dict,
         env_vars: Dict,
-        user_id: int = 1
+        user_id: int = 1,
+        name: str = None
     ) -> Evaluation:
         """同步创建评估记录
         
@@ -42,14 +43,18 @@ class EvaluationRepository:
             eval_config: 评估配置
             env_vars: 环境变量
             user_id: 用户ID
+            name: 任务名称
             
         Returns:
             Evaluation: 创建的评估记录
         """
         with db_operation(db) as session:
+            # 生成任务名称
+            final_name = f"{name}" if name else f"{model_name}评估任务"
+            
             # 创建评估记录
             db_eval = Evaluation(
-                name=f"{model_name}评估任务",
+                name=final_name,
                 model_name=model_name,
                 dataset_names=dataset_names,
                 model_configuration=model_configuration,
@@ -67,6 +72,10 @@ class EvaluationRepository:
             session.commit()
             session.refresh(db_eval)
             
+            # 添加ID后缀
+            db_eval.name = f"{db_eval.name}-{db_eval.id}"
+            session.commit()
+            
             return db_eval
     
     @staticmethod
@@ -78,7 +87,8 @@ class EvaluationRepository:
         dataset_configuration: Dict,
         eval_config: Dict,
         env_vars: Dict,
-        user_id: int = 1
+        user_id: int = 1,
+        name: str = None
     ) -> Evaluation:
         """异步创建评估记录
         
@@ -91,14 +101,17 @@ class EvaluationRepository:
             eval_config: 评估配置
             env_vars: 环境变量
             user_id: 用户ID
+            name: 任务名称
             
         Returns:
             Evaluation: 创建的评估记录
         """
         try:
+            final_name = f"{name}" if name else f"{model_name}评估任务"
+            
             # 创建评估记录
             db_eval = Evaluation(
-                name=f"{model_name}评估任务",
+                name=final_name,
                 model_name=model_name,
                 dataset_names=dataset_names,
                 model_configuration=model_configuration,
@@ -122,6 +135,13 @@ class EvaluationRepository:
                     session.commit()
                     session.refresh(db_eval)
                 
+            # 添加ID后缀
+            db_eval.name = f"{db_eval.name}-{db_eval.id}"
+            if isinstance(session, AsyncSession):
+                await session.commit()
+            else:
+                session.commit()
+            
             return db_eval
         except Exception as e:
             logger.error(f"异步创建评估记录失败: {str(e)}", exc_info=True)

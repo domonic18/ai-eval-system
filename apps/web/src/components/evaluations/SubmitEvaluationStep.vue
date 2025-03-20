@@ -313,6 +313,16 @@ export default {
       this.isSubmitting = true;
       
       try {
+        // 构建任务名称前缀
+        let taskNamePrefix = '评测任务';
+        if (this.modelType === 'preset') {
+          taskNamePrefix += `-预设模型-${this.selectedModelName}`;
+        } else {
+          const apiType = this.customConfig.type === 'dify' ? 'dify' : 'api';
+          const modelName = this.customConfig.model?.replace(/\//g, '-') || '自定义模型';
+          taskNamePrefix += `-${apiType}-${modelName}`;
+        }
+
         // 根据类型构建环境变量
         const envVarsObj = this.modelType === 'preset' ? {} : 
           (this.customConfig.type === 'api' ? {
@@ -327,6 +337,7 @@ export default {
 
         // 构建提交的数据结构
         const evaluationData = {
+          name: taskNamePrefix,
           model_type: this.modelType === 'preset' ? 'preset' : 'custom',
           model_name: this.modelType === 'preset' ? this.selectedModelName : 'custom_api',
           api_type: this.modelType === 'preset' ? null : this.customConfig.type,
