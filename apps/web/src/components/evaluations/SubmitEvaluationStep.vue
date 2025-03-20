@@ -213,7 +213,7 @@ export default {
       isSubmitting: false,
       expandConfig: false,
       config: {
-        debug: false,
+        debug: true,
         verbose: false,
         returnIntermediateResult: false
       },
