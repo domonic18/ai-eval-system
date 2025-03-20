@@ -16,6 +16,7 @@ class DatasetInfo(BaseModel):
 class EvaluationCreate(BaseModel):
     """评估创建请求模式"""
     name: str = Field(..., description="评估任务名称")
+    eval_type: str = Field(..., description="评估类型(文字/多模态/Agent)")
     model_name: str = Field(..., description="要评估的模型名称")
     model_type: str = Field(..., description="模型类型：preset或custom")
     

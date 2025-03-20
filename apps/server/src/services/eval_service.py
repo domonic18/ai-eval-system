@@ -55,6 +55,7 @@ class EvaluationService:
             # 创建评估记录 - 在这里进行异常捕获
             db_eval = await EvaluationRepository.create_evaluation_async(
                 db,
+                eval_type=eval_data.eval_type,
                 model_name=eval_data.model_name,
                 dataset_names=eval_data.datasets.names,
                 model_configuration=eval_data.model_configuration,

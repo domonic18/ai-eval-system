@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS arena_participants (
 CREATE TABLE IF NOT EXISTS evaluations (
     id INT AUTO_INCREMENT PRIMARY KEY COMMENT '评估ID',
     name VARCHAR(255) COMMENT '任务名称',
+    eval_type VARCHAR(255) NOT NULL COMMENT '评估类型(文字/多模态/Agent)',
     model_name VARCHAR(255) NOT NULL COMMENT '模型名称',
     dataset_names JSON COMMENT '数据集名称列表',
     model_configuration JSON COMMENT '模型配置',

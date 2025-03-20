@@ -81,6 +81,7 @@ class EvaluationRepository:
     @staticmethod
     async def create_evaluation_async(
         db: Union[Session, AsyncSession, Callable],
+        eval_type: str,
         model_name: str,
         dataset_names: List[str],
         model_configuration: Dict,
@@ -95,6 +96,7 @@ class EvaluationRepository:
         Args:
             db: 数据库会话
             model_name: 模型名称
+            eval_type: 评估类型
             dataset_names: 数据集名称列表
             model_configuration: 模型配置
             dataset_configuration: 数据集配置
@@ -112,6 +114,7 @@ class EvaluationRepository:
             # 创建评估记录
             db_eval = Evaluation(
                 name=final_name,
+                eval_type=eval_type,
                 model_name=model_name,
                 dataset_names=dataset_names,
                 model_configuration=model_configuration,

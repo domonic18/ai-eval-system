@@ -16,12 +16,20 @@ class EvaluationStatus(PyEnum):
     TERMINATED = "terminated"  # 已终止
     UNKNOWN = "unknown"      # 未知状态
 
+class EvaluationType(PyEnum):
+    """评估类型枚举"""
+    TEXT = "text"
+    MULTIMODAL = "multimodal"
+    AGENT = "agent"
+
+
 class Evaluation(Base, TimestampMixin):
     """评估模型"""
     __tablename__ = "evaluations"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=True, comment="任务名称")
+    eval_type = Column(String(255), nullable=False, default=EvaluationType.TEXT.value, comment="评估类型(文字/多模态/Agent)")
     model_name = Column(String(255), nullable=False, comment="模型名称")
     dataset_names = Column(JSON, nullable=False, comment="数据集名称列表")
     model_configuration = Column(JSON, nullable=True, comment="模型配置")
