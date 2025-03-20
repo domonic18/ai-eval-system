@@ -47,7 +47,7 @@ INSERT INTO datasets (
     1
 ),
 (
-    'cmmlu', 
+    'cmmlu_gen', 
     '包含67个主题的综合性中文评估基准，专门用于评估语言模型在中文语境下的知识和推理能力', 
     '通用', 
     'benchmark', 
