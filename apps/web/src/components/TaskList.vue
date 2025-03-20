@@ -256,7 +256,7 @@
           description="暂无评测任务"
           :image-size="100"
         >
-          <el-button type="primary" @click="$emit('create-task')">
+          <el-button type="primary"  @click="$router.push('/evaluation')">
             <el-icon><Plus /></el-icon> 创建新任务
           </el-button>
         </el-empty>

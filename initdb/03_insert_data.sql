@@ -4,7 +4,7 @@ VALUES
 
 INSERT INTO ai_models (name, provider, description, model_type, version, configuration, is_public, user_id, is_active)
 VALUES 
-('hk33smarter_api', 'HK33', 'HK33 Smarter API模型', 'api', '1.0', '{"api_url": "https://api.hk33.com/v1"}', 1, 1, 1);
+('hk33smarter_api', 'HK33', 'HK33的API模型Demo', 'api', '1.0', '{"api_url": "https://guanghua-api.bj33smarter.com/v1"}', 1, 1, 1);
 
 INSERT INTO datasets (
     name, 
