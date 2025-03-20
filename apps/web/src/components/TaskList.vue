@@ -235,12 +235,18 @@
     <!-- 分页区域 -->
     <div class="pagination-container">
       <el-pagination
-        v-model="currentPage"
+        :current-page="currentPage"
         :page-size="pageSize"
+        :page-sizes="[10, 20, 50]"
         :total="total"
-        layout="total, prev, pager, next, jumper"
+        layout="sizes, prev, pager, next"
+        prev-text="上一页"
+        next-text="下一页"
+        total-text="总共"
+        @size-change="handleSizeChange"
         @current-change="handlePageChange"
-      />
+      >
+      </el-pagination>
     </div>
   </div>
 </template>
@@ -329,9 +335,8 @@ async function fetchTasks() {
       params.append('search', searchQuery.value);
     }
     
-    console.log('正在获取评测任务列表...');
+    console.log('正在获取评测任务列表...参数:', params.toString());
     
-    // 使用导入的api而不是this.$api
     const response = await api.get(`/api/v1/evaluations?${params.toString()}`);
     
     console.log('评测任务列表API响应:', response.status);
@@ -510,7 +515,8 @@ function handleSearch() {
 }
 
 // 分页处理
-function handlePageChange() {
+function handlePageChange(newPage) {
+  currentPage.value = newPage;
   fetchTasks();
 }
 
@@ -613,6 +619,13 @@ const getDatasetNames = (datasetNames) => {
   
   return [];
 };
+
+// 在方法部分添加分页大小变更处理
+function handleSizeChange(newSize) {
+  pageSize.value = newSize
+  currentPage.value = 1  // 切换每页大小时重置到第一页
+  fetchTasks()
+}
 </script>
 
 <style scoped>
@@ -723,12 +736,67 @@ const getDatasetNames = (datasetNames) => {
 .pagination-container {
   margin-top: 20px;
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
+  padding: 12px 0;
+  background: #fff;
+  border-top: 1px solid #ebeef5;
 }
 
-/* 添加空状态样式 */
-.dataset-tags > span {
-  color: #909399;
+:deep(.el-pagination) {
+  padding: 0;
+  align-items: center;
+}
+
+:deep(.el-pagination__total) {
+  margin-right: 16px;
+  font-weight: normal;
+  color: #606266;
+}
+
+:deep(.el-pagination__sizes) {
+  margin: 0 12px;
+  position: relative;
+}
+
+.size-prefix {
+  position: absolute;
+  left: -68px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #606266;
   font-size: 14px;
+}
+
+:deep(.el-select) {
+  width: 100px;
+}
+
+:deep(.el-select .el-input__inner) {
+  padding-right: 25px;
+}
+
+:deep(.el-pagination__jump) {
+  display: none !important;
+}
+
+:deep(.el-pagination__sizes .el-select .el-input .el-input__inner) {
+  padding-right: 15px;
+  text-align: center;
+}
+
+:deep(.el-select-dropdown__item) {
+  text-align: center;
+  padding: 0 10px;
+}
+
+:deep(.el-pagination.is-background .btn-prev),
+:deep(.el-pagination.is-background .btn-next) {
+  padding: 0 12px;
+  background: transparent;
+}
+
+:deep(.el-pagination.is-background .btn-prev:hover),
+:deep(.el-pagination.is-background .btn-next:hover) {
+  background-color: #f4f4f5;
 }
 </style> 
