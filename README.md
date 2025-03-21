@@ -198,7 +198,7 @@ cd apps/web
 npm install
 npm run dev
 ```
-前端服务将在 http://localhost:8080 启动，可以通过访问 http://localhost:8080 查看评测系统UI。
+前端服务将在 http://localhost:5173 启动，可以通过访问 http://localhost:5173 查看评测系统UI。
 
 
 ## TODO
