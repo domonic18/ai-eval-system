@@ -54,17 +54,26 @@ RUN pip install --no-cache-dir lagent==0.1.2 -i https://pypi.tuna.tsinghua.edu.c
 # 4.1 设置环境变量
 ENV DATASET_SOURCE=ModelScope
 ENV HF_ENDPOINT=https://hf-mirror.com
-ENV COMPASS_DATA_CACHE=/app/workspace/datasets
+ENV COMPASS_DATA_CACHE=/app/workspace/opencompass \
+    HF_HOME=/app/workspace/huggingface \
+    XDG_CACHE_HOME=/app/workspace/cache
 ENV PYTHONPATH=/app
 ENV WORKING_DIR=/app/workspace
 ENV OPENCOMPASS_WORK_DIR=${WORKING_DIR}/opencompass
 
 # 4.2 创建目录并赋权
-RUN mkdir -p ${WORKING_DIR}/logs ${WORKING_DIR}/data ${OPENCOMPASS_WORK_DIR} && \
-    chown -R appuser:appuser ${WORKING_DIR}
+RUN mkdir -p ${WORKING_DIR}/logs ${WORKING_DIR}/data ${OPENCOMPASS_WORK_DIR} \
+    /app/workspace/opencompass \
+    /app/workspace/huggingface \
+    /app/workspace/cache && \
+    chown -R appuser:appuser ${WORKING_DIR} \
+    /app/workspace/opencompass \
+    /app/workspace/huggingface \
+    /app/workspace/cache
 
 # 4.3 切换用户
 USER appuser
 
+    
 # 4.4 启动服务
 CMD ["uvicorn", "apps.server.src.main:app", "--host", "0.0.0.0", "--port", "8000"] 
