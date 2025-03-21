@@ -2,14 +2,13 @@
 # 评估数据存储库
 
 import logging
-import json
+import asyncio
 from datetime import datetime
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Dict, Any, Optional, List, Union, AsyncIterator, Callable
+from typing import Dict, Any, Optional, List, Union, Callable
 from models.eval import Evaluation, EvaluationStatus
-import asyncio
 from utils.utils_db import db_operation, async_db_operation
 
 logger = logging.getLogger(__name__)

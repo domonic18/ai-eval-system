@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
-from services.model_service import model_service
 from api.deps import get_db
 from schemas.auth import UserResponse
 from schemas.model import ModelOut, ModelCreate, ModelUpdate
+from fastapi import APIRouter, Depends, status
 from services.auth_service import auth_service
+from services.model_service import model_service
+
 
 router = APIRouter()
 

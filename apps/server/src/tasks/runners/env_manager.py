@@ -1,12 +1,11 @@
 import json
 from typing import Dict
-from pydantic import ValidationError
 
 
 class EnvManager:
     def __init__(self, eval_id: int):
         self.eval_id = eval_id
-        self.vars: Dict[str, str] = {}  # 明确类型注解
+        self.vars: Dict[str, str] = {}
         
     def load_from_json_str(self, json_str: str) -> None:
         """从JSON字符串加载环境变量
@@ -47,8 +46,3 @@ class EnvManager:
         """生成带环境变量的完整命令"""
         env_str = " ".join([f"env {k}={v}" for k, v in self.vars.items()])
         return f"{env_str} {command}"
-    
-    # def validate(self):
-    #     """安全检查"""
-    #     if 'API_KEY' in self.vars and len(self.vars['API_KEY']) < 8:
-    #         raise SecurityError("API密钥强度不足")

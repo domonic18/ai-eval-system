@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+import logging
+from models.user import User
 from sqlalchemy.orm import Session
 from api.deps import get_db, get_current_user
-from models.user import User
 from schemas.user import UserResponse
 from utils.avatar_helper import AvatarHelper
-import logging
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

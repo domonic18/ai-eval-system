@@ -1,23 +1,22 @@
+import os
 import logging
+from pathlib import Path
 from datetime import datetime
+from typing import Optional, Union, Iterator, Dict, Any, List
+from api.deps import get_db
+from sqlalchemy import select, func, or_, desc, String, cast
+from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import Session
+from utils.utils_db import async_db_operation,db_operation
 from fastapi import Depends
 from fastapi import HTTPException, status
-from typing import Optional, Union, Iterator, Dict, Any, List
 from models.eval import Evaluation, EvaluationStatus
 from schemas.eval import EvaluationCreate, EvaluationResponse, EvaluationStatusResponse
-from api.deps import get_db, get_current_user
-from utils.utils_db import async_db_operation,db_operation
 from tasks.task_manager import TaskManager
 from core.repositories.evaluation_repository import EvaluationRepository
 from utils.redis_manager import RedisManager
 from tasks.runners.runner_base import get_runner
-import os
-from pathlib import Path
 from core.config import settings
-from sqlalchemy import select, func, or_, desc, String, cast
-from sqlalchemy.orm import joinedload
-from utils.avatar_helper import AvatarHelper
 
 
 

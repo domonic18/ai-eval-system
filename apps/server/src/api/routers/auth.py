@@ -1,15 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+import logging
+from datetime import timedelta
 from typing import Any, Dict
-
-from api.deps import get_db
-from schemas.user import UserCreate, UserResponse, Token
-from services.auth_service import auth_service
 from models.user import User
 from core.config import settings
-import logging
+from sqlalchemy.orm import Session
+from api.deps import get_db
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from schemas.user import UserCreate, UserResponse
+from services.auth_service import auth_service
+
+
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -18,35 +19,6 @@ router = APIRouter()
 
 # OAuth2密码承载令牌
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
-
-# @router.post("/token", response_model=Token)
-# async def login_for_access_token(
-#     form_data: OAuth2PasswordRequestForm = Depends(),
-#     db: Session = Depends(get_db)
-# ) -> Any:
-#     """获取访问令牌
-    
-#     Args:
-#         form_data: 表单数据（用户名和密码）
-#         db: 数据库会话
-        
-#     Returns:
-#         Dict[str, str]: 包含访问令牌和令牌类型的字典
-#     """
-#     user = auth_service.authenticate_user(db, form_data.username, form_data.password)
-#     if not user:
-#         raise HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED,
-#             detail="用户名或密码不正确",
-#             headers={"WWW-Authenticate": "Bearer"},
-#         )
-    
-#     access_token_expires = timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
-#     access_token = auth_service.create_access_token(
-#         data={"sub": user.username}, expires_delta=access_token_expires
-#     )
-    
-#     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/register", response_model=UserResponse)
 async def register_user(user_create: UserCreate, db: Session = Depends(get_db)):

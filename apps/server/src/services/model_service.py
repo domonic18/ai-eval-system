@@ -1,11 +1,11 @@
-from fastapi import Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from typing import List, Optional
-from models.model import AIModel
-from api.deps import get_db
-from schemas.model import ModelOut, ModelCreate, ModelUpdate
 import logging
+from typing import List
+from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from models.model import AIModel
+from schemas.model import ModelOut, ModelCreate, ModelUpdate
+from fastapi import HTTPException, status
+
 
 logger = logging.getLogger(__name__)
 

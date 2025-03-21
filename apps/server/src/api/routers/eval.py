@@ -1,14 +1,14 @@
-from fastapi import APIRouter, HTTPException, status, Depends, Query, WebSocket, WebSocketDisconnect, Response
+import os
+from models.user import User
 from sqlalchemy.orm import Session
+from typing import Dict, Any, List, Optional
 from api.deps import get_db, get_current_user
 from schemas.eval import EvaluationCreate, EvaluationResponse, EvaluationStatusResponse
 from services.eval_service import EvaluationService
 from services.rlog_service import WebSocketLogService
-from typing import Dict, Any, List, Optional
+from fastapi import APIRouter, HTTPException, status, Depends, Query, WebSocket
 from fastapi.responses import FileResponse
-import os
-from pathlib import Path
-from models.user import User
+
 
 router = APIRouter()
 eval_service = EvaluationService()

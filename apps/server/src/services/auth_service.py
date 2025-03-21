@@ -1,19 +1,17 @@
+import logging
 from datetime import datetime, timedelta
 from typing import Optional, Union, Dict, Any
 from passlib.context import CryptContext
+from models.user import User
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from models.user import User
 from schemas.auth import UserCreate, Token
 from api.deps import get_db
-import os
-import logging
 from utils.password import verify_password, get_password_hash
 from schemas.user import UserInDB, UserResponse
 from core.config import settings
-from utils.avatar_helper import AvatarHelper
 
 # 配置日志
 logger = logging.getLogger(__name__)

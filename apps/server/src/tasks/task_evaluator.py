@@ -7,13 +7,10 @@ import contextlib
 from datetime import datetime
 from sqlalchemy.orm import Session
 from core.database import SessionLocal
-from models.eval import Evaluation, EvaluationStatus
 from core.config import settings
-from tasks.runners.runner_base import create_runner, get_runner, remove_runner
+from models.eval import Evaluation, EvaluationStatus
 from utils.redis_manager import RedisManager
-# from core.config import BASE_DIR
-from tasks.runners.runner_enhanced import EnhancedRunner
-from pathlib import Path
+from tasks.runners.runner_opencompass import OpenCompassRunner
 from services.evaluation.result_collector import ResultCollector
 
 
