@@ -131,7 +131,7 @@
           <div class="config-item">
             <span class="config-label">Debug模式</span>
             <el-switch v-model="config.debug" :active-value="true" :inactive-value="false" active-color="#3182ce" />
-            <div class="config-description">开启后将输出详细的调试信息</div>
+            <div class="config-description">开启后将输出的信息保存到log文件中</div>
           </div>
           
           <!-- 折叠显示的选项 -->
@@ -225,7 +225,7 @@ export default {
       isSubmitting: false,
       expandConfig: false,
       config: {
-        debug: true,
+        debug: false,
         verbose: true,
         gpuCount: 0,
         dryRun: false
