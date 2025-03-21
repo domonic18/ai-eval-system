@@ -1,7 +1,5 @@
-from tasks.runners.runner_base import create_runner
-from tasks.runners.runner_enhanced import EnhancedRunner
+from tasks.runners.runner_opencompass import OpenCompassRunner
 from tasks.runners.env_manager import EnvManager
-# from core.config import BASE_DIR
 from core.config import settings
 from schemas.eval import EvaluationCreate
 from services.evaluation.result_collector import ResultCollector
@@ -17,7 +15,7 @@ def test_command_injection():
     env_mgr = EnvManager(123)
     env_mgr.load_env_json({"API_KEY": "sk-test", "MODEL": "gpt-4"})
     
-    runner = EnhancedRunner(123)
+    runner = OpenCompassRunner(123)
     eval_data = EvaluationCreate(
         model_name="hk33smarter_api",
         dataset_name=["math_eval", "code_analysis"],
@@ -31,7 +29,7 @@ def test_command_injection():
 
 # 测试多数据集场景
 def test_multiple_datasets():
-    runner = EnhancedRunner(123)
+    runner = OpenCompassRunner(123)
     eval_data = EvaluationCreate(
         model_name="test_model",
         dataset_name=["dataset1", "dataset2"],
@@ -59,7 +57,7 @@ def test_runner_script():
 
 
     # 1. 初始化增强型执行器
-    runner = EnhancedRunner(
+    runner = OpenCompassRunner(
         eval_id=eval_id,
         working_dir=settings.workspace,  # 从配置获取工作目录
         opencompass_path=settings.opencompass_path

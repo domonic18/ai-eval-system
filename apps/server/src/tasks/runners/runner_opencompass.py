@@ -1,11 +1,9 @@
-from utils.redis_manager import RedisManager
 from tasks.runners.runner_base import RunnerBase
 from tasks.runners.env_manager import EnvManager
-from services.evaluation.result_collector import ResultCollector
 from schemas.eval import EvaluationCreate
 
 
-class EnhancedRunner(RunnerBase):
+class OpenCompassRunner(RunnerBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.env_manager = EnvManager(self.eval_id)     # 新增环境管理模块
@@ -60,10 +58,13 @@ class EnhancedRunner(RunnerBase):
             cmd.append("-m all")
 
         if eval_data.eval_config.get("gpu_count", False):
-            cmd.append(f"--num-gpus {eval_data.eval_config.get('gpu_count')}")
+            cmd.append(f"--hf-num-gpus {eval_data.eval_config.get('gpu_count')}")
 
         if eval_data.eval_config.get("dry_run", False):
             cmd.append("--dry-run")
+
+        if eval_data.eval_config.get("dump_eval_details", False):
+            cmd.append("--dump-eval-details")
 
 
         return self.env_manager.inject_to_command(" ".join(cmd))

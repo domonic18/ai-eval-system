@@ -73,7 +73,7 @@ class TaskEvaluator:
                     raise ValueError(f"找不到评估任务: {self.eval_id}")
                     
                 # 4. 初始化增强型执行器
-                runner = EnhancedRunner(
+                runner = OpenCompassRunner(
                     eval_id=self.eval_id,
                     working_dir=settings.workspace,
                     opencompass_path=settings.opencompass_path
