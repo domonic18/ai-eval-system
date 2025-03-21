@@ -56,7 +56,7 @@ ENV DATASET_SOURCE=ModelScope
 ENV HF_ENDPOINT=https://hf-mirror.com
 ENV COMPASS_DATA_CACHE=/app/workspace/opencompass \
     HF_HOME=/app/workspace/huggingface \
-    XDG_CACHE_HOME=/app/workspace/cache
+    MODELSCOPE_CACHE=/app/workspace/modelscope
 ENV PYTHONPATH=/app
 ENV WORKING_DIR=/app/workspace
 ENV OPENCOMPASS_WORK_DIR=${WORKING_DIR}/opencompass
@@ -65,11 +65,11 @@ ENV OPENCOMPASS_WORK_DIR=${WORKING_DIR}/opencompass
 RUN mkdir -p ${WORKING_DIR}/logs ${WORKING_DIR}/data ${OPENCOMPASS_WORK_DIR} \
     /app/workspace/opencompass \
     /app/workspace/huggingface \
-    /app/workspace/cache && \
+    /app/workspace/modelscope && \
     chown -R appuser:appuser ${WORKING_DIR} \
     /app/workspace/opencompass \
     /app/workspace/huggingface \
-    /app/workspace/cache
+    /app/workspace/modelscope
 
 # 4.3 切换用户
 USER appuser

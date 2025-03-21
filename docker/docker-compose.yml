@@ -48,7 +48,7 @@ services:
       dockerfile: apps/server/Dockerfile
     volumes:
       - ../workspace:/app/workspace
-      - ../datasets:/app/libs/OpenCompass/datasets
+      - ../datasets:/app/workspace/opencompass
     command: celery -A celery_app:celery_app worker --loglevel=INFO --concurrency=1 -Q eval_tasks
     environment:
       - REDIS_URL=redis://redis:6379/0
@@ -57,7 +57,7 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
       - COMPASS_DATA_CACHE=/app/workspace/opencompass
       - HF_HOME=/app/workspace/huggingface
-      - XDG_CACHE_HOME=/app/workspace/cache
+      - MODELSCOPE_CACHE=/app/workspace/modelscope
     depends_on:
       - redis
       - mysql
