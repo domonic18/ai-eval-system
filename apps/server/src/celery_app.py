@@ -41,24 +41,11 @@ celery_app.conf.update(
     worker_prefetch_multiplier=1,         # 严格并发控制
     worker_concurrency=1,                 # 单worker模式
     worker_max_tasks_per_child=1,         # 每个进程只处理一个任务
-    task_concurrency=1,                    # 全局并发限制
-
-    # 失败重试机制
-    task_reject_on_worker_lost=True, # worker失败时放回队列
-    task_acks_on_failure_or_timeout=False, # 失败不确认，重新入队
+    task_concurrency=1,                   # 全局并发限制
 
     # 结果后端设置
-    result_backend_max_retries=3,
-    result_extended=True  # 启用扩展结果
+    result_extended=True                  # 启用扩展结果
 )
-
-# 添加调试配置
-# if settings.DEBUG:
-#     celery_app.conf.update(
-#         # task_always_eager=True,  # 同步模式方便调试
-#         task_eager_propagates=True,
-#         worker_redirect_stdouts=False
-#     )
 
 # 添加健康检查路由
 @celery_app.task(name="health_check")
