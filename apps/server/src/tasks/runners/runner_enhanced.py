@@ -56,10 +56,14 @@ class EnhancedRunner(RunnerBase):
         if eval_data.eval_config.get("debug", False):
             cmd.append("--debug")
         
-        # 如果eval_data.eval_config中return_intermediate_result为True，则增加--return-intermediate-result参数
-        if eval_data.eval_config.get("return_intermediate_result", False):
-            cmd.append("--return-intermediate-result")
+        if eval_data.eval_config.get("verbose", False):
+            cmd.append("-m all")
 
+        if eval_data.eval_config.get("gpu_count", False):
+            cmd.append(f"--num-gpus {eval_data.eval_config.get('gpu_count')}")
+
+        if eval_data.eval_config.get("dry_run", False):
+            cmd.append("--dry-run")
 
 
         return self.env_manager.inject_to_command(" ".join(cmd))

@@ -130,23 +130,35 @@
           <!-- 始终显示的选项 -->
           <div class="config-item">
             <span class="config-label">Debug模式</span>
-            <el-switch v-model="config.debug" active-color="#3182ce" />
+            <el-switch v-model="config.debug" :active-value="true" :inactive-value="false" active-color="#3182ce" />
             <div class="config-description">开启后将输出详细的调试信息</div>
           </div>
           
           <!-- 折叠显示的选项 -->
           <div v-if="expandConfig" class="additional-configs">
             <div class="config-item">
-              <span class="config-label">详细评测结果</span>
-              <el-switch v-model="config.verbose" active-color="#3182ce" />
-              <div class="config-description">输出每个评测项的详细分析结果</div>
+              <span class="config-label">详细结果输出</span>
+              <el-switch v-model="config.verbose" :active-value="true" :inactive-value="false" active-color="#3182ce" />
+              <div class="config-description">开启后在日志中显示详细的评估结果日志</div>
             </div>
             
-            <!-- 未来可能添加的其他配置 -->
             <div class="config-item">
-              <span class="config-label">返回中间结果</span>
-              <el-switch v-model="config.returnIntermediateResult" active-color="#3182ce" />
-              <div class="config-description">在评测过程中返回中间结果</div>
+              <span class="config-label">GPU数量</span>
+              <el-input-number 
+                v-model="config.gpuCount" 
+                :min="0" 
+                :step="1" 
+                controls-position="right" 
+                size="small"
+                style="width: 120px; margin-left: 10px;"
+              />
+              <div class="config-description">每个任务使用的 GPU 数量</div>
+            </div>
+            
+            <div class="config-item">
+              <span class="config-label">空跑测试</span>
+              <el-switch v-model="config.dryRun" :active-value="true" :inactive-value="false" active-color="#3182ce" />
+              <div class="config-description">开启后不执行评测，用来调试命令行使用</div>
             </div>
           </div>
         </div>
@@ -214,8 +226,9 @@ export default {
       expandConfig: false,
       config: {
         debug: true,
-        verbose: false,
-        returnIntermediateResult: false
+        verbose: true,
+        gpuCount: 0,
+        dryRun: false
       },
       customConfig: {
         type: 'api',
@@ -371,7 +384,8 @@ export default {
           eval_config: {
             debug: this.config.debug,
             verbose: this.config.verbose,
-            return_intermediate_result: this.config.returnIntermediateResult
+            gpu_count: this.config.gpuCount,
+            dry_run: this.config.dryRun
           },
           
           // 环境变量
@@ -632,20 +646,17 @@ export default {
 }
 
 .config-item {
-  margin-bottom: 16px;
-  position: relative;
+  margin-bottom: 20px;
 }
 
 .config-item:last-child {
-  margin-bottom: 0;
+  margin-bottom: 15px;
 }
 
 .config-label {
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
-  color: #2d3748;
-  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .config-description {
@@ -742,5 +753,11 @@ export default {
   .datasets-list {
     max-height: 250px;
   }
+}
+
+/* 数字输入框样式调整 */
+.el-input-number ::v-deep(.el-input__inner) {
+  padding-left: 8px;
+  padding-right: 35px;
 }
 </style> 
