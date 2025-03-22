@@ -267,6 +267,9 @@ class RunnerBase:
                 print(f"OpenCompass输出: {cleaned_line}")
 
             # 7. 获取返回码
+            exit_status = self.process.wait()
+            print(f"进程已结束，exit_status: {exit_status}")
+
             self.return_code = self.process.poll()
             print(f"进程已结束，返回码: {self.return_code}")
             
