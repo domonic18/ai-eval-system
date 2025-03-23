@@ -16,7 +16,18 @@
         collapse-tags-tooltip
         class="dataset-cascader"
         @change="handleDatasetChange"
-      />
+      >
+        <!-- 自定义级联菜单节点 -->
+        <template #default="{ node, data }">
+          <span 
+            class="cascader-node" 
+            @mouseenter="startHoverTimer(data)"
+            @mouseleave="clearHoverTimer"
+          >
+            {{ node.label }}
+          </span>
+        </template>
+      </el-cascader>
       
       <!-- 所选数据集展示 -->
       <div class="selected-datasets-container" v-if="selectedDatasets.length > 0">
@@ -28,20 +39,8 @@
             closable
             class="dataset-tag"
             @close="removeDataset(dataset)"
-            @mouseenter="startHoverTimer(dataset)"
-            @mouseleave="clearHoverTimer"
           >
             {{ dataset.name }}
-            <div class="tooltip" v-if="hoveredOption && hoveredOption.id === dataset.id">
-              <div class="tooltip-content">
-                <div class="tooltip-title">{{ dataset.name }}</div>
-                <div class="tooltip-description">{{ dataset.description || '暂无描述' }}</div>
-                <div class="tooltip-meta" v-if="dataset.itemCount">
-                  <span class="tooltip-count">包含 {{ dataset.itemCount }} 条数据</span>
-                </div>
-              </div>
-              <div class="tooltip-arrow"></div>
-            </div>
           </el-tag>
         </div>
       </div>
@@ -64,6 +63,17 @@
       >
         下一步
       </button>
+    </div>
+
+    <!-- 将描述卡片移出dataset-selection-container，放在更外层，并使用绝对定位 -->
+    <div v-if="hoveredOption" class="dataset-description-card" :style="descriptionCardStyle">
+      <div class="card-content">
+        <div class="card-title">{{ hoveredOption.name }}</div>
+        <div class="card-description">{{ hoveredOption.description || '暂无描述' }}</div>
+        <div class="card-meta" v-if="hoveredOption.itemCount">
+          <span class="card-count">包含 {{ hoveredOption.itemCount }} 条数据</span>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -115,7 +125,13 @@ export default {
           category: 'Demo演示',
           itemCount: 64 
         }
-      ]
+      ],
+      // 添加新属性
+      menuPosition: {
+        right: 0,
+        top: 0,
+        height: 0
+      }
     }
   },
   computed: {
@@ -155,6 +171,14 @@ export default {
         const allDatasets = this.datasetOptions.flat();
         return allDatasets.find(d => d.id === id) || { id, name: id, description: '未知数据集' };
       });
+    },
+    
+    // 添加描述卡片样式计算属性
+    descriptionCardStyle() {
+      return {
+        top: `${this.menuPosition.top}px`,
+        left: `${this.menuPosition.right}px`,
+      };
     }
   },
   created() {
@@ -168,9 +192,18 @@ export default {
   mounted() {
     // 尝试从服务器获取数据集
     this.fetchDatasets();
+    
+    // 添加窗口大小调整监听
+    window.addEventListener('resize', this.updateMenuPosition);
+    
+    // 在组件挂载后立即计算并更新菜单位置
+    this.$nextTick(() => {
+      this.updateMenuPosition();
+    });
   },
   beforeDestroy() {
     this.clearHoverTimer();
+    window.removeEventListener('resize', this.updateMenuPosition);
   },
   methods: {
     // 处理数据集选择变化
@@ -178,15 +211,21 @@ export default {
       console.log('选中的数据集变更:', value);
     },
     
-    // 开始悬停计时器
+    // 开始悬停计时器 - 修改为更新菜单位置并显示选项
     startHoverTimer(option) {
       this.clearHoverTimer();
+      // 如果是类别节点，包含datasets属性，则不显示描述
+      if (option.datasets) return;
+      
+      // 更新菜单位置
+      this.updateMenuPosition();
+      
       this.hoverTimer = setTimeout(() => {
         this.hoveredOption = option;
-      }, 300); // 300毫秒后显示提示
+      }, 200);
     },
     
-    // 清除悬停计时器
+    // 清除悬停计时器 - 保持不变
     clearHoverTimer() {
       if (this.hoverTimer) {
         clearTimeout(this.hoverTimer);
@@ -272,6 +311,26 @@ export default {
       this.$emit('next-step', {
         selectedDatasets: selectedDatasetInfo
       });
+    },
+    
+    // 添加更新菜单位置的方法
+    updateMenuPosition() {
+      // 获取级联菜单的位置信息
+      this.$nextTick(() => {
+        const cascaderMenus = document.querySelectorAll('.el-cascader-menu');
+        if (cascaderMenus.length > 0) {
+          // 获取最后一个菜单（即最右侧的菜单）
+          const lastMenu = cascaderMenus[cascaderMenus.length - 1];
+          const rect = lastMenu.getBoundingClientRect();
+          
+          // 计算描述卡片应该出现的位置
+          this.menuPosition = {
+            right: rect.right + 10, // 菜单右侧边缘 + 10px间距
+            top: rect.top,
+            height: rect.height
+          };
+        }
+      });
     }
   }
 }
@@ -288,11 +347,88 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  position: relative; /* 添加相对定位 */
 }
 
 /* Cascader样式 */
 .dataset-cascader {
   width: 100%;
+}
+
+/* 级联菜单节点样式 */
+.cascader-node {
+  padding: 4px 8px;
+  cursor: pointer;
+  display: block;
+  width: 100%;
+}
+
+/* 数据集描述卡片 */
+.dataset-description-card {
+  position: absolute;
+  width: 300px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  z-index: 2000; /* 确保在级联菜单之上 */
+  animation: fadeIn 0.2s;
+}
+
+/* 添加箭头指向级联菜单 */
+.dataset-description-card::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 20px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-right: 8px solid white;
+  filter: drop-shadow(-3px 0px 2px rgba(0, 0, 0, 0.06));
+}
+
+.card-content {
+  padding: 20px;
+}
+
+.card-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: #2d3748;
+  margin-bottom: 12px;
+}
+
+.card-description {
+  font-size: 14px;
+  color: #4a5568;
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+.card-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #718096;
+  border-top: 1px solid #f0f4f8;
+  padding-top: 12px;
+}
+
+.card-count {
+  background-color: #f0f4f8;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+/* 自定义级联菜单样式 */
+:deep(.el-cascader-menu) {
+  min-width: 200px;
+}
+
+:deep(.el-cascader-node) {
+  padding: 0;
 }
 
 /* 已选数据集展示区域 */
@@ -316,60 +452,6 @@ export default {
 .dataset-tag {
   position: relative;
   margin: 4px;
-}
-
-/* 悬停提示样式 */
-.tooltip {
-  position: absolute;
-  top: -10px;
-  left: 50%;
-  transform: translate(-50%, -100%);
-  background-color: white;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  min-width: 200px;
-  max-width: 300px;
-  animation: fadeIn 0.2s;
-  padding: 0;
-  pointer-events: none;
-}
-
-.tooltip-content {
-  padding: 12px;
-}
-
-.tooltip-title {
-  font-weight: 600;
-  font-size: 14px;
-  color: #2d3748;
-  margin-bottom: 6px;
-}
-
-.tooltip-description {
-  font-size: 12px;
-  color: #4a5568;
-  margin-bottom: 8px;
-  line-height: 1.5;
-}
-
-.tooltip-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: #718096;
-}
-
-.tooltip-arrow {
-  position: absolute;
-  bottom: -8px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-top: 8px solid white;
 }
 
 /* 按钮样式 */
@@ -417,5 +499,10 @@ export default {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(5px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* 确保级联菜单有足够的 z-index */
+:deep(.el-cascader-menus) {
+  z-index: 1900;
 }
 </style> 
