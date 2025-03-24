@@ -14,6 +14,7 @@ services:
     environment:
       - VITE_API_BASE_URL=/api
       - REDIS_URL=redis://redis:6379/0
+      - TZ=Asia/Shanghai
     volumes:
       - ../apps/web/src:/app/src
       - ../apps/web/public:/app/public
@@ -38,6 +39,7 @@ services:
       - COMPASS_DATA_CACHE=/app/workspace/opencompass
       - HF_HOME=/app/workspace/huggingface
       - MODELSCOPE_CACHE=/app/workspace/modelscope
+      - TZ=Asia/Shanghai
     depends_on:
       - redis
       - mysql
@@ -63,6 +65,7 @@ services:
       - COMPASS_DATA_CACHE=/app/workspace/opencompass
       - HF_HOME=/app/workspace/huggingface
       - MODELSCOPE_CACHE=/app/workspace/modelscope
+      - TZ=Asia/Shanghai
     depends_on:
       - redis
       - mysql
@@ -81,6 +84,8 @@ services:
       - redis_data:/data
     networks:
       - eval-net
+    environment:
+      - TZ=Asia/Shanghai
 
   mysql:
     image: mysql:8.0
@@ -91,6 +96,7 @@ services:
       MYSQL_DATABASE: ${MYSQL_DB}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      TZ: Asia/Shanghai
     volumes:
       - ../workspace/mysql_data:/var/lib/mysql
       - ../docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
@@ -115,6 +121,9 @@ services:
     command: >
       sh -c "npm install &&
              npm run start"
+    environment:
+      NODE_ENV: production
+      TZ: Asia/Shanghai
 
   nginx:
     image: nginx:alpine
@@ -127,6 +136,8 @@ services:
       - api
     networks:
       - eval-net
+    environment:
+      - TZ=Asia/Shanghai
 
 volumes:
   redis_data:
