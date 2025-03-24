@@ -30,10 +30,14 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - REDIS_URL=redis://redis:6379/0
       - MYSQL_HOST=mysql
+      - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - DIFY2OPENAI_URL=http://dify2openai:3099/v1/
+      - COMPASS_DATA_CACHE=/app/workspace/opencompass
+      - HF_HOME=/app/workspace/huggingface
+      - MODELSCOPE_CACHE=/app/workspace/modelscope
     depends_on:
       - redis
       - mysql
@@ -51,8 +55,8 @@ services:
       - ../datasets:/app/workspace/opencompass
     command: celery -A celery_app:celery_app worker --loglevel=INFO --concurrency=1 -Q eval_tasks
     environment:
-      - REDIS_URL=redis://redis:6379/0
       - MYSQL_HOST=mysql
+      - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
       - DIFY2OPENAI_URL=http://dify2openai:3099/v1/

@@ -94,3 +94,4 @@ if __name__ == "__main__":
     print(f"BASE_DIR: {BASE_DIR}")
     print(f"OpenCompass路径是否存在: {(BASE_DIR / 'libs' / 'OpenCompass').exists()}")
     print(f"数据库连接URL: {settings.db_url.unicode_string()}")
+    print(f"Dify2OpenAI URL: {settings.dify2openai_url}")

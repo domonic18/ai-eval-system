@@ -44,5 +44,5 @@ class EnvManager:
     
     def inject_to_command(self, command: str) -> str:
         """生成带环境变量的完整命令"""
-        env_str = " ".join([f"env {k}='{v}'" for k, v in self.vars.items()])
+        env_str = " ".join([f"env {k}={v}" for k, v in self.vars.items()])
         return f"{env_str} {command}"
