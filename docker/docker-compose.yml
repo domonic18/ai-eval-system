@@ -55,12 +55,14 @@ services:
       - MYSQL_HOST=mysql
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - DIFY2OPENAI_URL=http://dify2openai:3099/v1/
       - COMPASS_DATA_CACHE=/app/workspace/opencompass
       - HF_HOME=/app/workspace/huggingface
       - MODELSCOPE_CACHE=/app/workspace/modelscope
     depends_on:
       - redis
       - mysql
+      - dify2openai
     networks:
       - eval-net
     env_file:
@@ -105,11 +107,7 @@ services:
     ports:
       - "3099:3099"
     networks:
-      - eval-net
-    depends_on:
-      - api
-    environment:
-      NODE_ENV: production
+      - eval-netss
     command: >
       sh -c "npm install &&
              npm run start"
