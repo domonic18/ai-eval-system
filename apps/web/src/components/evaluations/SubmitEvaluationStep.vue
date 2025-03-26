@@ -64,9 +64,19 @@
               </div>
               <div class="info-item">
                 <span class="item-label">DIFY类型</span>
-                <span class="item-value">{{ customConfig.dify_type === 'Chat' ? 'Chat类型' : 'WorkFlow类型' }}</span>
+                <span class="item-value">{{ formatDifyType(customConfig.dify_type) }}</span>
               </div>
             </template>
+
+            <!-- 添加变量信息显示 -->
+            <div v-if="customConfig.input_variables && customConfig.input_variables.length > 0" class="info-item">
+              <span class="item-label">输入变量</span>
+              <div class="variable-list">
+                <div v-for="(variable, index) in customConfig.input_variables" :key="index" class="variable-item">
+                  <span>{{ variable }}</span>
+                </div>
+              </div>
+            </div>
           </template>
         </div>
       </div>
@@ -161,16 +171,6 @@
               <div class="config-description">开启后不执行评测，用来调试命令行使用</div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-    
-    <!-- 变量配置部分 -->
-    <div class="config-section" v-if="customConfig.input_variables && customConfig.input_variables.length > 0">
-      <h4>已配置的变量</h4>
-      <div class="variable-list">
-        <div v-for="(variable, index) in customConfig.input_variables" :key="index" class="variable-item">
-          <span>{{ variable }}</span>
         </div>
       </div>
     </div>
@@ -460,6 +460,14 @@ export default {
       } finally {
         this.isSubmitting = false;
       }
+    },
+    formatDifyType(type) {
+      const typeMap = {
+        'Chat': '聊天助手/Agent',
+        'Completion': '文本生成应用',
+        'Workflow': 'Chatflow/工作流'
+      };
+      return typeMap[type] || type;
     }
   },
   watch: {
@@ -789,14 +797,14 @@ export default {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 4px;
 }
 
 .variable-item {
-  padding: 6px 12px;
+  padding: 4px 8px;
   background-color: #f0f4f8;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 12px;
   color: #4a5568;
 }
 </style> 

@@ -188,13 +188,23 @@
             </div>
           </div>
           <div class="add-variable">
-            <input
-              type="text"
-              v-model="newVariable"
-              placeholder="请输入Dify应用对应的变量key"
-              @keydown.enter="addVariable"
-              class="variable-input"
-            />
+            <div class="input-container">
+              <input
+                type="text"
+                v-model="newVariable"
+                placeholder="请输入Dify应用对应的变量key"
+                @keydown.enter="addVariable"
+                @focus="handleInputFocus"
+                @blur="handleInputBlur"
+                class="variable-input"
+              />
+              <button 
+                v-if="showAddButton"
+                type="button"
+                class="add-btn"
+                @click="addVariable"
+              >添加</button>
+            </div>
             <div v-if="variableError" class="error-message">请输入有效的变量key</div>
           </div>
         </div>
@@ -267,7 +277,8 @@ export default {
         { value: 'hk33smarter_api', label: 'HK33 Smarter API' }
       ],
       newVariable: '', // 新增变量输入
-      showVariableInput: false, // 控制变量输入框显示
+      showAddButton: false, // 控制添加按钮显示
+      inputFocused: false, // 输入框是否获得焦点
       variableError: false // 新增变量错误状态
     }
   },
@@ -412,6 +423,22 @@ export default {
         selectedModel: this.selectedModel,
         customApiConfig: this.customApiConfig
       });
+    },
+    handleInputFocus() {
+      this.inputFocused = true;
+      this.showAddButton = true;
+    },
+    handleInputBlur() {
+      this.inputFocused = false;
+      // 延迟隐藏添加按钮，以便点击按钮时不会立即隐藏
+      setTimeout(() => {
+        this.showAddButton = false;
+      }, 200);
+      
+      // 如果输入框有内容但未添加，显示错误提示
+      if (this.newVariable.trim() && !this.difyConfig.input_variables.includes(this.newVariable.trim())) {
+        this.variableError = true;
+      }
     },
     addVariable() {
       if (this.newVariable.trim()) {
@@ -713,5 +740,32 @@ export default {
 
 .required {
   color: #e53e3e;
+}
+
+.input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.add-btn {
+  position: absolute;
+  right: 8px;
+  padding: 4px 8px;
+  background-color: #3182ce;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.3s;
+}
+
+.add-btn:hover {
+  background-color: #2c5282;
+}
+
+.variable-input {
+  padding-right: 60px; /* 为添加按钮留出空间 */
 }
 </style> 
