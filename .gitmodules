@@ -6,4 +6,4 @@
 	url = https://github.com/onenov/Dify2OpenAI.git
 [submodule "libs/Dify2OpenAI"]
 	path = libs/Dify2OpenAI
-	url = https://github.com/onenov/Dify2OpenAI.git
+	url=https://github.com/domonic18/Dify2OpenAI.git
