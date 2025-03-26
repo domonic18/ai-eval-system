@@ -28,6 +28,9 @@ class EvaluationCreate(BaseModel):
     eval_config: Optional[Dict[str, Any]] = Field(default={}, description="评估的配置信息")
     env_vars: Optional[Dict[str, Any]] = Field(default={}, description="环境变量（API_URL/API_KEY等）")
     
+    # 新增input_variables字段
+    input_variables: Optional[List[str]] = Field(default=[], description="输入变量列表")
+    
     # 添加用户ID字段（在控制器中设置，不需要客户端提供）
     user_id: Optional[int] = Field(None, description="创建者用户ID")
     api_type: Optional[str] = Field(None, description="API集成类型")

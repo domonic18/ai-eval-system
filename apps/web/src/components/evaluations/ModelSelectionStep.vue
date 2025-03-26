@@ -172,10 +172,10 @@
         <div class="variable-section" v-if="difyConfig.type">
           <h4>变量配置 <span v-if="isVariableRequired" class="required">*</span></h4>
           <div class="variable-list">
-            <div v-for="(variable, index) in difyConfig.variables" :key="index" class="variable-item">
+            <div v-for="(variable, index) in difyConfig.input_variables" :key="index" class="variable-item">
               <input
                 type="text"
-                v-model="difyConfig.variables[index]"
+                v-model="difyConfig.input_variables[index]"
                 placeholder="请输入Dify应用对应的变量key"
                 @keydown.enter="handleVariableKeydown($event, index)"
                 class="variable-input"
@@ -252,7 +252,7 @@ export default {
         type: 'Chat', // 默认为Chat类型
         url: '',
         key: '',
-        variables: [] // 修改为只存储变量key
+        input_variables: [] // 修改为只存储变量key
       },
       hints: {
         url: false,
@@ -286,7 +286,8 @@ export default {
           type: 'dify',
           dify_type: this.difyConfig.type || 'Chat',
           dify_url: this.difyConfig.url || '',
-          dify_api_key: this.difyConfig.key || ''
+          dify_api_key: this.difyConfig.key || '',
+          input_variables: this.difyConfig.input_variables || []
         };
       }
     },
@@ -305,7 +306,7 @@ export default {
         const baseValid = this.difyConfig.url.trim() !== '' && 
                          this.difyConfig.key.trim() !== '';
         if (this.isVariableRequired) {
-          return baseValid && this.difyConfig.variables.length > 0;
+          return baseValid && this.difyConfig.input_variables.length > 0;
         }
         return baseValid;
       }
@@ -414,7 +415,7 @@ export default {
     },
     addVariable() {
       if (this.newVariable.trim()) {
-        this.difyConfig.variables.push(this.newVariable.trim());
+        this.difyConfig.input_variables.push(this.newVariable.trim());
         this.newVariable = '';
         this.variableError = false;
       } else {
@@ -424,11 +425,11 @@ export default {
     handleVariableKeydown(event, index) {
       if (event.key === 'Enter') {
         event.preventDefault();
-        this.difyConfig.variables[index] = event.target.value;
+        this.difyConfig.input_variables[index] = event.target.value;
       }
     },
     removeVariable(index) {
-      this.difyConfig.variables.splice(index, 1);
+      this.difyConfig.input_variables.splice(index, 1);
     }
   },
   watch: {

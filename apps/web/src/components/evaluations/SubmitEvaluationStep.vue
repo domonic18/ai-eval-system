@@ -165,6 +165,16 @@
       </div>
     </div>
     
+    <!-- 变量配置部分 -->
+    <div class="config-section" v-if="customConfig.input_variables && customConfig.input_variables.length > 0">
+      <h4>已配置的变量</h4>
+      <div class="variable-list">
+        <div v-for="(variable, index) in customConfig.input_variables" :key="index" class="variable-item">
+          <span>{{ variable }}</span>
+        </div>
+      </div>
+    </div>
+    
     <!-- 提交按钮 -->
     <div class="step-buttons">
       <button 
@@ -235,7 +245,8 @@ export default {
         url: '',
         key: '',
         model: '',
-        dify_type: 'Chat'
+        dify_type: 'Chat',
+        input_variables: []
       }
     }
   },
@@ -283,7 +294,8 @@ export default {
               url: configObj.dify_url || '',
               key: configObj.dify_api_key || '',
               dify_type: configObj.dify_type || 'Chat',
-              model: ''  // Dify 不需要 model 字段
+              model: '',  // Dify 不需要 model 字段
+              input_variables: configObj.input_variables || []
             };
           } else {
             // API 配置
@@ -292,7 +304,8 @@ export default {
               url: configObj.api_url || '',
               key: configObj.api_key || '',
               model: configObj.model || '',
-              dify_type: 'Chat'  // 默认值
+              dify_type: 'Chat',  // 默认值
+              input_variables: []
             };
           }
         }
@@ -389,7 +402,10 @@ export default {
           },
           
           // 环境变量
-          env_vars: envVarsObj
+          env_vars: envVarsObj,
+          
+          // 变量配置
+          input_variables: this.customConfig.input_variables || []
         };
 
         console.log('提交评测任务数据结构:', {
@@ -759,5 +775,28 @@ export default {
 .el-input-number ::v-deep(.el-input__inner) {
   padding-left: 8px;
   padding-right: 35px;
+}
+
+/* 变量配置部分样式 */
+.config-section {
+  margin: 20px 0;
+  padding: 15px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+
+.variable-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.variable-item {
+  padding: 6px 12px;
+  background-color: #f0f4f8;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #4a5568;
 }
 </style> 

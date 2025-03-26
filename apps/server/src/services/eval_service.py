@@ -47,7 +47,8 @@ class EvaluationService:
         if eval_data.api_type == "dify":
             eval_data.env_vars = self.adapt_dify_configuration(
                 env_vars=eval_data.env_vars,
-                dify2openai_url=settings.dify2openai_url
+                dify2openai_url=settings.dify2openai_url,
+                input_variables=eval_data.input_variables
             )
 
         try:
@@ -546,7 +547,8 @@ class EvaluationService:
                 
             return archive_path
 
-    def adapt_dify_configuration(self, env_vars: dict, dify2openai_url: str) -> dict:
+    # def adapt_dify_configuration(self, env_vars: dict, dify2openai_url: str) -> dict:‘
+    def adapt_dify_configuration(self, env_vars: dict, dify2openai_url: str, input_variables: List[str]) -> dict:
         """适配Dify平台的特殊配置
         
         Args:
@@ -563,7 +565,7 @@ class EvaluationService:
         # 解决方案：详细查看localhost:3099
         # 1. 原有的env_vars中的API_URL改为settings.dify2openai_url
         # 2. 原有env_vars中的API_KEY保持不变
-        # 3. 原有env_vars中的MODEL改为dify|Chat|原有env_vars中的DIFY_URL
+        # 3. 原有env_vars中的MODEL改为dify|Chat|原有env_vars中的DIFY_URL|{input_variables}  
 
         try:
             # 检查DIFY_TYPE的首字母是否大写，如果没有则将首字母转为大写
@@ -573,6 +575,10 @@ class EvaluationService:
             # 构造MODEL参数格式：dify|{类型}|{DIFY_URL}
             adapted_vars['MODEL'] = f"dify|{adapted_vars['DIFY_TYPE']}|{adapted_vars['DIFY_URL']}"
             
+            # 将input_variables添加到adapted_vars中
+            if input_variables:
+                adapted_vars['MODEL'] = f"{adapted_vars['MODEL']}|{'|'.join(input_variables)}"
+
             # 更新API相关配置
             adapted_vars.update({
                 'API_URL': dify2openai_url,
