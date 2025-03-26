@@ -126,8 +126,9 @@
           <label>Dify应用类型</label>
           <div class="input-with-hint">
             <select v-model="difyConfig.type" class="form-select">
-              <option value="Chat">Chat类型</option>
-              <option value="Workflow">WorkFlow类型</option>
+              <option value="Chat">聊天助手/Agent</option>
+              <option value="Completion">文本生成应用</option>
+              <option value="Workflow">Chatflow/工作流</option>
             </select>
             <button type="button" class="hint-btn" @click="showHint('difyType')">?</button>
           </div>
@@ -165,6 +166,36 @@
           </div>
           <div v-if="hints.difyKey" class="hint-text">
             填写从Dify平台获取的API密钥
+          </div>
+        </div>
+
+        <div class="variable-section" v-if="difyConfig.type">
+          <h4>变量配置 <span v-if="isVariableRequired" class="required">*</span></h4>
+          <div class="variable-list">
+            <div v-for="(variable, index) in difyConfig.variables" :key="index" class="variable-item">
+              <input
+                type="text"
+                v-model="difyConfig.variables[index]"
+                placeholder="请输入Dify应用对应的变量key"
+                @keydown.enter="handleVariableKeydown($event, index)"
+                class="variable-input"
+              />
+              <button 
+                type="button" 
+                class="remove-btn"
+                @click="removeVariable(index)"
+              >×</button>
+            </div>
+          </div>
+          <div class="add-variable">
+            <input
+              type="text"
+              v-model="newVariable"
+              placeholder="请输入Dify应用对应的变量key"
+              @keydown.enter="addVariable"
+              class="variable-input"
+            />
+            <div v-if="variableError" class="error-message">请输入有效的变量key</div>
           </div>
         </div>
       </div>
@@ -220,7 +251,8 @@ export default {
       difyConfig: {
         type: 'Chat', // 默认为Chat类型
         url: '',
-        key: ''
+        key: '',
+        variables: [] // 修改为只存储变量key
       },
       hints: {
         url: false,
@@ -233,7 +265,10 @@ export default {
       modelOptions: [],
       defaultModels: [
         { value: 'hk33smarter_api', label: 'HK33 Smarter API' }
-      ]
+      ],
+      newVariable: '', // 新增变量输入
+      showVariableInput: false, // 控制变量输入框显示
+      variableError: false // 新增变量错误状态
     }
   },
   computed: {
@@ -255,6 +290,9 @@ export default {
         };
       }
     },
+    isVariableRequired() {
+      return this.difyConfig.type === 'Completion'
+    },
     canGoNext() {
       if (this.modelType === 'preset') {
         return this.selectedModel !== null;
@@ -263,8 +301,13 @@ export default {
                this.apiConfig.key.trim() !== '' && 
                this.apiConfig.model.trim() !== '';
       } else {
-        return this.difyConfig.url.trim() !== '' && 
-               this.difyConfig.key.trim() !== '';
+        // 如果是Completion类型，需要验证变量
+        const baseValid = this.difyConfig.url.trim() !== '' && 
+                         this.difyConfig.key.trim() !== '';
+        if (this.isVariableRequired) {
+          return baseValid && this.difyConfig.variables.length > 0;
+        }
+        return baseValid;
       }
     }
   },
@@ -368,6 +411,24 @@ export default {
         selectedModel: this.selectedModel,
         customApiConfig: this.customApiConfig
       });
+    },
+    addVariable() {
+      if (this.newVariable.trim()) {
+        this.difyConfig.variables.push(this.newVariable.trim());
+        this.newVariable = '';
+        this.variableError = false;
+      } else {
+        this.variableError = true;
+      }
+    },
+    handleVariableKeydown(event, index) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        this.difyConfig.variables[index] = event.target.value;
+      }
+    },
+    removeVariable(index) {
+      this.difyConfig.variables.splice(index, 1);
     }
   },
   watch: {
@@ -582,5 +643,74 @@ export default {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+.variable-section {
+  margin-top: 20px;
+  padding: 15px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.variable-section h4 {
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: #4a5568;
+}
+
+.variable-list {
+  margin-bottom: 10px;
+}
+
+.variable-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.variable-input {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+}
+
+.variable-input:focus {
+  outline: none;
+  border-color: #3182ce;
+}
+
+.error-message {
+  color: #e53e3e;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.remove-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background-color: #f8fafc;
+  color: #e53e3e;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remove-btn:hover {
+  background-color: #fed7d7;
+}
+
+.add-variable {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.required {
+  color: #e53e3e;
 }
 </style> 
