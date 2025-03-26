@@ -90,10 +90,10 @@ v0.1：
 ```
 ai-eval-system/
 ├── apps/                             # 主应用目录
-│   ├── web/                          # 前端工程（独立的git仓库）
+│   ├── web/                          # 前端工程
 │   │   ├── src/
 │   │   └── package.json
-│   ├── server/                       # 后端服务（独立的git仓库）
+│   ├── server/                       # 后端服务
 │   │   ├── src/
 │   │   └── start_celery_worker.py    # 启动Celery Worker
 │   │   └── start_fastapi_server.py   # 启动FastAPI服务器
