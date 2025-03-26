@@ -228,7 +228,7 @@ class RunnerBase:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
-                bufsize=1,
+                bufsize=0,
                 universal_newlines=True,
                 cwd=self.working_dir
             )

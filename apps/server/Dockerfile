@@ -20,6 +20,9 @@ RUN apt-get update && apt-get install -y \
 # 1.3 创建专用用户
 RUN adduser --disabled-password --gecos "" appuser
 
+# 给appuser用户足够权限
+RUN usermod -a -G root appuser
+
 # 2. 复制项目文件
 # 2.1 复制requirements文件
 COPY requirements.txt .
@@ -60,6 +63,7 @@ ENV COMPASS_DATA_CACHE=/app/workspace/opencompass \
 ENV PYTHONPATH=/app
 ENV WORKING_DIR=/app/workspace
 ENV OPENCOMPASS_WORK_DIR=${WORKING_DIR}/opencompass
+ENV PYTHONUNBUFFERED=1
 
 # 4.2 创建目录并赋权
 RUN mkdir -p ${WORKING_DIR}/logs ${WORKING_DIR}/data ${OPENCOMPASS_WORK_DIR} \
