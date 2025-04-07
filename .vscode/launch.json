@@ -56,6 +56,24 @@
                 "uriFormat": "%s",
                 "action": "openExternally"
             }
+        },
+        {
+            "name": "OpenCompass",
+            "type": "python",
+            "request": "launch",
+            "module": "opencompass.cli.main",
+            "cwd": "${workspaceFolder}/libs/OpenCompass",
+            "python": "${command:python.interpreterPath}",
+            "env": {
+                "MODEL": "dify|Chat|https://guanghua.bj33smarter.com/v1",
+                "API_KEY": "app-Nxx2HHBcj5HILd7rIXx4jrGa",
+                "API_URL": "http://localhost:3099/v1/"
+            },
+            "args": [
+                "--models", "custom_api", 
+                "--datasets", "demo_hk33_chat_gen", 
+                "--work-dir", "/Users/deadwalk/Code/proj_evaluation/ai-eval-system/workspace/logs/eval_41", 
+                "--debug", "-m", "all"]
         }
     ],
     "compounds": [
