@@ -54,35 +54,6 @@
         </div>
       </div>
       
-      <!-- 评测指标部分 -->
-      <div class="result-metrics" v-if="resultData.results && resultData.results.metrics">
-        <h3>评测指标</h3>
-        <div class="metrics-table-container">
-          <table class="metrics-table">
-            <thead>
-              <tr>
-                <th>数据集</th>
-                <th>准确率</th>
-                <th>其他指标</th>
-              </tr>
-            </thead>
-            <tbody>
-              <template v-for="(modelMetrics, modelName) in resultData.results.metrics">
-                <tr v-for="(datasetMetric, datasetName) in modelMetrics" :key="`${modelName}-${datasetName}`">
-                  <td>{{ datasetName }}</td>
-                  <td>{{ formatPercent(datasetMetric.accuracy) }}</td>
-                  <td>
-                    <span v-for="(value, key) in getAdditionalMetrics(datasetMetric)" :key="key" class="metric-badge">
-                      {{ key }}: {{ formatMetricValue(value) }}
-                    </span>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      
       <!-- 摘要部分 -->
       <div class="result-summary-data" v-if="resultData.results && resultData.results.summary && resultData.results.summary.length">
         <h3>评测摘要</h3>
