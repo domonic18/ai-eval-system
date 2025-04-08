@@ -2,7 +2,7 @@ services:
   web:
     build:
       context: ..
-      dockerfile: apps/web/Dockerfile
+      dockerfile: docker/web/Dockerfile
       args:
         - DOCKER_ENV=true
     expose:
