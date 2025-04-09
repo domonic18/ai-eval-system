@@ -19,9 +19,25 @@ RUN apt-get update && apt-get install -y \
 
 # 1.3 创建专用用户
 RUN adduser --disabled-password --gecos "" appuser
-
 # 给appuser用户足够权限
 RUN usermod -a -G root appuser
+
+# 1.4 设置环境变量和目录
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV TZ=Asia/Shanghai
+
+ENV DATASET_SOURCE=ModelScope
+ENV HF_ENDPOINT=https://hf-mirror.com
+
+ENV COMPASS_DATA_CACHE=/app/workspace/opencompass \
+    HF_DATASETS_CACHE=/app/workspace/huggingface \
+    HF_HOME=/app/workspace/huggingface \
+    MODELSCOPE_CACHE=/app/workspace/modelscope
+ENV PYTHONPATH=/app
+ENV WORKING_DIR=/app/workspace
+ENV OPENCOMPASS_WORK_DIR=${WORKING_DIR}/opencompass
+
 
 # 2. 复制项目文件
 # 2.1 复制requirements文件
@@ -48,25 +64,15 @@ RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua
 
 # 3.3 安装项目依赖
 RUN pip install --no-cache-dir -e . -i https://pypi.tuna.tsinghua.edu.cn/simple
+
 # 3.4 安装modelscope
 RUN pip install --no-cache-dir modelscope[framework] -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 3.5 安装T-eval
 RUN pip install --no-cache-dir lagent==0.1.2 -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-# 4. 设置环境变量和目录
-# 4.1 设置环境变量
-ENV DATASET_SOURCE=ModelScope
-ENV HF_ENDPOINT=https://hf-mirror.com
-ENV COMPASS_DATA_CACHE=/app/workspace/opencompass \
-    HF_HOME=/app/workspace/huggingface \
-    MODELSCOPE_CACHE=/app/workspace/modelscope
-ENV PYTHONPATH=/app
-ENV WORKING_DIR=/app/workspace
-ENV OPENCOMPASS_WORK_DIR=${WORKING_DIR}/opencompass
-ENV PYTHONUNBUFFERED=1
 
-# 4.2 创建目录并赋权
+# 4. 创建目录并赋权
 RUN mkdir -p ${WORKING_DIR}/logs ${WORKING_DIR}/data ${OPENCOMPASS_WORK_DIR} \
     /app/workspace/opencompass \
     /app/workspace/huggingface \
@@ -79,6 +85,5 @@ RUN mkdir -p ${WORKING_DIR}/logs ${WORKING_DIR}/data ${OPENCOMPASS_WORK_DIR} \
 # 4.3 切换用户
 USER appuser
 
-    
-# 4.4 启动服务
-CMD ["uvicorn", "apps.server.src.main:app", "--host", "0.0.0.0", "--port", "8000"] 
+# 默认命令（Celery Worker）
+CMD ["celery", "-A", "celery_app:celery_app", "worker", "--loglevel=INFO", "--concurrency=1", "-Q", "eval_tasks"]

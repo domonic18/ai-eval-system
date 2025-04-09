@@ -24,7 +24,7 @@ services:
   api:
     build:
       context: ..
-      dockerfile: apps/server/Dockerfile
+      dockerfile: docker/api/Dockerfile
     volumes:
       - ../workspace:/app/workspace
     command: uvicorn apps.server.src.main:app --host 0.0.0.0 --port 8000
@@ -54,7 +54,7 @@ services:
   celery_worker:
     build:
       context: ..
-      dockerfile: apps/server/Dockerfile
+      dockerfile: docker/celery_worker/Dockerfile
     volumes:
       - ../workspace:/app/workspace
       - ../datasets:/app/workspace/opencompass
