@@ -87,6 +87,16 @@ INSERT INTO datasets (
     1
 ),
 (
+    'gaia_gen', 
+    'GAIA数据集，这是一种严苛的评估Agent通用能力评测的数据集，其中包含165个任务，每个任务都需要agent借助外部工具来完成。', 
+    '智能体', 
+    'benchmark', 
+    '/data/gaia', 
+    '{"format": "chat"}', 
+    1, 
+    1
+),
+(
     'demo_hk33_chat_gen', 
     '一个用于Agent通用能力评测的数据集，包含：FewCLUE、BBH、MMLU-Pro、TruthfulQA各10条，主要用于评测Agent的基础语义理解能力、复杂任务推理能力、阐述事实的真实性以及安全性评测。', 
     '智能体', 
