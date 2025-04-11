@@ -1,36 +1,46 @@
 # 核心依赖
 fastapi>=0.103.1
-uvicorn>=0.23.2
-celery
-torch
-torchvision
-torchaudio
+uvicorn[standard]>=0.23.2  # 添加standard版本以支持WebSocket
+celery>=5.3.6
+torch>=2.1.0
+torchvision>=0.16.0
+torchaudio>=2.1.0
+
+# WebSocket相关
+websockets>=12.0  # 添加WebSocket支持
+wsproto>=1.2.0   # 添加WebSocket协议支持
 
 # 数据库相关
 sqlalchemy[asyncio]>=2.0.30
 asyncmy>=0.2.7
 alembic>=1.12.0
 redis>=5.0.0
-aioredis
-aiomysql
+aioredis>=2.0.1
+aiomysql>=0.2.0
 
 # 其他依赖
 python-dotenv>=1.0.0
 pydantic>=2.3.0
 pydantic-settings>=2.0.3
-pydantic[email]
+pydantic[email]>=2.3.0
 python-jose[cryptography]>=3.3.0
 python-multipart>=0.0.6
-pymysql
-psutil
+pymysql>=1.1.0
+psutil>=5.9.0
 
 # 密码相关
-passlib
+passlib>=1.7.4
 cryptography>=42.0.0
-bcrypt
+bcrypt>=4.0.1
 httpx>=0.24.1
 
 # 测试相关
-pytest>=7.4.2 
+pytest>=7.4.2
 
+# HuggingFace相关
+datasets>=2.14.0
+huggingface-hub>=0.19.0
+transformers>=4.34.0
 
+# 日志相关
+loguru>=0.7.2  # 更好的日志支持
