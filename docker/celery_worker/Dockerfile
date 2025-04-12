@@ -38,7 +38,6 @@ ENV PYTHONPATH=/app
 ENV WORKING_DIR=/app/workspace
 ENV OPENCOMPASS_WORK_DIR=${WORKING_DIR}/opencompass
 
-
 # 2. 复制项目文件
 # 2.1 复制requirements文件
 COPY requirements.txt .

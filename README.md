@@ -232,6 +232,20 @@ npm run dev
 前端服务将在 http://localhost:5173 启动，可以通过访问 http://localhost:5173 查看评测系统UI。
 
 
+## 下载数据
+由于OpenCompass的评测任务需要依赖大量的数据集，因此需要提前下载好数据集。
+
+### 1. 下载数据集
+```bash
+cd workspace
+modelscope download --dataset AI-ModelScope/GAIA --local_dir ./opencompass/data/GAIA
+```
+> 备注：
+> 1. 下载数据集时，需要先安装modelscope，安装方法如下：
+> ```bash
+> pip install modelscope
+> ```
+
 ## TODO
 基础建设
 - [ ] 集成OpenCompass多模态任务的评测引擎VLMEvalKit
