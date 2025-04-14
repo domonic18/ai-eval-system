@@ -67,10 +67,6 @@ RUN pip install --no-cache-dir -e . -i https://pypi.tuna.tsinghua.edu.cn/simple
 # 3.4 安装modelscope
 RUN pip install --no-cache-dir modelscope[framework] -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-# 3.5 安装T-eval
-RUN pip install --no-cache-dir lagent==0.1.2 -i https://pypi.tuna.tsinghua.edu.cn/simple
-
-
 # 4. 创建目录并赋权
 RUN mkdir -p ${WORKING_DIR}/logs ${WORKING_DIR}/data ${OPENCOMPASS_WORK_DIR} \
     /app/workspace/opencompass \

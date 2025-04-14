@@ -77,16 +77,6 @@ INSERT INTO datasets (
     1
 ),
 (
-    'teval_zh_gen', 
-    'T-Eval中文数据集，用于评估 复杂任务分解与规划能力 的基准测试集，重点关注模型将高层目标拆解为可执行子任务的系统性能力。', 
-    '智能体', 
-    'benchmark', 
-    '/data/teval_zh', 
-    '{"format": "chat"}', 
-    1, 
-    1
-),
-(
     'gaia_gen', 
     'GAIA数据集，这是一种严苛的评估Agent通用能力评测的数据集，其中包含165个任务，每个任务都需要agent借助外部工具来完成。', 
     '智能体', 
