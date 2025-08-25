@@ -7,11 +7,9 @@
 from .base import BaseDatasetProcessor
 from .ceval import CEvalProcessor
 from .ocnli import OCNLIProcessor
-from .truthfulqa import TruthfulQAProcessor
 
 __all__ = [
     'BaseDatasetProcessor',
     'CEvalProcessor', 
-    'OCNLIProcessor',
-    'TruthfulQAProcessor'
+    'OCNLIProcessor'
 ]

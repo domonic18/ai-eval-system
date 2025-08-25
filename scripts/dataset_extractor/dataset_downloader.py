@@ -26,16 +26,17 @@ class DatasetDownloader:
             self.downloaders['opencompass'] = OpenCompassDownloader()
         except ImportError as e:
             print(f"⚠️  OpenCompass下载器初始化失败: {e}")
-        
-        try:
-            from downloaders.truthfulqa import TruthfulQADownloader
-            self.downloaders['truthfulqa'] = TruthfulQADownloader()
-        except ImportError as e:
-            print(f"⚠️  TruthfulQA下载器初始化失败: {e}")
+    
+    def _get_dataset_config(self, dataset_name: str) -> dict:
+        """获取数据集配置"""
+        from config import SUPPORTED_DATASETS
+        if dataset_name not in SUPPORTED_DATASETS:
+            raise ValueError(f"不支持的数据集: {dataset_name}")
+        return SUPPORTED_DATASETS[dataset_name]
     
     def download_dataset(self, dataset_name: str) -> bool:
         """
-        下载指定的数据集
+        下载指定数据集
         
         Args:
             dataset_name: 数据集名称
@@ -43,11 +44,7 @@ class DatasetDownloader:
         Returns:
             bool: 是否下载成功
         """
-        if dataset_name not in get_supported_datasets():
-            print(f"❌ 不支持的数据集: {dataset_name}")
-            return False
-        
-        dataset_config = get_dataset_config(dataset_name)
+        dataset_config = self._get_dataset_config(dataset_name)
         print(f"🔄 开始下载 {dataset_config['name']} 数据集...")
         
         # 根据数据集类型选择下载器
@@ -57,13 +54,6 @@ class DatasetDownloader:
                 return self.downloaders['opencompass'].download_dataset(dataset_name)
             else:
                 print("❌ OpenCompass下载器不可用")
-                return False
-        elif dataset_name == "truthfulqa":
-            # 使用TruthfulQA下载器
-            if 'truthfulqa' in self.downloaders:
-                return self.downloaders['truthfulqa'].download_dataset(dataset_name)
-            else:
-                print("❌ TruthfulQA下载器不可用")
                 return False
         else:
             print(f"❌ 没有可用的下载器支持 {dataset_name}")

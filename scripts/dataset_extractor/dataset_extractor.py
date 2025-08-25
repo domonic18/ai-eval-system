@@ -61,10 +61,6 @@ class DatasetExtractor:
                 from processors.ocnli import OCNLIProcessor
                 processor = OCNLIProcessor(self.dataset_name)
                 return processor.process(**kwargs)
-            elif self.dataset_name == "truthfulqa":
-                from processors.truthfulqa import TruthfulQAProcessor
-                processor = TruthfulQAProcessor(self.dataset_name)
-                return processor.process(**kwargs)
             else:
                 print(f"❌ 不支持的数据集类型: {self.dataset_name}")
                 return False

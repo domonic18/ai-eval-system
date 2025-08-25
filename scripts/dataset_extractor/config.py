@@ -51,35 +51,18 @@ SUPPORTED_DATASETS = {
         "fields": ['sentence1', 'sentence2', 'label'],
         "subject_field": None,
         "output_dir": "ocnli"
-    },
-    "truthfulqa": {
-        "name": "TruthfulQA",
-        "type": "TruthfulQADataset",
-        "paths": [
-            "./cache/data/truthful_qa",
-            "../workspace/opencompass/data/truthful_qa",
-            "../../workspace/opencompass/data/truthful_qa",
-            "~/.cache/opencompass/data/truthful_qa",
-            "~/.cache/huggingface/datasets/truthful_qa"
-        ],
-        "file_extension": ".json",
-        "fields": ['question', 'best_answer', 'correct_answers', 'incorrect_answers'],
-        "subject_field": None,
-        "output_dir": "truthfulqa"
     }
 }
 
 # ==================== 数据集下载配置 ====================
 DATASET_IDS = {
     "ceval": "opencompass/ceval-exam",
-    "ocnli": "opencompass/OCNLI-dev",
-    "truthfulqa": "truthful_qa"
+    "ocnli": "opencompass/OCNLI-dev"
 }
 
 EXPECTED_DATA_STRUCTURE = {
     "ceval": "data/ceval/formal_ceval",
-    "ocnli": "data/FewCLUE/ocnli",
-    "truthfulqa": "data/truthful_qa"
+    "ocnli": "data/FewCLUE/ocnli"
 }
 
 # ==================== 环境变量配置 ====================
