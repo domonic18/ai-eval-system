@@ -19,6 +19,36 @@ import pandas as pd
 DEFAULT_DATASET_NAME = "ceval"
 DEFAULT_OUTPUT_FORMAT = "both"  # excel, csv, both
 
+# 支持的数据集列表
+SUPPORTED_DATASETS = {
+    "ceval": {
+        "name": "C-EVAL",
+        "type": "CEvalDataset",
+        "paths": [
+            "./cache/data/ceval/formal_ceval",
+            "../workspace/opencompass/data/ceval/formal_ceval",
+            "../../workspace/opencompass/data/ceval/formal_ceval",
+            "~/.cache/opencompass/data/ceval/formal_ceval"
+        ],
+        "file_extension": "_val.csv",
+        "fields": ['explanation', 'answer'],
+        "subject_field": 'subject'
+    },
+    "ocnli": {
+        "name": "FewCLUE/OCNLI",
+        "type": "CMNLIDatasetV2", 
+        "paths": [
+            "./cache/data/FewCLUE/ocnli",
+            "../workspace/opencompass/data/FewCLUE/ocnli",
+            "../../workspace/opencompass/data/FewCLUE/ocnli",
+            "~/.cache/opencompass/data/FewCLUE/ocnli"
+        ],
+        "file_extension": ".json",
+        "fields": ['sentence1', 'sentence2', 'label'],
+        "subject_field": None
+    }
+}
+
 # 路径配置
 # OpenCompass库路径
 OPENCOMPASS_LIB_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'libs', 'OpenCompass')
@@ -73,53 +103,231 @@ except ImportError:
 class DatasetExtractor:
     """数据集提取器基类"""
     
-    def __init__(self, dataset_name: str = DEFAULT_DATASET_NAME):
-        # 在当前脚本目录下创建数据集名称目录
-        script_dir = Path(__file__).parent
-        self.output_dir = script_dir / dataset_name
+    def __init__(self, dataset_name: str):
+        """
+        初始化数据集提取器
+        
+        Args:
+            dataset_name: 数据集名称，如 'ceval', 'ocnli'
+        """
+        self.dataset_name = dataset_name
+        
+        # 验证数据集是否支持
+        if dataset_name not in SUPPORTED_DATASETS:
+            raise ValueError(f"不支持的数据集: {dataset_name}。支持的数据集: {list(SUPPORTED_DATASETS.keys())}")
+        
+        # 获取数据集配置
+        self.dataset_config = SUPPORTED_DATASETS[dataset_name]
+        self.dataset_type = self.dataset_config["type"]
+        self.dataset_paths = self.dataset_config["paths"]
+        self.file_extension = self.dataset_config["file_extension"]
+        self.fields = self.dataset_config["fields"]
+        self.subject_field = self.dataset_config["subject_field"]
+        
+        # 设置输出目录
+        self.output_dir = Path(f"./{dataset_name}")
         self.output_dir.mkdir(exist_ok=True)
-        print(f"输出目录: {self.output_dir.absolute()}")
+        
+        print(f"✅ 初始化 {self.dataset_config['name']} 数据集提取器")
+        print(f"📁 输出目录: {self.output_dir.absolute()}")
         
     def extract_dataset(self, dataset_name: str, **kwargs) -> bool:
-        """提取数据集的主要方法"""
-        raise NotImplementedError("子类必须实现此方法")
+        """
+        提取数据集
+        
+        Args:
+            dataset_name: 数据集名称
+            **kwargs: 其他参数
+            
+        Returns:
+            bool: 是否成功
+        """
+        try:
+            # 根据数据集类型调用相应的提取逻辑
+            if dataset_name == "ceval":
+                return self._extract_ceval_dataset(**kwargs)
+            elif dataset_name == "ocnli":
+                return self._extract_ocnli_dataset(**kwargs)
+            else:
+                print(f"❌ 不支持的数据集类型: {dataset_name}")
+                return False
+        except Exception as e:
+            print(f"❌ 提取数据集时发生错误: {e}")
+            return False
     
     def save_to_excel(self, data: List[Dict], filename: str, sheet_name: str = "Sheet1"):
         """保存数据到Excel文件"""
-        if not data:
-            print(f"警告: 没有数据可保存到 {filename}")
-            return False
-            
-        df = pd.DataFrame(data)
-        output_path = self.output_dir / filename
-        
         try:
-            with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
+            df = pd.DataFrame(data)
+            filepath = self.output_dir / filename
+            
+            with pd.ExcelWriter(filepath, engine='openpyxl') as writer:
                 df.to_excel(writer, sheet_name=sheet_name, index=False)
-            print(f"数据已保存到: {output_path}")
-            return True
+            
+            print(f"✅ Excel文件保存成功: {filepath}")
+            
         except Exception as e:
-            print(f"保存Excel文件失败: {e}")
-            return False
+            print(f"❌ 保存Excel文件失败: {e}")
     
     def save_to_csv(self, data: List[Dict], filename: str):
         """保存数据到CSV文件"""
-        if not data:
-            print(f"警告: 没有数据可保存到 {filename}")
-            return False
-            
-        output_path = self.output_dir / filename
-        
         try:
-            with open(output_path, 'w', newline='', encoding='utf-8') as f:
-                if data:
-                    writer = csv.DictWriter(f, fieldnames=data[0].keys())
-                    writer.writeheader()
-                    writer.writerows(data)
-            print(f"数据已保存到: {output_path}")
-            return True
+            df = pd.DataFrame(data)
+            filepath = self.output_dir / filename
+            
+            df.to_csv(filepath, index=False, encoding='utf-8')
+            print(f"✅ CSV文件保存成功: {filepath}")
+            
         except Exception as e:
-            print(f"保存CSV文件失败: {e}")
+            print(f"❌ 保存CSV文件失败: {e}")
+    
+    def _find_data_path(self) -> Optional[str]:
+        """
+        查找数据集的根目录路径
+        
+        Returns:
+            str: 找到的根目录路径，如果未找到则返回None
+        """
+        for path in self.dataset_paths:
+            expanded_path = os.path.expanduser(path)
+            if os.path.exists(expanded_path):
+                return expanded_path
+        return None
+    
+    def _extract_ceval_dataset(self, **kwargs) -> bool:
+        """提取C-EVAL数据集的基础方法"""
+        print(f"🔄 开始提取 {self.dataset_config['name']} 数据集...")
+        # 这里可以添加C-EVAL的通用提取逻辑
+        return False
+    
+    def _extract_ocnli_dataset(self, **kwargs) -> bool:
+        """
+        提取OCNLI数据集
+        
+        Returns:
+            bool: 是否成功
+        """
+        print(f"\n🔄 开始提取 {self.dataset_config['name']} 数据集...")
+        
+        # 查找数据文件
+        data_path = self._find_data_path()
+        if not data_path:
+            print(f"❌ 找不到 {self.dataset_config['name']} 数据目录")
+            return False
+        
+        print(f"📂 找到数据目录: {data_path}")
+        
+        # 读取数据文件
+        data_files = []
+        for split in ['dev_few_all', 'test_public']:
+            file_path = os.path.join(data_path, f"{split}.json")
+            if os.path.exists(file_path):
+                data_files.append((split, file_path))
+        
+        if not data_files:
+            print(f"❌ 在 {data_path} 中找不到数据文件")
+            return False
+        
+        all_data = []
+        
+        # 处理每个数据文件
+        for split_name, file_path in data_files:
+            print(f"📖 正在读取 {split_name} 数据...")
+            
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    split_data = []
+                    for line_num, line in enumerate(f, 1):
+                        try:
+                            item = json.loads(line.strip())
+                            # 添加分割信息
+                            item['split'] = split_name
+                            split_data.append(item)
+                        except json.JSONDecodeError as e:
+                            print(f"⚠️  第 {line_num} 行JSON解析错误: {e}")
+                            continue
+                    
+                    print(f"✅ {split_name} 数据读取完成，共 {len(split_data)} 条记录")
+                    all_data.extend(split_data)
+                    
+            except Exception as e:
+                print(f"❌ 读取 {file_path} 时发生错误: {e}")
+                continue
+        
+        if not all_data:
+            print("❌ 没有读取到任何数据")
+            return False
+        
+        print(f"📊 总共读取到 {len(all_data)} 条记录")
+        
+        # 保存数据
+        return self._save_ocnli_data(all_data)
+    
+    def _save_ocnli_data(self, data: List[Dict]) -> bool:
+        """
+        保存OCNLI数据
+        
+        Args:
+            data: 数据列表
+            
+        Returns:
+            bool: 是否成功
+        """
+        try:
+            # 创建DataFrame
+            df = pd.DataFrame(data)
+            
+            # 重新排列列顺序
+            columns = ['split', 'sentence1', 'sentence2', 'label']
+            # 添加其他可能存在的列
+            for col in df.columns:
+                if col not in columns:
+                    columns.append(col)
+            
+            df = df[columns]
+            
+            # 保存为Excel
+            excel_filename = f"ocnli_data{EXCEL_EXTENSION}"
+            excel_path = self.output_dir / excel_filename
+            
+            with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
+                # 所有数据工作表
+                df.to_excel(writer, sheet_name='OCNLI_All_Data', index=False)
+                
+                # 按分割分组的工作表
+                for split in df['split'].unique():
+                    split_df = df[df['split'] == split]
+                    sheet_name = f'OCNLI_{split.replace("_", " ").title()}'
+                    # Excel工作表名称限制为31个字符
+                    if len(sheet_name) > 31:
+                        sheet_name = sheet_name[:31]
+                    split_df.to_excel(writer, sheet_name=sheet_name, index=False)
+            
+            print(f"✅ Excel文件保存成功: {excel_path}")
+            
+            # 保存为CSV
+            csv_filename = f"ocnli_data{CSV_EXTENSION_OUT}"
+            csv_path = self.output_dir / csv_filename
+            df.to_csv(csv_path, index=False, encoding='utf-8')
+            print(f"✅ CSV文件保存成功: {csv_path}")
+            
+            # 输出统计信息
+            print(f"\n📈 数据统计:")
+            print(f"   总记录数: {len(data)}")
+            print(f"   分割分布:")
+            for split in df['split'].unique():
+                count = len(df[df['split'] == split])
+                print(f"     {split}: {count} 条")
+            
+            print(f"   标签分布:")
+            for label in df['label'].unique():
+                count = len(df[df['label'] == label])
+                print(f"     {label}: {count} 条")
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ 保存数据时发生错误: {e}")
             return False
 
 

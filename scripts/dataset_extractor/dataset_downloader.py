@@ -13,7 +13,7 @@ from pathlib import Path
 # ==================== 配置常量 ====================
 # 数据集相关配置
 DEFAULT_DATASET_NAME = "ceval"
-SUPPORTED_DATASETS = ["ceval"]  # 支持的数据集列表
+SUPPORTED_DATASETS = ["ceval", "ocnli"]  # 支持的数据集列表
 
 # 路径配置
 # OpenCompass库路径
@@ -24,13 +24,19 @@ CACHE_DIR_NAME = "cache"
 DEFAULT_CACHE_DIR = "./cache"  # 相对于脚本目录的默认缓存路径
 
 # 数据集ID配置
-CEVAL_DATASET_ID = "opencompass/ceval-exam"
+DATASET_IDS = {
+    "ceval": "opencompass/ceval-exam",
+    "ocnli": "opencompass/OCNLI-dev"
+}
 
 # 环境变量配置
 ENV_COMPASS_DATA_CACHE = "COMPASS_DATA_CACHE"
 
 # 预期数据路径配置
-EXPECTED_DATA_STRUCTURE = "data/ceval/formal_ceval"
+EXPECTED_DATA_STRUCTURE = {
+    "ceval": "data/ceval/formal_ceval",
+    "ocnli": "data/FewCLUE/ocnli"
+}
 
 # 错误消息配置
 ERROR_MESSAGES = {
@@ -91,11 +97,11 @@ class DatasetDownloader:
             print(INFO_MESSAGES["cache_dir"].format(self.cache_dir.absolute()))
             
             # 这里会触发自动下载
-            data_path = get_data_path(CEVAL_DATASET_ID, local_mode=False)
+            data_path = get_data_path(DATASET_IDS["ceval"], local_mode=False)
             print(INFO_MESSAGES["dataset_path"].format(data_path))
             
             # 检查是否下载成功
-            expected_path = self.cache_dir / EXPECTED_DATA_STRUCTURE
+            expected_path = self.cache_dir / EXPECTED_DATA_STRUCTURE["ceval"]
             if expected_path.exists():
                 print(SUCCESS_MESSAGES["download_success"])
                 print(SUCCESS_MESSAGES["data_location"].format(expected_path))
@@ -108,13 +114,56 @@ class DatasetDownloader:
             print(ERROR_MESSAGES["download_failed"].format(e))
             return False
     
-    def download_dataset(self, dataset_name: str) -> bool:
-        """下载指定数据集"""
-        if dataset_name.lower() == DEFAULT_DATASET_NAME:
-            return self.download_ceval()
-        else:
+    def download_dataset(self, dataset_name: str = DEFAULT_DATASET_NAME) -> bool:
+        """
+        下载指定的数据集
+        
+        Args:
+            dataset_name: 数据集名称，如 'ceval', 'ocnli'
+            
+        Returns:
+            bool: 是否下载成功
+        """
+        if dataset_name not in SUPPORTED_DATASETS:
             print(ERROR_MESSAGES["dataset_not_supported"].format(dataset_name))
             return False
+            
+        print(INFO_MESSAGES["start_download"].replace("C-EVAL", self._get_dataset_display_name(dataset_name)))
+        print(INFO_MESSAGES["cache_dir"].format(self.cache_dir.absolute()))
+        
+        try:
+            # 设置环境变量
+            os.environ[ENV_COMPASS_DATA_CACHE] = str(self.cache_dir.absolute())
+            
+            # 获取数据集ID
+            dataset_id = DATASET_IDS[dataset_name]
+            print(INFO_MESSAGES["dataset_path"].format(dataset_id))
+            
+            # 这里会触发自动下载
+            data_path = get_data_path(dataset_id, local_mode=False)
+            print(INFO_MESSAGES["dataset_path"].format(data_path))
+            
+            # 检查是否下载成功
+            expected_path = self.cache_dir / EXPECTED_DATA_STRUCTURE[dataset_name]
+            if expected_path.exists():
+                print(SUCCESS_MESSAGES["download_success"].replace("C-EVAL", self._get_dataset_display_name(dataset_name)))
+                print(SUCCESS_MESSAGES["data_location"].format(expected_path.absolute()))
+                return True
+            else:
+                print(ERROR_MESSAGES["download_may_failed"])
+                return False
+                
+        except Exception as e:
+            print(ERROR_MESSAGES["download_failed"].format(str(e)))
+            return False
+    
+    def _get_dataset_display_name(self, dataset_name: str) -> str:
+        """获取数据集的显示名称"""
+        display_names = {
+            "ceval": "C-EVAL",
+            "ocnli": "FewCLUE/OCNLI"
+        }
+        return display_names.get(dataset_name, dataset_name)
 
 
 def main():
